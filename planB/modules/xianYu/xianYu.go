@@ -1,6 +1,5 @@
-package XianYu
+package xianYu
 
-import "C"
 import (
 	"fmt"
 	"os"
@@ -19,16 +18,9 @@ type XianYuDLL struct {
 	Dll         *syscall.DLL
 	freeCString *syscall.Proc // 释放C字符串
 }
-type XianYuErrorResponse struct {
-	ErrorCode int64   `json:"error_code"` // 错误码
-	ErrorMsg  string  `json:"error_msg"`  // 错误信息
-	SubCode   *string `json:"sub_code"`   // 子错误码
-	SubMsg    string  `json:"sub_msg"`    // 子错误信息
-	RequestID string  `json:"request_id"` // 请求ID
-}
 
-// InitXianYuSO 初始化 XianYuDLL
-func InitXianYuSO() (*XianYuDLL, error) {
+// InitXianYuDll 初始化 XianYuDLL
+func InitXianYuDll() (*XianYuDLL, error) {
 	if gXianYuDll != nil {
 		return gXianYuDll, nil
 	}

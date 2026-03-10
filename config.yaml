@@ -1,0 +1,59 @@
+server:
+  port: "8080"  #服务器端口
+  filter: 0 #是否开启违禁词过滤器  0=关闭 1=开启
+  replaceMark: "0" #标题违规词是否替换*  0 不替换  1 替换（替换会继续发布，不替换则不发布）
+alive:
+  fluent: 50 #存活状态-流程时间（毫秒）
+  slow: 200 #存活状态-缓慢时间（毫秒）
+poolConfig:
+  size: 500 #协程数量
+  withExpiryDuration: 10 #过期时间
+  withPreAlloc: true #预分配
+  withMaxBlockingTasks: 2000 #阻塞任务数
+  withNonblocking : true #非阻塞
+mysqlConfig:
+  dbName: "task_user" #数据库名称
+  user: "root"  #数据库用户名
+  password: "root"  #数据库密码
+  host: "127.0.0.1" #数据库地址
+  port: 3306  #数据库端口
+  loglevel: "info"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
+  maxRetryTimes: 3  #数据库重试次数
+  baseRetryInterval: 100  #数据库重试间隔（毫秒）
+  maxRetryInterval: 3 #数据库最大重试间隔（秒）
+  maxOpenConns: 100 #数据库最大打开连接数
+  maxIdleConns: 20 #数据库最大空闲连接数
+  connMaxIdleTime: 30 #数据库连接最大空闲时间（分钟）
+  connMaxLifetime: 1  #数据库连接最大生命周期（小数）
+redisConfig:
+  - dbName: "任务池"
+    db: 0
+    addr: "127.0.0.1:6379"
+    password: ""
+  - dbName: "书品库"
+    db: 1
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
+  - dbName: "店铺信息"
+    db: 2
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
+  - dbName: "出版社信息列表"
+    db: 3
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
+pddConfig:
+  clientId: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
+  clientSecret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret
+httpUrl:
+  taskUrl: "http://127.0.0.1:8080"  #A程序接口地址
+fileUrl:
+  xianYuDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\xianyu"  #闲鱼 DLL库路径
+  pddDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\pdd"  #拼多多 DLL库路径
+  logDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\logs"  #日志 DLL库路径
+  bFileName: "D:\\www\\wwwroot\\planA\\planB\\planB.exe"   #B 程序文件路径
+  createTaskUrl: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
+  createTaskNoticeUrl: "http://36.212.1.63:8055/task" #核价软件提交数据通知接口
+  BannedWordSubstitutionUrl : "http://36.212.16.27:13001/task/getFilterSetNew" #违禁词替换接口
+  pddTokenUrl: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
+  deductionUrl: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口

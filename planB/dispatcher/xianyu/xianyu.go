@@ -104,7 +104,7 @@ func (xianYu *XianYu) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _type.Ta
 	//TODO
 	// 构建参数
 	var goodsAdd GoodsAdd
-	xianYuDll, err := xianYuDll.InitXianYuSO()
+	xianYuDllClient, err := xianYuDll.InitXianYuDll()
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("初始化拼多多DLL失败 %v", err))
 	}
@@ -239,7 +239,7 @@ func (xianYu *XianYu) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _type.Ta
 	}
 
 	// 新增商品
-	_, xianYuGoodsAddErr := xianYuDll.XianYuGoodsAdd(string(bodyJson), golabl.MainConfig.FileUrl.XianYuDll)
+	_, xianYuGoodsAddErr := xianYuDllClient.XianYuGoodsAdd(string(bodyJson), golabl.MainConfig.FileUrl.XianYuDll)
 	if xianYuGoodsAddErr != nil {
 		return "", xianYuGoodsAddErr
 	}

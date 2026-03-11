@@ -124,13 +124,13 @@ func InitializeLogger(logDir string) error {
 	// 创建logger配置
 	config := LoggerConfig{
 		LogDir:          logDir,
-		SplitType:       1,                 // SplitByDay
-		RotateType:      0,                 // RotateBySize
-		MaxSize:         100 * 1024 * 1024, // 100MB
-		MaxCount:        10,
-		Level:           1, // LevelInfo - 只显示INFO及以上级别的日志
-		EnableCaller:    true,
-		DefaultTaskType: "main",
+		SplitType:       2,                 // 分片方式（0=按月，1=按天，2=按小时，3=按分钟，4=按秒）
+		RotateType:      0,                 // 轮转方式（0=按大小，1=按数量）
+		MaxSize:         100 * 1024 * 1024, // 100MB 最大文件大小（字节），仅在rotate_type=0时有效
+		MaxCount:        10,                //最大文件数量，仅在rotate_type=1时有效
+		Level:           1,                 // LevelInfo - 只显示INFO及以上级别的日志  日志级别（0=SUCCESS，1=INFO，2=WARNING，3=ERROR）
+		EnableCaller:    true,              //是否启用调用者信息
+		DefaultTaskType: "main",            //默认任务类型
 	}
 
 	configJSON, err := json.Marshal(config)

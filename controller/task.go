@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	_redis "github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 
 	mysqlType "planA/type/mysql"
@@ -137,18 +138,20 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	//验证店铺规格信息是否正确
-	//pddDll, initPddSOErr := pdd.InitPddSO()
-	//if initPddSOErr != nil {
-	//	errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
-	//	tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-	//	return
-	//}
-	//_, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(pddDll, shop.Token, spec.SpecTypeID, spec.SpecName)
-	//if buildPddGoodsSpecIdErr != nil {
-	//	errMsg := "构建规格ID失败: " + buildPddGoodsSpecIdErr.Error()
-	//	tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-	//	return
-	//}
+	if shopType == "1" {
+		pddDll, initPddSOErr := pdd.InitPddSO()
+		if initPddSOErr != nil {
+			errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		_, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(pddDll, shop.Token, spec.SpecTypeID, spec.SpecName)
+		if buildPddGoodsSpecIdErr != nil {
+			errMsg := "构建规格ID失败: " + buildPddGoodsSpecIdErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+	}
 
 	//扣费
 	//userId := strconv.FormatInt(shop.CreateBy, 10)
@@ -650,7 +653,7 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 
 func B(httpMsg http.ResponseWriter, data *http.Request) {
 	taskID := "111"
-	_, callSendPublishingErr := callSendPublishing(taskID, "")
+	_, callSendPublishingErr := CallSendPublishing(taskID, "")
 	if callSendPublishingErr != nil {
 		logStr := fmt.Sprintf("执行B程序失败: [taskId] %v [error] %v", taskID, callSendPublishingErr.Error())
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
@@ -856,40 +859,41 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 // @param bodyData body数据
 // @param taskId 任务ID
 func UpdateTaskCount(bodyData []string, taskId string) {
-	//如果没上锁，则启动A程序
-	if lock.GetLock(taskId) {
-		AddTask(taskId, bodyData)
-	} else {
-		//如果最后找到的书品数量为0，则不提交到redis
-		if AddTask(taskId, bodyData) <= 0 {
-			fmt.Println("找到的书品为0，所以不提交到redis")
-			return
-		}
-		//如果没上锁，则启动B程序
-		//if !lock.GetLock(taskId) {
-		//	lock.SetLock(taskId) //设置锁
-		//	// 执行 B方法程序
-		//	headerKey := fmt.Sprintf("%s:header", taskId)
-		//	processId, getProcessIdErr := service.GetProcessId(headerKey)
-		//	//检查是否有错误
-		//	if getProcessIdErr != nil && !errors.Is(getProcessIdErr, _redis.Nil) {
-		//		logStr := fmt.Sprintf("获取进程号失败: [taskId] %v [error] %v", taskId, getProcessIdErr.Error())
-		//		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
-		//		return
-		//	}
-		//	if processId != "" {
-		//		losStr := fmt.Sprintf("正在执行B程序 不启动新的B程序: [taskId] %v [processId] %v", taskId, processId)
-		//		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, losStr)
-		//		return
-		//	}
-		//	_, callSendPublishingErr := callSendPublishing(taskId, headerKey)
-		//	if callSendPublishingErr != nil {
-		//		logStr := fmt.Sprintf("执行B程序失败: [taskId] %v [error] %v", taskId, callSendPublishingErr.Error())
-		//		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
-		//		return
-		//	}
-		//	lock.DestroyLock(taskId) //销毁锁
-		//}
+	// 1. 先执行AddTask，统一判断是否需要后续操作
+	count := AddTask(taskId, bodyData)
+	if count <= 0 {
+		fmt.Println("找到的书品为0，所以不提交到redis")
+		return
+	}
+
+	// 2. 尝试加锁（原子操作，避免并发问题）
+	if !lock.TryLock(taskId) {
+		// 加锁失败：说明已有goroutine在执行B程序，直接返回
+		//fmt.Printf("taskId %s 已被上锁，跳过B程序执行\n", taskId)
+		return
+	}
+	// 3. 加锁成功：执行B程序，确保defer释放锁（即使执行出错也能解锁）
+	defer lock.DestroyLock(taskId)
+
+	// 执行B方法程序
+	headerKey := fmt.Sprintf("%s:header", taskId)
+	processId, getProcessIdErr := service.GetProcessId(headerKey)
+	// 检查是否有错误（排除redis key不存在的情况）
+	if getProcessIdErr != nil && !errors.Is(getProcessIdErr, _redis.Nil) {
+		logStr := fmt.Sprintf("获取进程号失败: [taskId] %v [error] %v", taskId, getProcessIdErr.Error())
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
+		return
+	}
+	if processId != "" {
+		logStr := fmt.Sprintf("正在执行B程序 不启动新的B程序: [taskId] %v [processId] %v", taskId, processId)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, logStr)
+		return
+	}
+	_, callSendPublishingErr := CallSendPublishing(taskId, headerKey)
+	if callSendPublishingErr != nil {
+		logStr := fmt.Sprintf("执行B程序失败: [taskId] %v [error] %v", taskId, callSendPublishingErr.Error())
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
+		return
 	}
 }
 
@@ -938,20 +942,6 @@ func AddTask(taskId string, bodyData []string) int {
 		num.Add(1)
 		err = service.UpdateTaskCountTrue(taskId, 1, expiration)
 	}
-	//if err != nil {
-	//失败重试一次
-	//err = redis.UpdateTaskHeader(redis0, taskId, header, expiration)
-	//if err != nil {
-	//	headerJson, jsonErr := json.Marshal(header)
-	//	if jsonErr != nil {
-	//		fmt.Println("JSON编码错误:", err)
-	//		return
-	//	}
-	//	logStr, _ := fmt.Printf("重试更新header任务数量失败: [taskId] %v [header] %v [error] %v", taskId, string(headerJson), err.Error())
-	//	logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, strconv.Itoa(logStr))
-	//	return
-	//}
-	//}
 	taskNoticeRequestErr := TaskNoticeRequest(taskId)
 	if taskNoticeRequestErr != nil {
 		return 0
@@ -983,292 +973,215 @@ func parseAdjustPercent(adjustPercent interface{}) (int64, error) {
 	return adjustPercent.(int64), nil
 }
 
-// callSendPublishing 调用SendPublishing程序处理任务（内部方法）
+// CallSendPublishing 调用SendPublishing程序处理任务（内部方法）
 // 返回进程句柄和错误
-func callSendPublishing(qName string, headerKey string) (*os.Process, error) {
-	// 先在Redis中创建一个占位符，表示进程即将启动
-	placeholderPID := "starting"
-
-	// 同步保存占位符到 Redis
-	setProcessIdErr := service.SetProcessId(headerKey, placeholderPID)
-	if setProcessIdErr != nil {
-		return nil, fmt.Errorf("保存进程占位符到Redis失败: %v, 队列: %s", setProcessIdErr, qName)
+func CallSendPublishing(qName string, headerKey string) (*os.Process, error) {
+	// 1. 基础入参校验
+	if qName == "" {
+		return nil, errors.New("队列名称qName不能为空")
+	}
+	if headerKey == "" {
+		return nil, errors.New("头部标识headerKey不能为空")
 	}
 
-	// 构建 SendPublishing程序路径
+	// 先在Redis中创建一个占位符，表示进程即将启动
+	placeholderPID := "starting"
+	setProcessIdErr := service.SetProcessId(headerKey, placeholderPID)
+	if setProcessIdErr != nil {
+		errMsg := fmt.Sprintf("保存进程占位符到Redis失败: %v, 队列: %s", setProcessIdErr, qName)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 2. 构建并验证程序路径
 	fileUrlConfig, getFileUrlConfigErr := config.GetFileUrlConfig()
 	if getFileUrlConfigErr != nil {
-		return nil, getFileUrlConfigErr
+		errMsg := fmt.Sprintf("获取文件路径配置失败: %v", getFileUrlConfigErr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
 	}
 	programPath := fileUrlConfig.BFileName
 
-	// 修正参数顺序，去掉-NoExit（如果不是PowerShell程序）
-	psScript := fmt.Sprintf(`
-        # 启动程序
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = "%s"
-        $psi.Arguments = "%s"
-        $psi.UseShellExecute = $true
-        $psi.WindowStyle = 'Normal'
-        
-        $process = [System.Diagnostics.Process]::Start($psi)
-        
-        # 等待窗口句柄可用
-        $timeout = 3000  # 3秒超时
-        $startTime = Get-Date
-        while ($process.MainWindowHandle -eq [IntPtr]::Zero -and 
-               ((Get-Date) - $startTime).TotalMilliseconds -lt $timeout) {
-            Start-Sleep -Milliseconds 50
-            $process.Refresh()
-        }
-        
-        # 如果获取到窗口句柄，提到前台
-        if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
-            Add-Type @"
-                using System;
-                using System.Runtime.InteropServices;
-                public class WindowHelper {
-                    [DllImport("user32.dll")]
-                    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-                    [DllImport("user32.dll")]
-                    public static extern bool SetForegroundWindow(IntPtr hWnd);
-                    [DllImport("user32.dll")]
-                    public static extern bool AllowSetForegroundWindow(uint dwProcessId);
-                }
-"@
-            # 允许设置前台窗口
-            [WindowHelper]::AllowSetForegroundWindow($process.Id)
-            [WindowHelper]::ShowWindow($process.MainWindowHandle, 9)  # SW_RESTORE
-            [WindowHelper]::SetForegroundWindow($process.MainWindowHandle)
-        } else {
-            Write-Warning "未能获取到窗口句柄，但进程已启动 (PID: $($process.Id))"
-        }
-        
-        Write-Output $process.Id
-    `, programPath, qName)
-	cmd := exec.Command("powershell", "-Command", psScript)
-	// 关键配置：使程序在独立控制台运行
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			CreationFlags: 0x00000010, // 创建新控制台
-		}
-	}
-
-	output, err := cmd.Output()
+	// 关键：验证程序路径是否存在
+	absProgramPath, err := filepath.Abs(programPath)
 	if err != nil {
-		return nil, err
+		errMsg := fmt.Sprintf("转换程序路径为绝对路径失败: %s, 原始路径: %s", err, programPath)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
 	}
-
-	// 解析PID
-	var pid uint32
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if pids, err := strconv.Atoi(line); err == nil {
-			pid = uint32(pids)
-		}
+	_, statErr := os.Stat(absProgramPath)
+	if statErr != nil {
+		errMsg := fmt.Sprintf("程序文件不存在或无访问权限: %s, 错误: %v", absProgramPath, statErr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
 	}
+	// 记录有效路径
+	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("待启动程序路径: %s, 队列: %s", absProgramPath, qName))
 
-	// 获取进程句柄
-	// 立即将真实 PID保存到Redis
-	processID := fmt.Sprintf("%d", pid)
-	setProcessIdErr = service.SetProcessId(headerKey, processID)
-	if setProcessIdErr != nil {
-		return nil, fmt.Errorf("更新进程PID到Redis失败: %v, 队列: %s", setProcessIdErr, qName)
-	}
-
-	// 启动 goroutine等待进程结束并清理 Redis
-	go func(pid int, qName string, headerKey string) {
-		// 定期检查进程是否还在运行
-		for {
-			time.Sleep(2 * time.Second) // 每2秒检查一次
-			if !isProcessExistWindows(pid) {
-				// 进程已结束，清理Redis
-				if headerKey != "" {
-					deleteProcessIdErr := service.DeleteProcessId(headerKey)
-					if deleteProcessIdErr != nil {
-						logStr := fmt.Sprintf("清理Redis进程记录失败，PID: %d, 队列: %s, 错误: %v", pid, qName, deleteProcessIdErr)
-						logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
-					}
-					break
-				}
-			}
-		}
-
-	}(int(pid), qName, headerKey)
-
-	//将生成的process和redisKey 存储到文件 executingfile
-	return &os.Process{Pid: int(pid)}, nil
-}
-
-// callSendPublishing 调用SendPublishing程序处理任务（内部方法）
-// 返回进程句柄和错误
-func callSendPublishing1(qName string, headerKey string) (*os.Process, error) {
-	// 先在Redis中创建一个占位符，表示进程即将启动
-	placeholderPID := "starting"
-
-	// 同步保存占位符到 Redis
-	setProcessIdErr := service.SetProcessId(headerKey, placeholderPID)
-	if setProcessIdErr != nil {
-		return nil, fmt.Errorf("保存进程占位符到Redis失败: %v, 队列: %s", setProcessIdErr, qName)
-	}
-
-	// 构建 SendPublishing程序路径
-	fileUrlConfig, getFileUrlConfigErr := config.GetFileUrlConfig()
-	if getFileUrlConfigErr != nil {
-		return nil, getFileUrlConfigErr
-	}
-	programPath := fileUrlConfig.BFileName
-	oldWindowName := "无标题 - 记事本" // 原窗口名（用于查找）
-	// 构建 PowerShell 脚本（包含修改窗口名逻辑）
+	// 3. 重构PowerShell脚本，增加错误捕获和详细日志
 	psScript := fmt.Sprintf(`
-        # 启动程序
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = "%s"
-        $psi.Arguments = "%s"
-        $psi.UseShellExecute = $true
-        $psi.WindowStyle = 'Normal'
+        # 设置错误捕获模式
+        $ErrorActionPreference = "Stop"
+        $programPath = "%s"
+        $arguments = "%s"
         
-        $process = [System.Diagnostics.Process]::Start($psi)
-        
-        # 等待窗口创建（超时5秒，延长超时避免窗口未加载完成）
-        $timeout = 5000
-        $startTime = Get-Date
-        $oldWindowName = "%s"    # 原窗口名（用于查找）
-        $newWindowName = "%s"    # 新窗口名（要修改成的名称）
-        $hwnd = [IntPtr]::Zero
-
-        # 导入所有需要的Windows API
-        Add-Type @"
-            using System;
-            using System.Runtime.InteropServices;
-            using System.Text;
-            public class WindowHelper {
-                // 查找窗口（根据原窗口名）
-                [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-                public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
-                
-                // 获取窗口标题（验证用）
-                [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-                public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-                
-                // 修改窗口标题（核心API）
-                [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-                public static extern bool SetWindowText(IntPtr hWnd, string lpString);
-                
-                // 显示/恢复窗口
-                [DllImport("user32.dll")]
-                public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-                
-                // 置顶窗口
-                [DllImport("user32.dll")]
-                public static extern bool SetForegroundWindow(IntPtr hWnd);
-                
-                // 允许设置前台窗口
-                [DllImport("user32.dll")]
-                public static extern bool AllowSetForegroundWindow(uint dwProcessId);
+        try {
+            # 再次验证程序存在性
+            if (-not (Test-Path $programPath -PathType Leaf)) {
+                throw "程序文件不存在: $programPath"
             }
-"@
-
-        # 循环查找指定窗口（延长轮询时间，确保找到）
-        while ($hwnd -eq [IntPtr]::Zero -and ((Get-Date) - $startTime).TotalMilliseconds -lt $timeout) {
-            Start-Sleep -Milliseconds 100  # 延长轮询间隔，减少资源占用
-            $process.Refresh()
-            $hwnd = [WindowHelper]::FindWindow($null, $oldWindowName)
-        }
-        
-        # 找到窗口后执行操作
-        if ($hwnd -ne [IntPtr]::Zero) {
-            # 1. 修改窗口名称（核心步骤）
-            $renameSuccess = [WindowHelper]::SetWindowText($hwnd, $newWindowName)
-            if ($renameSuccess) {
-                Write-Output "窗口名修改成功：$oldWindowName -> $newWindowName"
-            } else {
-                Write-Warning "窗口名修改失败（权限/窗口不支持）"
+            
+            # 构建进程启动信息
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = $programPath
+            $psi.Arguments = $arguments
+            $psi.UseShellExecute = $true
+            $psi.WindowStyle = 'Normal'
+            $psi.WorkingDirectory = (Split-Path $programPath -Parent)  # 设置工作目录为程序所在目录
+            
+            # 启动进程
+            Write-Host "开始启动程序: $programPath 参数: $arguments"
+            $process = [System.Diagnostics.Process]::Start($psi)
+            Write-Host "程序启动成功，PID: $($process.Id)"
+            
+            # 等待窗口句柄（非必须，但保留原有逻辑）
+            $timeout = 3000
+            $startTime = Get-Date
+            while ($process.MainWindowHandle -eq [IntPtr]::Zero -and ((Get-Date) - $startTime).TotalMilliseconds -lt $timeout) {
+                Start-Sleep -Milliseconds 50
+                $process.Refresh()
             }
-
-            # 2. 验证修改结果
-            $sb = New-Object System.Text.StringBuilder(256)
-            [WindowHelper]::GetWindowText($hwnd, $sb, $sb.Capacity)
-            Write-Output "当前窗口名：$($sb.ToString())"
-
-            # 3. 激活窗口
-            [WindowHelper]::AllowSetForegroundWindow($process.Id)
-            [WindowHelper]::ShowWindow($hwnd, 9)  # SW_RESTORE
-            [WindowHelper]::SetForegroundWindow($hwnd)
-            Write-Output "进程PID: $($process.Id)"
-        } else {
-            Write-Warning "超时未找到窗口：'$oldWindowName' (进程PID: $($process.Id))"
-            # 降级使用进程默认窗口句柄
+            
+            # 尝试将窗口前置
             if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
-                [WindowHelper]::SetWindowText($process.MainWindowHandle, $newWindowName)
+                Add-Type @"
+                    using System;
+                    using System.Runtime.InteropServices;
+                    public class WindowHelper {
+                        [DllImport("user32.dll")]
+                        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+                        [DllImport("user32.dll")]
+                        public static extern bool SetForegroundWindow(IntPtr hWnd);
+                        [DllImport("user32.dll")]
+                        public static extern bool AllowSetForegroundWindow(uint dwProcessId);
+                    }
+"@
                 [WindowHelper]::AllowSetForegroundWindow($process.Id)
                 [WindowHelper]::ShowWindow($process.MainWindowHandle, 9)
                 [WindowHelper]::SetForegroundWindow($process.MainWindowHandle)
-                Write-Output "已修改进程默认窗口名：$newWindowName"
+                Write-Host "程序窗口已前置，句柄: $($process.MainWindowHandle)"
+            } else {
+                Write-Warning "未能获取窗口句柄，但进程已启动 (PID: $($process.Id))"
             }
+            
+            # 输出PID供Go解析
+            Write-Output $process.Id
+        } catch {
+            # 捕获所有异常并输出
+            Write-Error "启动程序失败: $_"
+            exit 1  # 返回非0退出码
         }
-    `,
-		strings.ReplaceAll(programPath, "\"", "\\\""),
-		strings.ReplaceAll(qName, "\"", "\\\""),
-		strings.ReplaceAll(oldWindowName, "\"", "\\\""), // 原窗口名
-		strings.ReplaceAll(qName, "\"", "\\\""))         // 新窗口名
+    `, absProgramPath, qName)
 
-	// 执行PowerShell脚本
-	cmd := exec.Command("powershell", "-Command", psScript)
-	// Windows下创建新控制台
+	// 4. 执行PowerShell命令，同时捕获stdout和stderr
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psScript)
 	if runtime.GOOS == "windows" {
 		cmd.SysProcAttr = &syscall.SysProcAttr{
-			CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE
+			CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE - 创建新控制台
 		}
 	}
 
-	// 获取输出（包含错误信息，方便排查）
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, err
+	// 关键：同时捕获标准输出和标准错误
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// 执行命令并记录日志
+	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("执行PowerShell命令: %s", strings.Join(cmd.Args, " ")))
+	runErr := cmd.Run()
+
+	// 输出所有PowerShell的输出（调试关键）
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("PowerShell标准输出: %s", stdoutStr))
+	if stderrStr != "" {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("PowerShell标准错误: %s", stderrStr))
 	}
 
-	// 解析PID
+	// 检查命令执行是否失败
+	if runErr != nil {
+		errMsg := fmt.Sprintf("PowerShell执行失败: %v, 标准错误: %s", runErr, stderrStr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 5. 解析PID（增加校验）
 	var pid uint32
-	lines := strings.Split(string(output), "\n")
+	lines := strings.Split(stdoutStr, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if pids, err := strconv.Atoi(line); err == nil {
-			pid = uint32(pids)
+		if line == "" {
+			continue
+		}
+		pidInt, err := strconv.Atoi(line)
+		if err == nil && pidInt > 0 {
+			pid = uint32(pidInt)
+			break // 找到有效PID立即退出
 		}
 	}
+	if pid == 0 {
+		errMsg := fmt.Sprintf("未解析到有效PID，PowerShell输出: %s", stdoutStr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("解析到进程PID: %d, 队列: %s", pid, qName))
 
-	// 获取进程句柄
-	// 立即将真实 PID保存到Redis
+	// 6. 更新Redis中的PID
 	processID := fmt.Sprintf("%d", pid)
 	setProcessIdErr = service.SetProcessId(headerKey, processID)
 	if setProcessIdErr != nil {
-		return nil, fmt.Errorf("更新进程PID到Redis失败: %v, 队列: %s", setProcessIdErr, qName)
+		errMsg := fmt.Sprintf("更新进程PID到Redis失败: %v, 队列: %s, PID: %d", setProcessIdErr, qName, pid)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
 	}
 
-	// 启动 goroutine等待进程结束并清理 Redis
+	// 7. 启动goroutine监控进程（增加退出条件和日志）
 	go func(pid int, qName string, headerKey string) {
-		// 定期检查进程是否还在运行
+		checkCount := 0
+		maxCheckCount := 1800 // 最多检查1小时（2秒/次 * 1800次 = 3600秒）
+		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("开始监控进程PID: %d, 队列: %s", pid, qName))
+
 		for {
-			time.Sleep(2 * time.Second) // 每2秒检查一次
+			time.Sleep(2 * time.Second)
+			checkCount++
+
+			// 检查进程是否存在
 			if !isProcessExistWindows(pid) {
-				// 进程已结束，清理Redis
+				logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("进程PID: %d已退出，开始清理Redis记录", pid))
 				if headerKey != "" {
 					deleteProcessIdErr := service.DeleteProcessId(headerKey)
 					if deleteProcessIdErr != nil {
 						logStr := fmt.Sprintf("清理Redis进程记录失败，PID: %d, 队列: %s, 错误: %v", pid, qName, deleteProcessIdErr)
 						logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
+					} else {
+						logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("成功清理Redis进程记录，PID: %d, Key: %s", pid, headerKey))
 					}
-					break
 				}
+				break
+			}
+
+			// 防止无限循环，超过最大检查次数自动退出
+			if checkCount >= maxCheckCount {
+				logs.LoggingMiddleware(logs.LOG_LEVEL_WARNING, fmt.Sprintf("进程PID: %d监控超时（1小时），停止监控", pid))
+				break
 			}
 		}
-
 	}(int(pid), qName, headerKey)
 
-	//将生成的process和redisKey 存储到文件 executingfile
-	return &os.Process{Pid: int(pid)}, nil
+	// 8. 返回进程句柄
+	process := &os.Process{Pid: int(pid)}
+	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("成功启动进程PID: %d, 程序路径: %s, 队列: %s", pid, absProgramPath, qName))
+	return process, nil
 }
 
 // SuspendProcess 暂停指定PID的进程
@@ -1339,47 +1252,19 @@ func ResumeProcess(pidStr string) error {
 	return nil
 }
 
-// IsProcessExist 检查进程是否存在（跨平台）
-func IsProcessExist(pid int) bool {
-	// FindProcess 总是返回一个 Process 对象，即使进程不存在
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-
-	// 不同平台的实现
-	if runtime.GOOS == "windows" {
-		// Windows 特定实现
-		return isProcessExistWindows(pid)
-	}
-
-	// Unix/Linux/MacOS 实现
-	err = process.Signal(os.Interrupt)
-	if err != nil {
-		// 如果错误是 "process already finished"，表示进程不存在
-		return false
-	}
-	return true
-}
-
-// Windows 特定的进程检查
+// isProcessExistWindows 检查Windows进程是否存在
 func isProcessExistWindows(pid int) bool {
-	// 方法1: 尝试获取进程句柄
-	handle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
-	if err != nil {
+	if pid <= 0 {
 		return false
 	}
-	defer syscall.CloseHandle(handle)
-
-	// 检查进程退出码
-	var exitCode uint32
-	err = syscall.GetExitCodeProcess(handle, &exitCode)
+	// 使用tasklist命令检查进程是否存在
+	cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("PID eq %d", pid))
+	output, err := cmd.Output()
 	if err != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_WARNING, fmt.Sprintf("检查进程PID:%d失败: %v", pid, err))
 		return false
 	}
-
-	// 如果退出码是 STILL_ACTIVE，表示进程还在运行
-	return exitCode == 259 // 259 = STILL_ACTIVE
+	return strings.Contains(strings.ToLower(string(output)), fmt.Sprintf("%d", pid))
 }
 
 // CreateTaskRequest 请求接口创建任务
@@ -1514,69 +1399,6 @@ func AppendToCSV(fileName string, data []_type.TaskBody, writeHeader bool, taskI
 		}
 	}
 
-	return nil
-}
-
-// ExportToCSV 将数据导出到export目录下的指定CSV文件
-// @param fileName 文件名
-// @param data 数据
-// @return error 错误信息
-func ExportToCSV(fileName string, data []_type.TaskBody) error {
-	// 1. 定义导出目录
-	exportDir := "export"
-
-	// 2. 检查并创建目录（如果不存在）
-	err := os.MkdirAll(exportDir, 0755) // 0755是目录权限，保证可读可写
-	if err != nil {
-		return fmt.Errorf("创建export目录失败: %w", err)
-	}
-
-	// 3. 拼接完整的文件路径（自动处理路径分隔符，兼容Windows/Linux）
-	fullPath := filepath.Join(exportDir, fileName)
-
-	// 4. 创建文件（存在则覆盖）
-	file, err := os.Create(fullPath)
-	if err != nil {
-		return fmt.Errorf("创建文件失败 %s: %w", fullPath, err)
-	}
-	// 延迟关闭文件
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			log.Printf("关闭文件失败 %s: %v", fullPath, closeErr)
-		}
-	}()
-
-	// 5. 创建CSV写入器并写入数据
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	// 写入表头
-	header := []string{"ISBN", "书名", "状态", "错误信息"}
-	if err := writer.Write(header); err != nil {
-		return fmt.Errorf("写入表头失败: %w", err)
-	}
-
-	// 写入数据行
-	for _, v := range data {
-		statusStr := "正确"
-		if v.Detail.Status != 1 {
-			statusStr = "错误"
-		}
-		record := []string{
-			v.BookInfo.Isbn,
-			v.BookInfo.BookName,
-			statusStr,
-			v.Detail.Error,
-		}
-		if err := writer.Write(record); err != nil {
-			return fmt.Errorf("写入数据行失败: %w", err)
-		}
-	}
-
-	// 检查写入器错误
-	if err := writer.Error(); err != nil {
-		return fmt.Errorf("CSV写入器错误: %w", err)
-	}
 	return nil
 }
 

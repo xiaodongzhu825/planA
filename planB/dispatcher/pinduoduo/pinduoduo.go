@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"planA/modules/logs"
 	"planA/planB/config"
+	"planA/planB/db/redis"
+	"planA/planB/golabl"
 	"planA/planB/modules/pdd"
 	"planA/planB/tool"
 	_type "planA/planB/type"
@@ -95,6 +97,9 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	}
 	//拼接返回结果
 	price := buildPrice(taskHeader.PriceMod, taskMsg.Detail.Price)
+	if price == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("不在价格区间内 isbn:%v", taskMsg.BookInfo.Isbn))
+	}
 	taskMsg.Detail.Price = price
 	//TODO
 	// 构建参数
@@ -124,6 +129,12 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 		taskMsg.BookInfo.ImageObject.DetailUrlObject.LiveShootingUrl = []string{goodsAdd.CarouselGallery[0]}
 	}
 	if len(goodsAdd.CarouselGallery) == 0 {
+		// 无图片信息 isbn计次
+		fmt.Println(golabl.RedisClientD)
+		setNoImgCountErr := redis.SetNoImgCount(golabl.RedisClientD, taskMsg.BookInfo.Isbn)
+		if setNoImgCountErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error()))
+		}
 		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("缺少构造轮播图图片-未提交 isbn %v", taskMsg.BookInfo.Isbn))
 	}
 	// 构建详情图
@@ -194,7 +205,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 		taskMsgBookInfoPrice = 10000
 	}
 	goodsAdd.GoodsProperties = BuildGoodsPropertiesList(
-		goodsAdd.OutGoodsId,         // ISBN
+		taskMsg.BookInfo.Isbn,       // ISBN
 		goodsAdd.GoodsName,          // 商品名称
 		taskMsg.BookInfo.PagesCount, // 页数
 		taskMsgBookInfoPrice,        // 价格
@@ -285,7 +296,7 @@ func buildPrice(priceMods []_type.PriceMod, price int64) int64 {
 			return newPrice
 		}
 	}
-	return price // 如果没有匹配到任何价格区间，返回原价
+	return 0 // 没有匹配到价格模版，直接返回0
 }
 
 // BuildSkuList sku规格生成

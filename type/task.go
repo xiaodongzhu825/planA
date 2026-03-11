@@ -128,7 +128,7 @@ type TaskDetail struct {
 	SkuCode    string `json:"sku_code"`     // 规格编码（sku维度）
 	SkuId      int64  `json:"sku_id"`       // sku编码
 	Img        string `json:"img"`          // 图片
-	OutGoodsId string `json:"out_goods_id"` // 商家编码
+	OutGoodsId string `json:"out_goods_id"` // 商品编码
 	GoodsName  string `json:"goods_name"`   // 商品名称
 }
 

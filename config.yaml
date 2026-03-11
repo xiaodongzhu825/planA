@@ -17,7 +17,7 @@ mysqlConfig:
   password: "root"  #数据库密码
   host: "127.0.0.1" #数据库地址
   port: 3306  #数据库端口
-  loglevel: "info"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
+  loglevel: "error"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
   maxRetryTimes: 3  #数据库重试次数
   baseRetryInterval: 100  #数据库重试间隔（毫秒）
   maxRetryInterval: 3 #数据库最大重试间隔（秒）
@@ -40,6 +40,18 @@ redisConfig:
     password: "long6166@@"
   - dbName: "出版社信息列表"
     db: 3
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
+  - dbName: "省市区列表"
+    db: 4
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
+  - dbName: "没有图片的 isbn"
+    db: 5
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
+  - dbName: "没有书籍的 isbn"
+    db: 6
     addr: "36.212.12.247:6379"
     password: "long6166@@"
 pddConfig:

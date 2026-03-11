@@ -309,7 +309,7 @@ func GetRandomDistrictInProvince(client *redis.Client, provinceID int) (map[stri
 // GetProvinceAndCity 根据地区获取获取省市信息
 func GetProvinceAndCity(client *redis.Client, districtID int) (int, int, error) {
 	// 获取该地区的详细信息
-	district, err := client.HGet(gCtx, fmt.Sprintf("region:%s", districtID), "pid").Result()
+	district, err := client.HGet(gCtx, "region:1", "pid").Result()
 	fmt.Println("------------------------------")
 	fmt.Println(district)
 	fmt.Println(fmt.Sprintf("region:%v", districtID))
@@ -335,6 +335,15 @@ func GetProvinceAndCity(client *redis.Client, districtID int) (int, int, error) 
 	//	return 0, 0, atoiErr
 	//}
 	return 0, 0, nil
+}
+
+// SetNoImgCount 无图片信息isbn计次
+// @param client Redis客户端
+// @param isbn isbn
+// @return error 错误信息
+func SetNoImgCount(client *redis.Client, isbn string) error {
+	key := "noImgInfo"
+	return client.ZIncrBy(gCtx, key, 1, isbn).Err()
 }
 
 // =========================== 以下是私有方法 ===========================

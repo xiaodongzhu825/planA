@@ -653,7 +653,7 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 
 func B(httpMsg http.ResponseWriter, data *http.Request) {
 	taskID := "111"
-	_, callSendPublishingErr := CallSendPublishing(taskID, "")
+	_, callSendPublishingErr := CallSendPublishing(taskID, "123")
 	if callSendPublishingErr != nil {
 		logStr := fmt.Sprintf("执行B程序失败: [taskId] %v [error] %v", taskID, callSendPublishingErr.Error())
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
@@ -866,7 +866,7 @@ func UpdateTaskCount(bodyData []string, taskId string) {
 		return
 	}
 
-	// 2. 尝试加锁（原子操作，避免并发问题）
+	//// 2. 尝试加锁（原子操作，避免并发问题）
 	if !lock.TryLock(taskId) {
 		// 加锁失败：说明已有goroutine在执行B程序，直接返回
 		//fmt.Printf("taskId %s 已被上锁，跳过B程序执行\n", taskId)
@@ -889,6 +889,7 @@ func UpdateTaskCount(bodyData []string, taskId string) {
 		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, logStr)
 		return
 	}
+	// 判断任务是否处于运行状态
 	_, callSendPublishingErr := CallSendPublishing(taskId, headerKey)
 	if callSendPublishingErr != nil {
 		logStr := fmt.Sprintf("执行B程序失败: [taskId] %v [error] %v", taskId, callSendPublishingErr.Error())
@@ -925,6 +926,12 @@ func AddTask(taskId string, bodyData []string) int {
 		// 连接DB[b] 获取书品信息
 		bookInfo, GetTaskBookErr := service.GetTaskBook(taskBody.BookInfo.Isbn)
 		if GetTaskBookErr != nil {
+			if errors.Is(GetTaskBookErr, _redis.Nil) {
+				setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
+				if setNoBookCountErr != nil {
+					fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+				}
+			}
 			fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
 			continue
 		}
@@ -973,6 +980,8 @@ func parseAdjustPercent(adjustPercent interface{}) (int64, error) {
 	return adjustPercent.(int64), nil
 }
 
+// CallSendPublishing 调用SendPublishing程序处理任务（内部方法）
+// 返回进程句柄和错误
 // CallSendPublishing 调用SendPublishing程序处理任务（内部方法）
 // 返回进程句柄和错误
 func CallSendPublishing(qName string, headerKey string) (*os.Process, error) {

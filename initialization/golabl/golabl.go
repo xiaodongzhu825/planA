@@ -17,6 +17,7 @@ var (
 	RedisDbA *redis.Client
 	RedisDbB *redis.Client
 	RedisDbC *redis.Client
+	RedisDbD *redis.Client
 	SqliteDb *sql.DB
 	Router   = mux.NewRouter()
 )

@@ -21,7 +21,9 @@ import (
 	_type "planA/planB/type"
 	"strconv"
 	"sync/atomic"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"planA/planB/golabl"
 
@@ -81,6 +83,7 @@ func main() {
 			time.Sleep(time.Second)
 		}
 	}
+	setConsoleTitle(taskKey)
 
 	// ====================== 初始化 ======================
 
@@ -145,6 +148,7 @@ func main() {
 
 		}
 	}()
+
 	// 初始化 redis（地区列表） 并 判断
 	redisClientC, redisErr := _myRedis.Init(ctx, mainConfig.RedisConfig[4])
 	if redisErr != nil {
@@ -162,6 +166,25 @@ func main() {
 
 		}
 	}()
+
+	// 初始化 redis（无图isbn） 并 判断
+	redisClientD, redisErr := _myRedis.Init(ctx, mainConfig.RedisConfig[5])
+	if redisErr != nil {
+		errMsg := fmt.Sprintf("初始化 redis 失败-原因来自于:%v", redisErr)
+		fmt.Printf(errMsg)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+	}
+	fmt.Println(mainConfig.RedisConfig[5])
+	// 装入全局变量
+	golabl.RedisClientD = redisClientD
+	//defer func() {
+	//	if closeErr := golabl.RedisClientD.Close(); closeErr != nil {
+	//		errMsg := fmt.Sprintf("关闭 redis 连接失败:%v", closeErr)
+	//		fmt.Printf(errMsg)
+	//		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+	//
+	//	}
+	//}()
 
 	// ====================== 初始化 ======================
 
@@ -250,7 +273,7 @@ func main() {
 			// 初始化 errorStr
 			errorStr := "执行成功"
 			// 获取任务信息
-			taskMsg, taskMsgErr := _myRedis.GetTaskToPopFromBodyWait(redisClientA, taskKey)
+			taskMsg, taskMsgErr := _myRedis.GetTaskToPopFromBodyWait(golabl.RedisClientA, taskKey)
 			if taskMsgErr != nil {
 				errMsg := fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr)
 				fmt.Printf(errMsg)
@@ -623,4 +646,12 @@ func getCurrentRateForTask(redisKey string) float64 {
 		return float64(lastSecond) / math.Max(elapsedSeconds, 0.1)
 	}
 	return float64(lastSecond) / elapsedSeconds
+}
+
+func setConsoleTitle(title string) {
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	procSetConsoleTitle := kernel32.NewProc("SetConsoleTitleW")
+	// 将字符串转换为UTF-16指针
+	titlePtr, _ := syscall.UTF16PtrFromString(title)
+	procSetConsoleTitle.Call(uintptr(unsafe.Pointer(titlePtr)))
 }

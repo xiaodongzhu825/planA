@@ -46,6 +46,14 @@ redisConfig:
     db: 4
     addr: "36.212.12.247:6379"
     password: "long6166@@"
+  - dbName: "没有图片的 isbn"
+    db: 5
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
+  - dbName: "没有书籍的 isbn"
+    db: 6
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
 pddConfig:
   clientId: "203c5a7ba8bd4b8488d5e26f93052642"
   clientSecret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"
@@ -59,3 +67,5 @@ fileUrl:
   createTaskUrl: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   createTaskNoticeUrl: "http://36.212.1.63:8055/task" #核价软件提交数据通知接口
   BannedWordSubstitutionUrl : "http://36.212.16.27:13001/task/getFilterSetNew" #违禁词替换接口
+  pddTokenUrl: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
+  deductionUrl: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口

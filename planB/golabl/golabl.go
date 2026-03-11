@@ -10,5 +10,6 @@ var (
 	RedisClientA *redis.Client
 	RedisClientB *redis.Client
 	RedisClientC *redis.Client
+	RedisClientD *redis.Client
 	MainConfig   *_type.Config
 )

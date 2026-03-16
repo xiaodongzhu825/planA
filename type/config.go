@@ -22,6 +22,7 @@ type Server struct {
 	Port        string
 	Filter      int
 	ReplaceMark string
+	RedisExp    int
 }
 
 // Alive 存活状态结构

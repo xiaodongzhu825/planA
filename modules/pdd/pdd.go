@@ -45,8 +45,8 @@ type PddErrorResponse struct {
 	RequestID string  `json:"request_id"` // 请求ID
 }
 
-// InitPddSO 初始化 pddDLL
-func InitPddSO() (*PddDLL, error) {
+// InitPddDll 初始化 pddDLL
+func InitPddDll() (*PddDLL, error) {
 	if gPddDll != nil {
 		return gPddDll, nil
 	}

@@ -11,4 +11,5 @@ func AdmiinInir() {
 	adminExportRouter.HandleFunc("/delRedisTask/{id}", controller.DelRedisTask).Methods("GET")   // 删除 redis中指定任务
 	adminExportRouter.HandleFunc("/delMysqlTask/{id}", controller.DelMysqlTask).Methods("GET")   // 删除 mysql中指定任务
 	adminExportRouter.HandleFunc("/delSqliteTask/{id}", controller.DelSqliteTask).Methods("GET") // 删除 sqlite中指定任务
+	adminExportRouter.HandleFunc("/delSqliteTask/{id}", controller.DelSqliteTask).Methods("GET") // 删除 sqlite中指定任务
 }

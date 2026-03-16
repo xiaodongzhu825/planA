@@ -8,7 +8,6 @@ import (
 	"planA/tool"
 	_type "planA/type"
 	"strconv"
-	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -38,9 +37,8 @@ func GetTaskHeader(taskKey string) (_type.TaskHeader, error) {
 // UpdateTaskHeader 更新任务头信息
 // @param taskKey 任务键
 // @param header 任务头信息
-// @param expiration 过期时间
 // @return error 错误信息
-func UpdateTaskHeader(taskKey string, header _type.TaskHeader, expiration time.Duration) error {
+func UpdateTaskHeader(taskKey string, header _type.TaskHeader) error {
 	// 将结构体转为 map
 	headerMap, err := tool.StructToMap(header)
 	if err != nil {
@@ -55,7 +53,8 @@ func UpdateTaskHeader(taskKey string, header _type.TaskHeader, expiration time.D
 	headerMap["price_mod"] = priceModJSON
 	// 保存到 Redis
 	headerKey := getHeaderKey(taskKey)
-	if err := saveHashMap(headerKey, headerMap, expiration); err != nil {
+
+	if err := saveHashMap(headerKey, headerMap); err != nil {
 		return err
 	}
 	return nil
@@ -65,14 +64,13 @@ func UpdateTaskHeader(taskKey string, header _type.TaskHeader, expiration time.D
 // @param client Redis客户端
 // @param taskKey 任务键
 // @param status 任务状态（1=运行中 2=已暂停 3=已停止）
-// @param expiration 过期时间
 // @return error 错误信息
-func UpdateHeaderStatus(taskKey string, status int64, expiration time.Duration) error {
+func UpdateHeaderStatus(taskKey string, status int64) error {
 	headerKey := getHeaderKey(taskKey)
 	if err := golabl.RedisDbA.HSet(golabl.Ctx, headerKey, "status", status).Err(); err != nil {
 		return err
 	}
-	golabl.RedisDbA.Expire(golabl.Ctx, headerKey, expiration)
+	golabl.RedisDbA.Expire(golabl.Ctx, headerKey, golabl.RedisExp)
 	return nil
 }
 
@@ -181,9 +179,8 @@ func GetTaskFooter(taskKey string) (_type.TaskFooter, error) {
 // UpdateTaskFooter 更新任务尾信息
 // @param taskKey 任务键
 // @param footer 任务尾信息
-// @param expiration 过期时间
 // @return error 错误信息
-func UpdateTaskFooter(taskKey string, footer *_type.TaskFooter, expiration time.Duration) error {
+func UpdateTaskFooter(taskKey string, footer *_type.TaskFooter) error {
 	footerMap := map[string]interface{}{
 		"task_count":         footer.TaskCount,
 		"task_count_true":    footer.TaskCountTrue,
@@ -196,7 +193,7 @@ func UpdateTaskFooter(taskKey string, footer *_type.TaskFooter, expiration time.
 	}
 
 	footerKey := getFooterKey(taskKey)
-	if err := saveHashMap(footerKey, footerMap, expiration); err != nil {
+	if err := saveHashMap(footerKey, footerMap); err != nil {
 		return err
 	}
 
@@ -233,25 +230,30 @@ func GetExportFileProgress(taskKey string) (int, error) {
 // ============================================
 
 // GetProcessId 获取进程号
-// @param headerKey 头信息键
+// @param taskKey 键
 // @return string 进程号
 // @return error 错误信息
-func GetProcessId(headerKey string) (string, error) {
+func GetProcessId(taskKey string) (string, error) {
+	headerKey := getHeaderKey(taskKey)
 	return golabl.RedisDbA.HGet(golabl.Ctx, headerKey, "process_number").Result()
 }
 
 // SetProcessId 设置进程号
-// @param headerKey 头信息键
+// @param taskKey 键
 // @param processId 进程号
 // @return error 错误信息
-func SetProcessId(headerKey string, processId string) error {
+func SetProcessId(taskKey string, processId string) error {
+	headerKey := getHeaderKey(taskKey)
+	golabl.RedisDbA.HSet(golabl.Ctx, headerKey, "process_number", processId).Err()
+	golabl.RedisDbA.HSet(golabl.Ctx, headerKey, "process_number", processId).Err()
 	return golabl.RedisDbA.HSet(golabl.Ctx, headerKey, "process_number", processId).Err()
 }
 
 // DeleteProcessId 删除进程号
-// @param headerKey 头信息键
+// @param taskKey 头信息键
 // @return error 错误信息
-func DeleteProcessId(headerKey string) error {
+func DeleteProcessId(taskKey string) error {
+	headerKey := getHeaderKey(taskKey)
 	return golabl.RedisDbA.HDel(golabl.Ctx, headerKey, "process_number").Err()
 }
 
@@ -263,9 +265,8 @@ func DeleteProcessId(headerKey string) error {
 // 同时更新Header和Footer中的task_count_true，以及Footer中的task_count_wait
 // @param taskKey 任务键
 // @param num 增减数量
-// @param expiration 过期时间
 // @return error 错误信息
-func UpdateTaskCountTrue(taskKey string, num int64, expiration time.Duration) error {
+func UpdateTaskCountTrue(taskKey string, num int64) error {
 	// 使用Pipeline确保原子性
 	pipe := golabl.RedisDbA.Pipeline()
 
@@ -279,10 +280,8 @@ func UpdateTaskCountTrue(taskKey string, num int64, expiration time.Duration) er
 	pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_wait", num)
 
 	// 设置过期时间
-	if expiration > 0 {
-		pipe.Expire(golabl.Ctx, headerKey, expiration)
-		pipe.Expire(golabl.Ctx, footerKey, expiration)
-	}
+	pipe.Expire(golabl.Ctx, headerKey, golabl.RedisExp)
+	pipe.Expire(golabl.Ctx, footerKey, golabl.RedisExp)
 
 	return executePipeline(pipe)
 }
@@ -290,9 +289,8 @@ func UpdateTaskCountTrue(taskKey string, num int64, expiration time.Duration) er
 // StopTask 停止任务
 // 更新Header状态为已停止，并清空等待队列
 // @param taskId 任务ID
-// @param expiration 过期时间
 // @return error 错误信息
-func StopTask(taskId string, expiration time.Duration) error {
+func StopTask(taskId string) error {
 	// 开启事务
 	pipe := golabl.RedisDbA.TxPipeline()
 
@@ -301,13 +299,34 @@ func StopTask(taskId string, expiration time.Duration) error {
 	pipe.HSet(golabl.Ctx, headerKey, "status", int64(_type.TaskStatusStopped))
 
 	// 设置过期时间
-	if expiration > 0 {
-		pipe.Expire(golabl.Ctx, headerKey, expiration)
-	}
+	pipe.Expire(golabl.Ctx, headerKey, golabl.RedisExp)
 
 	// 清空等待队列
 	bodyWaitKey := getBodyWaitKey(taskId)
 	pipe.Del(golabl.Ctx, bodyWaitKey)
+
+	return executePipeline(pipe)
+}
+
+// DelTask 删除任务
+func DelTask(taskId string) error {
+	// 开启事务
+	pipe := golabl.RedisDbA.TxPipeline()
+
+	// 删除 header
+	pipe.Del(golabl.Ctx, getHeaderKey(taskId))
+	// 删除 footer
+	pipe.Del(golabl.Ctx, getFooterKey(taskId))
+	// 删除 body_wait
+	pipe.Del(golabl.Ctx, getBodyWaitKey(taskId))
+	// 删除 body_over
+	pipe.Del(golabl.Ctx, getBodyOverKey(taskId))
+	// 删除 body_file
+	pipe.Del(golabl.Ctx, getBodyFileKey(taskId))
+	// 删除body_data
+	pipe.Del(golabl.Ctx, getBodyDataKey(taskId))
+	//删除 body_backup
+	pipe.Del(golabl.Ctx, getBodyBackupKey(taskId))
 
 	return executePipeline(pipe)
 }
@@ -451,13 +470,13 @@ func setStringField(info *_type.TaskHeader, key, value string) {
 // @param key Redis键
 // @param data 数据映射
 // @return error 错误信息
-func saveHashMap(key string, data map[string]interface{}, expiration time.Duration) error {
+func saveHashMap(key string, data map[string]interface{}) error {
 	for field, value := range data {
 		if err := golabl.RedisDbA.HSet(golabl.Ctx, key, field, value).Err(); err != nil {
 			return fmt.Errorf("保存字段 %s 失败: %w (值: %v)", field, err, value)
 		}
 	}
-	golabl.RedisDbA.Expire(golabl.Ctx, key, expiration)
+	golabl.RedisDbA.Expire(golabl.Ctx, key, golabl.RedisExp)
 	return nil
 }
 

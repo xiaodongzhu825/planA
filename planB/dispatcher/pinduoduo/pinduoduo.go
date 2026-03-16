@@ -104,7 +104,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	//TODO
 	// 构建参数
 	var goodsAdd GoodsAdd
-	pddDll, err := pdd.InitPddSO()
+	pddDll, err := pdd.InitPddDll()
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("初始化拼多多DLL失败 %v", err))
 	}
@@ -130,7 +130,6 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	}
 	if len(goodsAdd.CarouselGallery) == 0 {
 		// 无图片信息 isbn计次
-		fmt.Println(golabl.RedisClientD)
 		setNoImgCountErr := redis.SetNoImgCount(golabl.RedisClientD, taskMsg.BookInfo.Isbn)
 		if setNoImgCountErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error()))
@@ -141,29 +140,42 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	goodsAdd.DetailGallery = tool.BuildDetailGallery(taskHeader.ShopMsg.WatermarkImgUrl, taskHeader.ShopMsg.GoodsDetailFirstImgUrlArray, taskHeader.ShopMsg.GoodsDetailLastImgUrlArray, taskMsg.BookInfo.ImageObject.DetailUrlObject)
 
 	// 构建 catId
-	if taskMsg.BookInfo.CatIdObject.PinDuoDuoCatId == 0 {
+	var catID int64
+
+	if taskMsg.BookInfo.CatIdObject.PinDuoDuoCatId == "" {
+		// 获取拼多多配置
 		pddConfig, getPddClientErr := config.GetPddClient()
 		if getPddClientErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("获取拼多多配置失败 %w", getPddClientErr))
 		}
-		pddcalbackStr, pddGoodsOuterCatMappingGetErr := pddDll.PddGoodsOuterCatMappingGet(pddConfig.ClientId, pddConfig.ClientSecret, taskHeader.ShopMsg.Token, "15543", "书籍/杂志/报纸", "书籍 "+taskMsg.BookInfo.BookName)
+		// 调用拼多多 SDK 取类目信息
+		pddCalbackStr, pddGoodsOuterCatMappingGetErr := pddDll.PddGoodsOuterCatMappingGet(pddConfig.ClientId, pddConfig.ClientSecret, taskHeader.ShopMsg.Token, "15543", "书籍/杂志/报纸", "书籍 "+taskMsg.BookInfo.BookName)
 		if pddGoodsOuterCatMappingGetErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("调用DLL类目映射失败 %w", err))
 		}
 
 		// 解析返回的 JSON 字符串
 		var response _type.PddSuccessResponse
-		if unmarshalErr := json.Unmarshal([]byte(pddcalbackStr), &response); unmarshalErr != nil {
-			return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("json.Unmarshal错误 %w %v", unmarshalErr, pddcalbackStr))
+		if unmarshalErr := json.Unmarshal([]byte(pddCalbackStr), &response); unmarshalErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("json.Unmarshal错误 %w %v", unmarshalErr, pddCalbackStr))
 		}
-		if response.OuterCatMappingGetResponse.CatID4 != 0 {
-			taskMsg.BookInfo.CatIdObject.PinDuoDuoCatId = response.OuterCatMappingGetResponse.CatID4
-		} else {
-			taskMsg.BookInfo.CatIdObject.PinDuoDuoCatId = response.OuterCatMappingGetResponse.CatID3
-		}
-	}
 
-	goodsAdd.CatId = taskMsg.BookInfo.CatIdObject.PinDuoDuoCatId
+		// 判断 catID4 是否为0
+		if response.OuterCatMappingGetResponse.CatID4 != 0 {
+			catID = response.OuterCatMappingGetResponse.CatID4
+		} else {
+			catID = response.OuterCatMappingGetResponse.CatID3
+		}
+	} else {
+		// 数据库原本存储的为字符串 转成int64再使用
+		retCatID, toInt64Err := taskMsg.BookInfo.CatIdObject.PinDuoDuoCatId.ToInt64()
+		if toInt64Err != nil {
+			return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("转换catId错误 %w", toInt64Err))
+		}
+		catID = retCatID
+	}
+	// 设置 catId
+	goodsAdd.CatId = catID
 
 	// 构建商品类型
 	goodsAdd.GoodsType = 1

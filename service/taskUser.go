@@ -5,6 +5,7 @@ import (
 	"planA/initialization/golabl"
 	"planA/tool"
 	mysqlType "planA/type/mysql"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -97,4 +98,11 @@ func GetTaskUserByTaskId(taskId string) (mysqlType.TaskUser, error) {
 func UpdateTaskUserIsExport(taskId string, isExport int) error {
 	err := golabl.MysqlDb.Model(&mysqlType.TaskUser{}).Where("TASK_ID = ?", taskId).Update("is_export", isExport).Error
 	return err
+}
+
+// DeleteOldTaskUser 删除大于三天的数据
+// @return error 错误信息
+func DeleteOldTaskUser() error {
+	threeDaysAgo := time.Now().AddDate(0, 0, -3)
+	return golabl.MysqlDb.Where("create_at < ?", threeDaysAgo).Delete(&mysqlType.TaskUser{}).Error
 }

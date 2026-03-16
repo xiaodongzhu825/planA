@@ -41,6 +41,9 @@ func Init() error {
 		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[0].Addr, redisConfig[0].DB, redisErr)
 	}
 	golabl.RedisDbD = redisClientD
+
+	//设置默认过期时间
+	golabl.RedisExp = time.Duration(golabl.Config.Server.RedisExp) * time.Hour
 	return nil
 }
 

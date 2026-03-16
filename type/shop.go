@@ -56,6 +56,7 @@ type ShopDetail struct {
 	CostTemplateId      int64  `json:"cost_template_id"`      //物流运费模板 ID
 	TowDiscount         int64  `json:"two_discount"`          //两件折扣
 	WatermarkImgUrl     string `json:"watermark_img_url"`     //水印图片链接
+	WatermarkPosition   string `json:"watermark_position"`    //水印位置 0全部  1第一张
 	DistrictId          int64  `json:"district_id"`           //地区类型 0 指定区县 1 指定省 2 全国
 	DistrictType        string `json:"district_type"`         //地区 ID 【district_type=0 区县ID district_type=1 省ID district_type=2 全国（空值）】
 }

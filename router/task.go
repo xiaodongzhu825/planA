@@ -16,5 +16,6 @@ func TaskInit() {
 	taskRouter.HandleFunc("/get", controller.GetTask).Methods("GET")                 // 获取任务列表（支持查询参数）
 	taskRouter.HandleFunc("/getByUserId", controller.GetTaskByUserId).Methods("GET") // 根据用户 ID获取任务 获取任务列表（支持查询参数）
 	taskRouter.HandleFunc("/setTaskBody", controller.SetTaskBody).Methods("POST")    // 设置任务执行内容
+	taskRouter.HandleFunc("/del/{id}", controller.DelTask).Methods("GET")            // 删除任务
 	taskRouter.HandleFunc("/b", controller.B).Methods("GET")                         // 运行B程序（特殊功能）
 }

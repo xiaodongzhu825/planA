@@ -2,6 +2,7 @@ server:
   port: "8080"  #服务器端口
   filter: 0 #是否开启违禁词过滤器  0=关闭 1=开启
   replaceMark: "0" #标题违规词是否替换*  0 不替换  1 替换（替换会继续发布，不替换则不发布）
+  redisExp: 192 #redis过期时间 192小时（8天）
 alive:
   fluent: 50 #存活状态-流程时间（毫秒）
   slow: 200 #存活状态-缓慢时间（毫秒）
@@ -63,6 +64,7 @@ fileUrl:
   xianYuDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\xianyu"  #闲鱼 DLL库路径
   pddDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\pdd"  #拼多多 DLL库路径
   logDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\logs"  #日志 DLL库路径
+  imageDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\image"  #水印 DLL库路径
   bFileName: "D:\\www\\wwwroot\\planA\\planB\\main.exe"   #B 程序文件路径
   createTaskUrl: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   createTaskNoticeUrl: "http://36.212.1.63:8055/task" #核价软件提交数据通知接口

@@ -118,7 +118,6 @@ func GetTaskRecordsWithPage(page, pageSize int, taskId string, shopName string, 
 
 	// 添加分页参数到 args
 	queryArgs := append(args, pageSize, offset)
-
 	rows, err := golabl.SqliteDb.Query(querySQL, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("查询失败: %v", err)
@@ -211,13 +210,13 @@ func GetTaskRecordById() {
 	golabl.SqliteDb.QueryRow("SELECT * FROM task_records WHERE id = ?", 1).Scan(&record.ID, &record.TaskID, &record.ShopName, &record.CreateAt)
 }
 
-// DeleteOldRecordsSQLite 删除task_records表中7天前的记录
+// DeleteOldRecordsSQLite 删除task_records表中3天前的记录
 // @return error 错误信息
 func DeleteOldRecordsSQLite() error {
-	// 使用SQLite的date函数计算7天前
+	// 使用SQLite的date函数计算3天前
 	result, err := golabl.SqliteDb.Exec(`
         DELETE FROM task_records 
-        WHERE create_at < datetime('now', '-7 days')
+        WHERE create_at < datetime('now', '-3 days')
     `)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)
@@ -228,6 +227,54 @@ func DeleteOldRecordsSQLite() error {
 		return fmt.Errorf("获取影响行数失败: %v", err)
 	}
 
-	fmt.Printf("已删除 %d 条大于7天的记录\n", rowsAffected)
+	fmt.Printf("已删除 %d 条大于3天的记录\n", rowsAffected)
 	return nil
+}
+
+// GetAllTaskRecords 查询task_records中24小时内的所有数据
+func GetAllTaskRecords() ([]sqLiteType.TaskRecord, error) {
+	// 查询24小时内的记录，按创建时间倒序排列
+	querySQL := `
+    SELECT id, user_id, task_id, shop_name, is_export, task_type, create_at 
+    FROM task_records 
+    WHERE create_at >= datetime('now', '-4 hours')
+    AND create_at <= datetime('now', '-10 minutes')
+    ORDER BY create_at DESC`
+
+	// 执行查询
+	rows, err := golabl.SqliteDb.Query(querySQL)
+	if err != nil {
+		return nil, fmt.Errorf("查询24小时内任务记录失败: %v", err)
+	}
+	defer rows.Close() // 确保结果集最终被关闭
+
+	// 初始化结果切片
+	var records []sqLiteType.TaskRecord
+
+	// 遍历查询结果
+	for rows.Next() {
+		var record sqLiteType.TaskRecord
+		// 扫描每一行数据到结构体中
+		err = rows.Scan(
+			&record.ID,
+			&record.UserID,
+			&record.TaskID,
+			&record.ShopName,
+			&record.IsExport,
+			&record.TaskType,
+			&record.CreateAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描任务记录数据失败: %v", err)
+		}
+		records = append(records, record)
+	}
+
+	// 检查遍历过程中是否有错误
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历任务记录结果集错误: %v", err)
+	}
+
+	// 返回查询结果
+	return records, nil
 }

@@ -9,23 +9,24 @@ import (
 	"planA/modules/pdd"
 	"planA/service"
 	"planA/tool"
+	"planA/tool/process"
 	"time"
 )
 
-// DeleteOldRecordsSQLite 删除sqLite中大于7天的记录
+// DeleteOldRecordsSQLite 删除sqLite中大于3天的记录
 func DeleteOldRecordsSQLite() {
 	err := service.DeleteOldRecordsSQLite()
 	if err != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "删除SQLite中7天前的记录失败："+err.Error())
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "删除SQLite中3天前的记录失败："+err.Error())
 		return
 	}
 }
 
-// DeleteOldExportSQLite 删除sqLite中大于7天的记录
+// DeleteOldExportSQLite 删除sqLite中大于3天的记录
 func DeleteOldExportSQLite() {
 	err := service.DeleteOldExportSQLite()
 	if err != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "删除SQLite中7天前的记录失败："+err.Error())
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "删除SQLite中3天前的记录失败："+err.Error())
 		return
 	}
 }
@@ -74,7 +75,7 @@ func CheckPddAlive() {
 	//	return
 	//}
 
-	pddDll, initPddSOErr := pdd.InitPddSO()
+	pddDll, initPddSOErr := pdd.InitPddDll()
 	if initPddSOErr != nil {
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "初始化拼多多dll文件失败："+initPddSOErr.Error())
 		return
@@ -130,11 +131,11 @@ func CheckBannedWordSubstitutionUrlAlive() {
 	serviceAlive.SetServiceAlive("违禁词替换接口", elapsedMs)
 }
 
-// DeleteOldExportFile 删除7天前的导出文件
+// DeleteOldExportFile 删除3天前的导出文件
 func DeleteOldExportFile() {
 	lite, err := service.GetOldExportSQLite()
 	if err != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取SQLite中7天前的记录失败："+err.Error())
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取SQLite中3天前的记录失败："+err.Error())
 		return
 	}
 	for _, v := range lite {
@@ -142,6 +143,59 @@ func DeleteOldExportFile() {
 		if removeErr != nil {
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "删除文件失败："+removeErr.Error())
 			continue
+		}
+	}
+}
+
+// DeleteOldExportRedis 删除redis3天前的数据
+func DeleteOldExportRedis() {
+
+	lite, err := service.GetOldTaskRecordsSQLite()
+	if err != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取SQLite中3天前的记录失败："+err.Error())
+		return
+	}
+	for _, v := range lite {
+		err := service.DelTask(v.TaskID)
+		if err != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "删除任务失败："+err.Error())
+			continue
+		}
+
+	}
+}
+
+// DeleteOldTaskUser 删除mysql中3天前的数据
+func DeleteOldTaskUser() {
+	err := service.DeleteOldTaskUser()
+	if err != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "删除mysql中3天前的记录失败："+err.Error())
+		return
+	}
+}
+
+// B 程序守护
+func B() {
+	//查询task_records中24小时内的所有数据
+	records, getAllTaskRecordsErr := service.GetAllTaskRecords()
+	if getAllTaskRecordsErr != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取所有任务记录失败："+getAllTaskRecordsErr.Error())
+		return
+	}
+	for _, v := range records {
+		//获取 header 信息
+		header, getTaskHeaderErr := service.GetTaskHeader(v.TaskID)
+		if getTaskHeaderErr != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取header 信息失败："+getTaskHeaderErr.Error())
+			continue
+		}
+		if header.Status != 0 {
+			// 启动 B程序
+			_, runTaskWorkerErr := process.RunTaskWorker(v.TaskID)
+			if runTaskWorkerErr != nil {
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "启动B程序失败："+runTaskWorkerErr.Error())
+				continue
+			}
 		}
 	}
 }

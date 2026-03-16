@@ -11,9 +11,11 @@ func Init() {
 	c := cron.New(cron.WithSeconds()) // 支持秒级别的精度
 	// 每日执行删除sqlite过期记录
 	_, delSqlIteErr := c.AddFunc("0 0 0 * * ?", func() {
+		DeleteOldExportRedis()   //删除 redis中过期数据
 		DeleteOldExportFile()    //删除过期的导出文件
 		DeleteOldExportSQLite()  //删除task_export过期记录
 		DeleteOldRecordsSQLite() //删除task_record过期记录
+		DeleteOldTaskUser()      //删除task_user过期记录
 	})
 	if delSqlIteErr != nil {
 		logs.LoggingMiddleware("error", "定时任务 每日执行删除sqlite过期记录 失败")
@@ -21,7 +23,7 @@ func Init() {
 	}
 	//心跳检测 10秒
 	_, heartbeatErr := c.AddFunc("0/10 * * * * ?", func() {
-		CheckBannedWordSubstitutionUrlAlive() // 违禁词词替换心跳
+		CheckBannedWordSubstitutionUrlAlive() // 违禁词替换心跳
 		CheckMysqlAlive()                     // mysql 心跳
 		CheckRedisAlive()                     // redis 心跳
 		CheckSqliteAlive()                    // sqlite 心跳
@@ -33,6 +35,13 @@ func Init() {
 		logs.LoggingMiddleware("error", "定时任务 心跳检测 失败")
 		return
 	}
-
+	// 60秒钟检测一次
+	_, bErr := c.AddFunc("0/60 * * * * ?", func() {
+		B()
+	})
+	if bErr != nil {
+		logs.LoggingMiddleware("error", "定时任务 B 函数 启动失败")
+		return
+	}
 	c.Start() // 启动调度器（非阻塞）
 }

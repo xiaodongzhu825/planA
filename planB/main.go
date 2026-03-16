@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"planA/modules/logs"
 	"planA/planB/config"
@@ -20,7 +18,6 @@ import (
 	"planA/planB/tool"
 	_type "planA/planB/type"
 	"strconv"
-	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -78,7 +75,7 @@ func main() {
 	if taskKey == "111" {
 		//循环1000次
 		for i := 0; i < 1000; i++ {
-			//每秒打印i
+			//每秒打印 i
 			fmt.Printf("i:%v\n", i)
 			time.Sleep(time.Second)
 		}
@@ -177,14 +174,14 @@ func main() {
 	fmt.Println(mainConfig.RedisConfig[5])
 	// 装入全局变量
 	golabl.RedisClientD = redisClientD
-	//defer func() {
-	//	if closeErr := golabl.RedisClientD.Close(); closeErr != nil {
-	//		errMsg := fmt.Sprintf("关闭 redis 连接失败:%v", closeErr)
-	//		fmt.Printf(errMsg)
-	//		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-	//
-	//	}
-	//}()
+	defer func() {
+		if closeErr := golabl.RedisClientD.Close(); closeErr != nil {
+			errMsg := fmt.Sprintf("关闭 redis 连接失败:%v", closeErr)
+			fmt.Printf(errMsg)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+
+		}
+	}()
 
 	// ====================== 初始化 ======================
 
@@ -284,6 +281,33 @@ func main() {
 				status = 2
 				errorStr = "价格不能小于0"
 			}
+			////----------------------处理图片水印----开始-----------------------//
+			//if len(taskMsg.BookInfo.ImageObject.CarouselUrlArray) > 0 {
+			//	if task.Header.ShopMsg.WatermarkPosition == "1" {
+			//		//只给第一张图片添加水印
+			//		uploadImage, err := PddUploadImage(taskMsg.BookInfo.ImageObject.CarouselUrlArray[0], task.Header.ShopMsg.WatermarkImgUrl)
+			//		if err != nil {
+			//			errMsg := fmt.Sprintf("上传图片失败-原因来自:%v", err)
+			//			fmt.Printf(errMsg)
+			//			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			//		} else {
+			//			taskMsg.BookInfo.ImageObject.CarouselUrlArray[0] = uploadImage
+			//		}
+			//	} else {
+			//		//给所有图片添加水印
+			//		for i := 0; i < len(taskMsg.BookInfo.ImageObject.CarouselUrlArray); i++ {
+			//			uploadImage, err := PddUploadImage(taskMsg.BookInfo.ImageObject.CarouselUrlArray[i], task.Header.ShopMsg.WatermarkImgUrl)
+			//			if err != nil {
+			//				errMsg := fmt.Sprintf("上传图片失败-原因来自:%v", err)
+			//				fmt.Printf(errMsg)
+			//				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			//				continue
+			//			}
+			//			taskMsg.BookInfo.ImageObject.CarouselUrlArray[i] = uploadImage
+			//		}
+			//	}
+			//}
+			////----------------------处理图片水印----结束-----------------------//
 			//获取出版社信息并解析
 			publishing, getPublishingErr := _myRedis.GetPublishingVid(golabl.RedisClientB, taskMsg.BookInfo.Publishing)
 			if getPublishingErr != nil {
@@ -470,154 +494,6 @@ func main() {
 
 }
 
-// 任务检查
-func checkTask(mysqlClient *sql.DB, taskMsg _type.TaskBody) error {
-	//TODO
-	//  // 在 header 中 查看是否需要验证违规
-	//  if task.header.IsViolation {
-	// 	 // 获取违规信息
-	// 	 violation,violationErr := mysql.GetViolation(mysqlClient,taskMsg);if violationErr != nil {
-	// 		 return fmt.Errorf("获取违规信息失败")
-	// 	 }
-	// 	 // 验证违规
-	// 	 if mysql.IsViolation(violation) {
-	// 		 return fmt.Errorf("任务违规")
-	// 	 }
-	//  }
-	//  // 在 header 中 查看是否需要验证重复
-	//  if task.header.IsRepeat {
-	// 	 // 获取重复信息
-	// 	 repeat,repeatErr := mysql.GetIsRepeat(mysqlClient,taskMsg);if repeatErr != nil {
-	// 		 return fmt.Errorf("获取重复信息失败")
-	// 	 }
-	// 	 // 验证重复
-	// 	 if repeat {
-	// 		 return fmt.Errorf("商品已存在")
-	// 	 }
-	return nil
-}
-
-func newGetDll(shopType int64) (any, error) {
-	//TODO
-	// 获取 dll
-	// switch shopType {
-	// case 0: // 拼多多
-	// 	return pinduoduo.Dll,nil
-	// case 1: // 孔夫子
-	// 	return kongfuzi.Dll,nil
-	// case 2: // 咸鱼
-	// 	return xianyu.Dll,nil
-	// }
-	return nil, nil
-}
-
-func newGetPlatform(shopType int64) (any, error) {
-	//TODO
-	// 获取 dll
-	// switch shopType {
-	// case 0: // 拼多多
-	// 	return 	"planA/planB/dispatcher/pinduoduo" ,nil
-	// case 1: // 孔夫子
-	// 	return kongfuzi.Dll,nil
-	// case 2: // 咸鱼
-	// 	return xianyu.Dll,nil
-	// }
-	return nil, nil
-}
-
-// 根据店铺类型和任务类型获取令牌桶
-func tokenBucketIsAllow(shopType int64, taskType int64) bool {
-	//TODO
-
-	return true
-}
-
-// 启动每秒速率监控
-func startPerSecondRateMonitor() {
-	lastSecondTimestamp = time.Now()
-
-	// 每秒计算一次速率
-	secondTicker := time.NewTicker(1 * time.Second)
-	defer secondTicker.Stop()
-
-	go func() {
-		for {
-			select {
-			case <-secondTicker.C:
-				currentTime := time.Now()
-				lastSecond := atomic.LoadInt64(&lastSecondCount)
-
-				// 计算每秒速率
-				elapsedSeconds := currentTime.Sub(lastSecondTimestamp).Seconds()
-				if elapsedSeconds > 0 {
-					ratePerSecond := float64(lastSecond) / elapsedSeconds
-
-					// 将速率发送到通道（可用于实时显示或控制）
-					select {
-					case perSecondRateChan <- ratePerSecond:
-					default:
-						// 通道满时丢弃旧数据
-					}
-
-					// 打印每秒速率（可选）
-					log.Printf("当前实时速率: %.2f 条/秒", ratePerSecond)
-
-					// 重置上一秒计数
-					atomic.StoreInt64(&lastSecondCount, 0)
-					lastSecondTimestamp = currentTime
-				}
-			}
-		}
-	}()
-}
-
-// 启动每秒执行数量监控 - 支持按redisKey分别统计
-func startPerSecondExecutionMonitor(redisKey string) {
-	monitor := getOrCreateTaskMonitor(redisKey)
-	monitor.startTime = time.Now()
-	monitor.lastSecondTimestamp = time.Now()
-
-	lastSecondTotal := int64(0)
-
-	// 每秒打印一次执行数量
-	secondTicker := time.NewTicker(1 * time.Second)
-
-	go func() {
-		defer secondTicker.Stop()
-
-		for {
-			select {
-			case <-secondTicker.C:
-				// 获取当前任务的监控数据
-				monitorNow := getOrCreateTaskMonitor(redisKey)
-
-				currentTotal := atomic.LoadInt64(&monitorNow.totalProcessed)
-				processedThisSecond := currentTotal - lastSecondTotal
-				lastSecondTotal = currentTotal
-
-				// 计算当前每秒速率
-				currentRate := getCurrentRateForTask(redisKey)
-
-				// 计算平均速率
-				elapsedSeconds := time.Since(monitorNow.startTime).Seconds()
-				avgRatePerSecond := float64(0)
-				if elapsedSeconds > 0 {
-					avgRatePerSecond = float64(currentTotal) / elapsedSeconds
-				}
-
-				// 使用 log.Printf 并添加换行符
-				fmt.Printf("====== 每秒执行统计 (任务: %s) ======\n", redisKey)
-				fmt.Printf("本秒执行: %d 条\n", processedThisSecond)
-				fmt.Printf("当前速率: %.2f 条/秒\n", currentRate)
-				fmt.Printf("累计执行: %d 条\n", currentTotal)
-				fmt.Printf("平均速率: %.2f 条/秒\n", avgRatePerSecond)
-				fmt.Printf("运行时间: %.2f 秒\n", elapsedSeconds)
-				fmt.Printf("========================\n")
-			}
-		}
-	}()
-}
-
 // 新增：获取或创建任务监控器
 func getOrCreateTaskMonitor(redisKey string) *TaskMonitor {
 	if monitor, ok := taskMonitors.Load(redisKey); ok {
@@ -634,20 +510,6 @@ func getOrCreateTaskMonitor(redisKey string) *TaskMonitor {
 	taskMonitors.Store(redisKey, monitor)
 	return monitor
 }
-
-// 新增：获取指定任务的当前速率
-func getCurrentRateForTask(redisKey string) float64 {
-	monitor := getOrCreateTaskMonitor(redisKey)
-	currentTime := time.Now()
-	lastSecond := atomic.LoadInt64(&monitor.lastSecondCount)
-
-	elapsedSeconds := currentTime.Sub(monitor.lastSecondTimestamp).Seconds()
-	if elapsedSeconds < 1 {
-		return float64(lastSecond) / math.Max(elapsedSeconds, 0.1)
-	}
-	return float64(lastSecond) / elapsedSeconds
-}
-
 func setConsoleTitle(title string) {
 	kernel32 := syscall.NewLazyDLL("kernel32.dll")
 	procSetConsoleTitle := kernel32.NewProc("SetConsoleTitleW")
@@ -655,3 +517,58 @@ func setConsoleTitle(title string) {
 	titlePtr, _ := syscall.UTF16PtrFromString(title)
 	procSetConsoleTitle.Call(uintptr(unsafe.Pointer(titlePtr)))
 }
+
+//
+//// PddUploadImage 拼多多上传打水印后的图片
+//func PddUploadImage(img, watermark string) (string, error) {
+//	//打水印
+//	image, initImageDllErr := image.InitImageDll()
+//	if initImageDllErr != nil {
+//		fmt.Println("111111111111111")
+//		return "", initImageDllErr
+//	}
+//	ex, addWatermarkFromURLExsErr := image.AddWatermarkFromURLExs(img, watermark)
+//	if addWatermarkFromURLExsErr != nil {
+//		fmt.Println("222222222222222222")
+//		return "", addWatermarkFromURLExsErr
+//	}
+//	var ret _type.Returns
+//	unmarshalErr := json.Unmarshal([]byte(ex), &ret)
+//	if unmarshalErr != nil {
+//		fmt.Println("---------------------------------------------------------------------------")
+//		fmt.Println("img：" + img)
+//		fmt.Println("watermark：" + watermark)
+//		fmt.Println(ex)
+//		fmt.Println("---------------------------------------------------------------------------")
+//		return "", unmarshalErr
+//	}
+//	if !ret.Success {
+//		fmt.Println("33333333333333")
+//		return "", fmt.Errorf("水印打印失败")
+//	}
+//	//上传到拼多多
+//	pdd, initPddDllErr := pdd.InitPddDll()
+//	if initPddDllErr != nil {
+//		fmt.Println("4444444444444444")
+//		return "", initPddDllErr
+//	}
+//	upload, pddGoodsImageUploadErr := pdd.PddGoodsImageUpload(ret.Data)
+//	if pddGoodsImageUploadErr != nil {
+//		fmt.Println("***********************************************************************")
+//		fmt.Println(upload)
+//		fmt.Println("***********************************************************************")
+//		return "", pddGoodsImageUploadErr
+//	}
+//	if strings.Contains(upload, "错误") {
+//		fmt.Println("55555555555555555555")
+//		return "", fmt.Errorf(upload)
+//	}
+//	var goodsImageUploadResponse _type.GoodsImageUploadResponse
+//	unmarshalErr = json.Unmarshal([]byte(upload), &goodsImageUploadResponse)
+//	if unmarshalErr != nil {
+//		fmt.Println("666666666666666666666666666666")
+//		return "", unmarshalErr
+//	}
+//	imgUrl := goodsImageUploadResponse.GoodsImageUploadResponse.ImageURL
+//	return imgUrl, nil
+//}

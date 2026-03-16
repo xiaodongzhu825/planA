@@ -13,6 +13,7 @@ import (
 	"planA/initialization/redis"
 	"planA/initialization/router"
 	"planA/initialization/sqLite"
+	"planA/initialization/validator"
 )
 
 func Init() error {
@@ -38,6 +39,8 @@ func Init() error {
 	if sqliteErr != nil {
 		return fmt.Errorf("初始化sqlite失败: %v", sqliteErr)
 	}
+	// 初始化验证器
+	validator.Init()
 	// 初始化定时任务（非阻塞，因此不需要返回错误）
 	cron.Init()
 	//初始化中间件

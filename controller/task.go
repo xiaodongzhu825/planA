@@ -5,13 +5,14 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"planA/tool/process"
+	"planA/validator"
 
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"planA/controlState/lock"
 	"planA/initialization/config"
 	"planA/modules/logs"
@@ -20,95 +21,44 @@ import (
 	"planA/tool"
 	"planA/type"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
-
-	_redis "github.com/go-redis/redis/v8"
-	"github.com/gorilla/mux"
 
 	mysqlType "planA/type/mysql"
 	redisType "planA/type/redis"
 	sqLiteType "planA/type/sqLite"
-)
 
-var expiration = 8 * 24 * time.Hour
-var (
-	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
-	modntdll    = syscall.NewLazyDLL("ntdll.dll")
-
-	procOpenProcess      = modkernel32.NewProc("OpenProcess")
-	procCloseHandle      = modkernel32.NewProc("CloseHandle")
-	procNtSuspendProcess = modntdll.NewProc("NtSuspendProcess")
-	procNtResumeProcess  = modntdll.NewProc("NtResumeProcess")
-)
-
-const (
-	PROCESS_SUSPEND_RESUME = 0x0800
+	_redis "github.com/go-redis/redis/v8"
 )
 
 // CreateTask 创建任务
 func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
-	// 获取表单数据
-	shopID := data.FormValue("shop_id")
-	shopType := data.FormValue("shop_type")
-	taskCount := data.FormValue("task_count")
-	imgTypeStr := data.FormValue("img_type")
-	imgType, err := strconv.ParseInt(imgTypeStr, 10, 64)
+
+	// 验证表单
+	dataVal, createTaskValidatorErr := validator.CreateTaskValidator(data)
+	if createTaskValidatorErr != nil {
+		tool.Error(httpMsg, createTaskValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	imgType, err := strconv.ParseInt(dataVal.ImgType, 10, 64)
 	if err != nil {
 		errMsg := "图片类型转换失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	taskTypeStr := data.FormValue("task_type")
-	if taskTypeStr == "" {
-		taskTypeStr = "1"
-	}
 	//将 taskTypeStr 转为 int64
-	taskType, err := strconv.ParseInt(taskTypeStr, 10, 64)
+	taskType, err := strconv.ParseInt(dataVal.TaskType, 10, 64)
 	if err != nil {
 		errMsg := "任务类型转换失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-
-	// 1. 验证店铺 ID
-	if shopID == "" {
-		errMsg := "店铺ID不能为空"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	// 验证店铺类型
-	if shopType != "1" && shopType != "2" && shopType != "5" {
-		errMsg := "店铺类型错误"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	// 验证任务数
-	if taskCount == "" {
-		errMsg := "任务数不能为空"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	//验证任务类型
-	if taskType != 1 && taskType != 2 {
-		errMsg := "任务类型错误"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	//验证图片类型
-	if imgType != 1 && imgType != 2 && imgType != 3 && imgType != 4 {
-		errMsg := "图片类型错误"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
 	// 查询店铺数据
-	shopDataStr, err := service.GetTaskShop(shopID)
+	shopDataStr, err := service.GetTaskShop(dataVal.ShopID)
 	if err != nil {
-		errMsg := "获取店铺数据失败: shopId " + shopID + " " + err.Error()
+		errMsg := "获取店铺数据失败: shopId " + dataVal.ShopID + " " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -131,15 +81,15 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	if shop.ShopType != shopType {
+	if shop.ShopType != dataVal.ShopType {
 		errMsg := "店铺类型不匹配 错误店铺类型:" + shop.ShopType
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 
 	//验证店铺规格信息是否正确
-	if shopType == "1" {
-		pddDll, initPddSOErr := pdd.InitPddSO()
+	if dataVal.ShopType == "1" {
+		pddDll, initPddSOErr := pdd.InitPddDll()
 		if initPddSOErr != nil {
 			errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -163,33 +113,32 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	//}
 
 	//请求创建任务接口并获取任务 id
-	taskId, err := CreateTaskRequest(shopID)
+	taskId, err := CreateTaskRequest(dataVal.ShopID)
 	if err != nil {
 		errMsg := "请求创建任务接口失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("店铺ID: %s, 店铺类型: %s, 任务数量: %s 任务id: %s \n", shopID, shopType, taskCount, taskId)
+	fmt.Printf("店铺ID: %s, 店铺类型: %s, 任务数量: %s 任务id: %s \n", dataVal.ShopType, dataVal.TaskType, dataVal.TaskCount, taskId)
 
 	// 创建任务逻辑...
 	createAt := time.Now().Unix()
-	task, err := CreateTaskData(taskId, taskType, createAt, shop, priceRange, spec, detail, taskCount, imgType)
+	task, err := CreateTaskData(taskId, taskType, createAt, shop, priceRange, spec, detail, dataVal.TaskCount, imgType)
 	if err != nil {
 		errMsg := "创建任务失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-
 	//推送redis
-	err = service.UpdateTaskHeader(taskId, task.Header, expiration)
+	err = service.UpdateTaskHeader(taskId, task.Header)
 	if err != nil {
 		errMsg := "保存任务头失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 
-	err = service.UpdateTaskFooter(taskId, &task.Footer, expiration)
+	err = service.UpdateTaskFooter(taskId, &task.Footer)
 	if err != nil {
 		errMsg := "保存任务尾失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -304,18 +253,14 @@ func SetTaskBody(httpMsg http.ResponseWriter, data *http.Request) {
 
 // PauseTask 暂停任务
 func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
-
-	// 从路径参数获取 id
-	vars := mux.Vars(data)
-	taskId := vars["id"]
-	// 1. 验证任务 ID
-	if taskId == "" {
-		errMsg := "任务 ID 不能为空"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+	// 验证表单
+	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	if updateTaskStatusValidatorErr != nil {
+		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
 	//验证状态
-	header, getTaskHeaderErr := service.GetTaskHeader(taskId)
+	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
 	if getTaskHeaderErr != nil {
 		errMsg := "获取任务头失败: " + getTaskHeaderErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -326,26 +271,11 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	//推送 redis
-	status := int64(_type.TaskStatusPaused)
-	err := service.UpdateHeaderStatus(taskId, status, expiration)
-	if err != nil {
-		errMsg := err.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
 
 	// 暂停 B程序
-	headerKey := fmt.Sprintf("%s:header", taskId)
-	processId, getProcessIdErr := service.GetProcessId(headerKey)
-	if getProcessIdErr != nil {
-		errMsg := "获取进程号失败: " + getProcessIdErr.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	suspendProcessErr := SuspendProcess(processId)
+	suspendProcessErr := process.SuspendProcess(dataVal.TaskID)
 	if suspendProcessErr != nil {
-		errMsg := "暂停进程失败: " + suspendProcessErr.Error()
+		errMsg := "暂停任务失败: " + suspendProcessErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -356,17 +286,14 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 // ResumeTask 恢复任务
 func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 从路径参数获取 id
-	vars := mux.Vars(data)
-	taskId := vars["id"]
-	// 1. 验证任务 ID
-	if taskId == "" {
-		errMsg := "任务 ID 不能为空"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+	// 验证表单
+	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	if updateTaskStatusValidatorErr != nil {
+		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
 	//验证状态
-	header, getTaskHeaderErr := service.GetTaskHeader(taskId)
+	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
 	if getTaskHeaderErr != nil {
 		errMsg := "获取任务头失败: " + getTaskHeaderErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -379,7 +306,7 @@ func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	//推送redis
 	status := int64(_type.TaskStatusRunning)
-	err := service.UpdateHeaderStatus(taskId, status, expiration)
+	err := service.UpdateHeaderStatus(dataVal.TaskID, status)
 	if err != nil {
 		errMsg := err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -387,14 +314,7 @@ func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	// 恢复 B程序
-	headerKey := fmt.Sprintf("%s:header", taskId)
-	processId, getProcessIdErr := service.GetProcessId(headerKey)
-	if getProcessIdErr != nil {
-		errMsg := "获取进程号失败: " + getProcessIdErr.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	suspendProcessErr := ResumeProcess(processId)
+	suspendProcessErr := process.ResumeProcess(dataVal.TaskID)
 	if suspendProcessErr != nil {
 		errMsg := "恢复进程失败: " + suspendProcessErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -407,17 +327,15 @@ func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 // StopTask 停止任务
 func StopTask(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 从路径参数获取 id
-	vars := mux.Vars(data)
-	taskId := vars["id"]
-	// 1. 验证任务 ID
-	if taskId == "" {
-		errMsg := "任务 ID 不能为空"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+	// 验证表单
+	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	if updateTaskStatusValidatorErr != nil {
+		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	//验证状态
-	header, getTaskHeaderErr := service.GetTaskHeader(taskId)
+	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
 	if getTaskHeaderErr != nil {
 		errMsg := "获取任务头失败: " + getTaskHeaderErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -429,52 +347,95 @@ func StopTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	// 恢复 B程序
-	headerKey := fmt.Sprintf("%s:header", taskId)
-	processId, getProcessIdErr := service.GetProcessId(headerKey)
-	if getProcessIdErr != nil {
-		errMsg := "获取进程号失败: " + getProcessIdErr.Error()
+	// 停止 B程序
+	stopProcessErr := process.StopTask(dataVal.TaskID)
+	if stopProcessErr != nil {
+		errMsg := "停止进程失败: " + stopProcessErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	suspendProcessErr := ResumeProcess(processId)
-	if suspendProcessErr != nil {
-		errMsg := "恢复进程失败: " + suspendProcessErr.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	//修改 Header中的状态 并且 删除 bodyWait 中的数据
-	err := service.StopTask(taskId, expiration)
-	if err != nil {
-		errMsg := err.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
+
 	// 返回成功响应
+	tool.Session(httpMsg, "")
+}
+
+// DelTask 删除任务
+func DelTask(httpMsg http.ResponseWriter, data *http.Request) {
+
+	// 验证表单
+	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	if updateTaskStatusValidatorErr != nil {
+		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//获取任务状态
+	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
+	if getTaskHeaderErr != nil {
+		errMsg := "获取任务头失败: " + getTaskHeaderErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+
+	// 如果任务是暂停则先恢复
+	if header.Status == _type.TaskStatusPaused {
+		// 恢复 B程序
+		suspendProcessErr := process.ResumeProcess(dataVal.TaskID)
+		if suspendProcessErr != nil {
+			errMsg := "恢复进程失败: " + suspendProcessErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+
+		// 停止 B程序 清空任务
+		stopProcessErr := process.StopTask(dataVal.TaskID)
+		if stopProcessErr != nil {
+			errMsg := "停止进程失败: " + stopProcessErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// 删除 redis中的内容
+	time.Sleep(time.Duration(3) * time.Second)
+	delTaskErr := service.DelTask(dataVal.TaskID)
+	if delTaskErr != nil {
+		errMsg := "删除任务失败: " + delTaskErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	go func() {
+		// 删除任务 延迟3后删除
+		time.Sleep(time.Duration(3) * time.Second)
+		delTaskErr := service.DelTask(dataVal.TaskID)
+		if delTaskErr != nil {
+			errMsg := "删除任务失败: " + delTaskErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+	}()
+
 	tool.Session(httpMsg, "")
 }
 
 // OverTask 任务完成
 func OverTask(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 从路径参数获取 id
-	vars := mux.Vars(data)
-	taskId := vars["id"]
-	// 1. 验证任务 ID
-	if taskId == "" {
-		errMsg := "任务 ID 不能为空"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+	// 验证表单
+	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	if updateTaskStatusValidatorErr != nil {
+		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
 	//推送 redis
 	status := int64(_type.TaskStatusOver)
-	err := service.UpdateHeaderStatus(taskId, status, expiration)
+	err := service.UpdateHeaderStatus(dataVal.TaskID, status)
 	if err != nil {
 		errMsg := err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	lock.DestroyLock(taskId) //销毁锁
+	lock.DestroyLock(dataVal.TaskID) //销毁锁
 	// 返回成功响应
 	tool.Session(httpMsg, "")
 }
@@ -482,16 +443,19 @@ func OverTask(httpMsg http.ResponseWriter, data *http.Request) {
 // GetTask 任务列表
 func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 获取分页参数
-	page, size := tool.SetPage(data.URL.Query().Get("page"), data.URL.Query().Get("size"))
-	taskId := data.URL.Query().Get("task_id")
-	shopName := data.URL.Query().Get("shop_name")
-	taskTypeStr := data.URL.Query().Get("task_type")
+	// 验证表单
+	dataVal, getTaskValidatorErr := validator.GetTaskValidator(data)
+	if getTaskValidatorErr != nil {
+		tool.Error(httpMsg, getTaskValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
+
 	taskTypeInt := 0
 	var atoiErr error
-	if taskTypeStr != "" {
+	if dataVal.TaskType != "" {
 		//将 taskTypeStr 转为 int
-		taskTypeInt, atoiErr = strconv.Atoi(taskTypeStr)
+		taskTypeInt, atoiErr = strconv.Atoi(dataVal.TaskType)
 		if atoiErr != nil {
 			errMsg := "任务类型转换失败"
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -500,7 +464,7 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	}
 
-	records, total, err := service.GetTaskRecordsWithPage(page, size, taskId, shopName, taskTypeInt)
+	records, total, err := service.GetTaskRecordsWithPage(page, size, dataVal.TaskID, dataVal.ShopName, taskTypeInt)
 	if err != nil {
 		errMsg := err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -512,6 +476,7 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 		header, getTaskHeaderErr := service.GetTaskHeader(v.TaskID)
 		if getTaskHeaderErr != nil {
 			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskHeaderErr)
+			fmt.Println(errMsg)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
@@ -519,13 +484,14 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 		footer, getTaskFooterErr := service.GetTaskFooter(v.TaskID)
 		if getTaskFooterErr != nil {
 			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskFooterErr)
+			fmt.Println(errMsg)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
 		//获取 body_over 信息
 		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskID)
 		if GetTaskBodyOverLimit10Err != nil {
-			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", getTaskFooterErr)
+			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", GetTaskBodyOverLimit10Err)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
@@ -558,28 +524,26 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 // GetTaskByUserId 获取用户任务
 func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
-	// 获取分页参数
-	page, size := tool.SetPage(data.URL.Query().Get("page"), data.URL.Query().Get("size"))
-	userIdStr := data.URL.Query().Get("user_id")
-	if userIdStr == "" {
-		errMsg := "用户ID 不能为空"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+
+	// 验证表单
+	dataVal, getTaskByUserIdValidatorErr := validator.GetTaskByUserIdValidator(data)
+	if getTaskByUserIdValidatorErr != nil {
+		tool.Error(httpMsg, getTaskByUserIdValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
-	userId, parseIntuserIdErr := strconv.ParseInt(userIdStr, 10, 64)
+	// 获取分页参数
+	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
+	userId, parseIntuserIdErr := strconv.ParseInt(dataVal.UserID, 10, 64)
 	if parseIntuserIdErr != nil {
 		errMsg := "用户ID 转换失败"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	taskId := data.URL.Query().Get("task_id")
-	shopName := data.URL.Query().Get("shop_name")
-	taskType := data.URL.Query().Get("task_type")
 	taskTypeInt64 := int64(0)
 	var parseIntTaskTypeErr error
-	if taskType != "" {
+	if dataVal.TaskType != "" {
 		//将taskType 转换为 int64
-		taskTypeInt64, parseIntTaskTypeErr = strconv.ParseInt(taskType, 10, 64)
+		taskTypeInt64, parseIntTaskTypeErr = strconv.ParseInt(dataVal.TaskType, 10, 64)
 		if parseIntTaskTypeErr != nil {
 			errMsg := "任务类型转换失败"
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -591,8 +555,8 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 			PageNum:  page,
 			PageSize: size,
 		},
-		ShopName: shopName,
-		TaskID:   taskId,
+		ShopName: dataVal.ShopName,
+		TaskID:   dataVal.TaskID,
 		UserID:   userId,
 		TaskType: taskTypeInt64,
 	})
@@ -653,12 +617,14 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 
 func B(httpMsg http.ResponseWriter, data *http.Request) {
 	taskID := "111"
-	_, callSendPublishingErr := CallSendPublishing(taskID, "123")
+	_, callSendPublishingErr := process.RunTaskWorker(taskID)
 	if callSendPublishingErr != nil {
 		logStr := fmt.Sprintf("执行B程序失败: [taskId] %v [error] %v", taskID, callSendPublishingErr.Error())
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
+		tool.Error(httpMsg, callSendPublishingErr.Error(), http.StatusInternalServerError)
 		return
 	}
+	tool.Session(httpMsg, "")
 }
 
 //****************************工具**************************************//
@@ -760,19 +726,19 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 		}
 		priceModArr = append(priceModArr, priceMod)
 	}
-	var goodsDetailFirstImgUrlArray []string
-	var carouseLastImgUrlArray []string
-	var goodsDetailLastImgUrlArray []string
+	var goodsDetailFirstImgUrlArrayToDo []string
+	var carouseLastImgUrlArrayToDo []string
+	var goodsDetailLastImgUrlArrayToDo []string
 	var token string
-	var districtId int64
-	var districtType string
+	//var districtId int64
+	//var districtType string
 	//处理 Token
 	if shop.ShopType == "1" { //拼多店铺
 		token = shop.Token
 	} else if shop.ShopType == "5" { // 闲鱼店铺
-		token = fmt.Sprintf("{\"app_id\":%v,\"app_secret\":\"%v\",\"username\":\"%v\"}", shop.MallID, shop.Token, shop.ShopKey)
-		districtId = detail.DistrictId
-		districtType = detail.DistrictType
+		//token = fmt.Sprintf("{\"app_id\":%v,\"app_secret\":\"%v\",\"username\":\"%v\"}", shop.MallID, shop.Token, shop.ShopKey)
+		//districtId = detail.DistrictId
+		//districtType = detail.DistrictType
 	}
 	// specTypeID 转换为int64
 	specTypeID, err := parseAdjustPercent(spec.SpecTypeID)
@@ -797,33 +763,34 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 			ShopName: shop.ShopName,
 			ShopType: shop.ShopType,
 			ShopMsg: _type.ShopMsg{
-				ID:                          detail.ID,                                       //店铺详情 ID
-				ShopAliasName:               shop.ShopName,                                   //店铺别名
-				ShopName:                    shop.ShopName,                                   //店铺名称
-				Token:                       token,                                           //店铺 token【如果是咸鱼店铺，此token则是应用密钥】
-				GoodsNamePrefix:             detail.TitlePrefix,                              //商品名称前缀
-				GoodsNameSuffix:             detail.TitleSuffix,                              //商品名称后缀
-				TitleConsistOf:              detail.TitleConsistOf,                           //商品名称组成
-				SpaceCharacter:              detail.SpaceCharacter,                           //间隔字符  0无间隔 1空格
-				WatermarkImgUrl:             detail.WatermarkImgUrl,                          //水印图片
-				CarouseLastImgUrlArray:      tool.FilterStrings(carouseLastImgUrlArray),      //轮播图最后图片[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
-				GoodsDetailFirstImgUrlArray: tool.FilterStrings(goodsDetailFirstImgUrlArray), //商品详情首图URL数组[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
-				GoodsDetailLastImgUrlArray:  tool.FilterStrings(goodsDetailLastImgUrlArray),  //商品详情最后图片URL数组（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
-				IsFolt:                      detail.Fake == "1",                              //是否支持假一赔十，false-不支持，true-支持
-				IsPreSale:                   detail.Presale == "1" || detail.Presale == "2",  //是否预售,true-预售商品，false-非预售商品
-				IsRefundable:                detail.SevenDays == "1",                         //是否7天无理由退换货，true-支持，false-不支持
-				ShipmentLimitSecond:         shipmentLimitSecond,                             //承诺发货时间（秒）
-				CostTemplateId:              int64(detail.TemplateId),                        //物流运费模板 ID
-				SpecName:                    spec.SpecTypeName,                               //规格名称
-				SpecId:                      specTypeID,                                      //规格 ID
-				SpecChildName:               spec.SpecName,                                   //规格子名称
-				DefStock:                    int64(detail.StockDeff),                         //默认库存
-				TwoDiscount:                 detail.TowDiscount,                              //2折
-				IsSecondHand:                detail.IsSecondHand == "1",                      //是否二手 1 -二手商品 ，0-全新商品
-				DistrictMsg: _type.DistrictMsg{
-					DistrictId:   districtId,
-					DistrictType: districtType,
-				},
+				ID:                          detail.ID,                                           //店铺详情 ID
+				ShopAliasName:               shop.ShopName,                                       //店铺别名
+				ShopName:                    shop.ShopName,                                       //店铺名称
+				Token:                       token,                                               //店铺 token【如果是咸鱼店铺，此token则是应用密钥】
+				GoodsNamePrefix:             detail.TitlePrefix,                                  //商品名称前缀
+				GoodsNameSuffix:             detail.TitleSuffix,                                  //商品名称后缀
+				TitleConsistOf:              detail.TitleConsistOf,                               //商品名称组成
+				SpaceCharacter:              detail.SpaceCharacter,                               //间隔字符  0无间隔 1空格
+				WatermarkImgUrl:             detail.WatermarkImgUrl,                              //水印图片
+				WatermarkPosition:           detail.WatermarkPosition,                            //水印位置 0全部  1第一张
+				CarouseLastImgUrlArray:      tool.FilterStrings(carouseLastImgUrlArrayToDo),      //轮播图最后图片[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
+				GoodsDetailFirstImgUrlArray: tool.FilterStrings(goodsDetailFirstImgUrlArrayToDo), //商品详情首图URL数组[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
+				GoodsDetailLastImgUrlArray:  tool.FilterStrings(goodsDetailLastImgUrlArrayToDo),  //商品详情最后图片URL数组（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
+				IsFolt:                      detail.Fake == "1",                                  //是否支持假一赔十，false-不支持，true-支持
+				IsPreSale:                   detail.Presale == "1" || detail.Presale == "2",      //是否预售,true-预售商品，false-非预售商品
+				IsRefundable:                detail.SevenDays == "1",                             //是否7天无理由退换货，true-支持，false-不支持
+				ShipmentLimitSecond:         shipmentLimitSecond,                                 //承诺发货时间（秒）
+				CostTemplateId:              int64(detail.TemplateId),                            //物流运费模板 ID
+				SpecName:                    spec.SpecTypeName,                                   //规格名称
+				SpecId:                      specTypeID,                                          //规格 ID
+				SpecChildName:               spec.SpecName,                                       //规格子名称
+				DefStock:                    int64(detail.StockDeff),                             //默认库存
+				TwoDiscount:                 detail.TowDiscount,                                  //2折
+				IsSecondHand:                detail.IsSecondHand == "1",                          //是否二手 1 -二手商品 ，0-全新商品
+				//DistrictMsg: _type.DistrictMsg{
+				//	DistrictId:   districtId,
+				//	DistrictType: districtType,
+				//},
 			},
 			PriceMod:         priceModArr,             //价格模版
 			ShipPriceMod:     "",                      //运费模版
@@ -865,35 +832,10 @@ func UpdateTaskCount(bodyData []string, taskId string) {
 		fmt.Println("找到的书品为0，所以不提交到redis")
 		return
 	}
-
-	//// 2. 尝试加锁（原子操作，避免并发问题）
-	if !lock.TryLock(taskId) {
-		// 加锁失败：说明已有goroutine在执行B程序，直接返回
-		//fmt.Printf("taskId %s 已被上锁，跳过B程序执行\n", taskId)
-		return
-	}
-	// 3. 加锁成功：执行B程序，确保defer释放锁（即使执行出错也能解锁）
-	defer lock.DestroyLock(taskId)
-
-	// 执行B方法程序
-	headerKey := fmt.Sprintf("%s:header", taskId)
-	processId, getProcessIdErr := service.GetProcessId(headerKey)
-	// 检查是否有错误（排除redis key不存在的情况）
-	if getProcessIdErr != nil && !errors.Is(getProcessIdErr, _redis.Nil) {
-		logStr := fmt.Sprintf("获取进程号失败: [taskId] %v [error] %v", taskId, getProcessIdErr.Error())
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
-		return
-	}
-	if processId != "" {
-		logStr := fmt.Sprintf("正在执行B程序 不启动新的B程序: [taskId] %v [processId] %v", taskId, processId)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, logStr)
-		return
-	}
-	// 判断任务是否处于运行状态
-	_, callSendPublishingErr := CallSendPublishing(taskId, headerKey)
-	if callSendPublishingErr != nil {
-		logStr := fmt.Sprintf("执行B程序失败: [taskId] %v [error] %v", taskId, callSendPublishingErr.Error())
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
+	// 执行 B方法程序
+	_, runTaskWorkerErr := process.RunTaskWorker(taskId)
+	if runTaskWorkerErr != nil {
+		fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
 		return
 	}
 }
@@ -907,7 +849,7 @@ func AddTask(taskId string, bodyData []string) int {
 		return 0
 	}
 	if header.Status == _type.TaskStatusOver {
-		updateHeaderStatusErr := service.UpdateHeaderStatus(taskId, int64(_type.TaskStatusRunning), expiration)
+		updateHeaderStatusErr := service.UpdateHeaderStatus(taskId, int64(_type.TaskStatusRunning))
 		if updateHeaderStatusErr != nil {
 			fmt.Printf("更新header 状态失败 %v", updateHeaderStatusErr)
 			return 0
@@ -935,6 +877,14 @@ func AddTask(taskId string, bodyData []string) int {
 			fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
 			continue
 		}
+		var catId string
+		pinDuoDuoCatIdArr := tool.StringToArray(bookInfo.CatIdObject.PinDuoDuoCatId.String())
+		if len(pinDuoDuoCatIdArr) == 3 {
+			catId = pinDuoDuoCatIdArr[2]
+		} else if len(pinDuoDuoCatIdArr) == 4 {
+			catId = pinDuoDuoCatIdArr[3]
+		}
+		bookInfo.CatIdObject.PinDuoDuoCatId = _type.FlexibleStr(catId)
 		// 更新 BookInfo
 		taskBody.BookInfo = bookInfo
 
@@ -945,9 +895,8 @@ func AddTask(taskId string, bodyData []string) int {
 			return 0
 		}
 		//延迟1毫秒
-		//time.Sleep(time.Millisecond)
 		num.Add(1)
-		err = service.UpdateTaskCountTrue(taskId, 1, expiration)
+		err = service.UpdateTaskCountTrue(taskId, 1)
 	}
 	taskNoticeRequestErr := TaskNoticeRequest(taskId)
 	if taskNoticeRequestErr != nil {
@@ -978,287 +927,6 @@ func parseAdjustPercent(adjustPercent interface{}) (int64, error) {
 		return int64(adjustPercent.(float64)), nil
 	}
 	return adjustPercent.(int64), nil
-}
-
-// CallSendPublishing 调用SendPublishing程序处理任务（内部方法）
-// 返回进程句柄和错误
-// CallSendPublishing 调用SendPublishing程序处理任务（内部方法）
-// 返回进程句柄和错误
-func CallSendPublishing(qName string, headerKey string) (*os.Process, error) {
-	// 1. 基础入参校验
-	if qName == "" {
-		return nil, errors.New("队列名称qName不能为空")
-	}
-	if headerKey == "" {
-		return nil, errors.New("头部标识headerKey不能为空")
-	}
-
-	// 先在Redis中创建一个占位符，表示进程即将启动
-	placeholderPID := "starting"
-	setProcessIdErr := service.SetProcessId(headerKey, placeholderPID)
-	if setProcessIdErr != nil {
-		errMsg := fmt.Sprintf("保存进程占位符到Redis失败: %v, 队列: %s", setProcessIdErr, qName)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-		return nil, fmt.Errorf(errMsg)
-	}
-
-	// 2. 构建并验证程序路径
-	fileUrlConfig, getFileUrlConfigErr := config.GetFileUrlConfig()
-	if getFileUrlConfigErr != nil {
-		errMsg := fmt.Sprintf("获取文件路径配置失败: %v", getFileUrlConfigErr)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-		return nil, fmt.Errorf(errMsg)
-	}
-	programPath := fileUrlConfig.BFileName
-
-	// 关键：验证程序路径是否存在
-	absProgramPath, err := filepath.Abs(programPath)
-	if err != nil {
-		errMsg := fmt.Sprintf("转换程序路径为绝对路径失败: %s, 原始路径: %s", err, programPath)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-		return nil, fmt.Errorf(errMsg)
-	}
-	_, statErr := os.Stat(absProgramPath)
-	if statErr != nil {
-		errMsg := fmt.Sprintf("程序文件不存在或无访问权限: %s, 错误: %v", absProgramPath, statErr)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-		return nil, fmt.Errorf(errMsg)
-	}
-	// 记录有效路径
-	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("待启动程序路径: %s, 队列: %s", absProgramPath, qName))
-
-	// 3. 重构PowerShell脚本，增加错误捕获和详细日志
-	psScript := fmt.Sprintf(`
-        # 设置错误捕获模式
-        $ErrorActionPreference = "Stop"
-        $programPath = "%s"
-        $arguments = "%s"
-        
-        try {
-            # 再次验证程序存在性
-            if (-not (Test-Path $programPath -PathType Leaf)) {
-                throw "程序文件不存在: $programPath"
-            }
-            
-            # 构建进程启动信息
-            $psi = New-Object System.Diagnostics.ProcessStartInfo
-            $psi.FileName = $programPath
-            $psi.Arguments = $arguments
-            $psi.UseShellExecute = $true
-            $psi.WindowStyle = 'Normal'
-            $psi.WorkingDirectory = (Split-Path $programPath -Parent)  # 设置工作目录为程序所在目录
-            
-            # 启动进程
-            Write-Host "开始启动程序: $programPath 参数: $arguments"
-            $process = [System.Diagnostics.Process]::Start($psi)
-            Write-Host "程序启动成功，PID: $($process.Id)"
-            
-            # 等待窗口句柄（非必须，但保留原有逻辑）
-            $timeout = 3000
-            $startTime = Get-Date
-            while ($process.MainWindowHandle -eq [IntPtr]::Zero -and ((Get-Date) - $startTime).TotalMilliseconds -lt $timeout) {
-                Start-Sleep -Milliseconds 50
-                $process.Refresh()
-            }
-            
-            # 尝试将窗口前置
-            if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
-                Add-Type @"
-                    using System;
-                    using System.Runtime.InteropServices;
-                    public class WindowHelper {
-                        [DllImport("user32.dll")]
-                        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-                        [DllImport("user32.dll")]
-                        public static extern bool SetForegroundWindow(IntPtr hWnd);
-                        [DllImport("user32.dll")]
-                        public static extern bool AllowSetForegroundWindow(uint dwProcessId);
-                    }
-"@
-                [WindowHelper]::AllowSetForegroundWindow($process.Id)
-                [WindowHelper]::ShowWindow($process.MainWindowHandle, 9)
-                [WindowHelper]::SetForegroundWindow($process.MainWindowHandle)
-                Write-Host "程序窗口已前置，句柄: $($process.MainWindowHandle)"
-            } else {
-                Write-Warning "未能获取窗口句柄，但进程已启动 (PID: $($process.Id))"
-            }
-            
-            # 输出PID供Go解析
-            Write-Output $process.Id
-        } catch {
-            # 捕获所有异常并输出
-            Write-Error "启动程序失败: $_"
-            exit 1  # 返回非0退出码
-        }
-    `, absProgramPath, qName)
-
-	// 4. 执行PowerShell命令，同时捕获stdout和stderr
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psScript)
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE - 创建新控制台
-		}
-	}
-
-	// 关键：同时捕获标准输出和标准错误
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// 执行命令并记录日志
-	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("执行PowerShell命令: %s", strings.Join(cmd.Args, " ")))
-	runErr := cmd.Run()
-
-	// 输出所有PowerShell的输出（调试关键）
-	stdoutStr := stdout.String()
-	stderrStr := stderr.String()
-	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("PowerShell标准输出: %s", stdoutStr))
-	if stderrStr != "" {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("PowerShell标准错误: %s", stderrStr))
-	}
-
-	// 检查命令执行是否失败
-	if runErr != nil {
-		errMsg := fmt.Sprintf("PowerShell执行失败: %v, 标准错误: %s", runErr, stderrStr)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-		return nil, fmt.Errorf(errMsg)
-	}
-
-	// 5. 解析PID（增加校验）
-	var pid uint32
-	lines := strings.Split(stdoutStr, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		pidInt, err := strconv.Atoi(line)
-		if err == nil && pidInt > 0 {
-			pid = uint32(pidInt)
-			break // 找到有效PID立即退出
-		}
-	}
-	if pid == 0 {
-		errMsg := fmt.Sprintf("未解析到有效PID，PowerShell输出: %s", stdoutStr)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-		return nil, fmt.Errorf(errMsg)
-	}
-	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("解析到进程PID: %d, 队列: %s", pid, qName))
-
-	// 6. 更新Redis中的PID
-	processID := fmt.Sprintf("%d", pid)
-	setProcessIdErr = service.SetProcessId(headerKey, processID)
-	if setProcessIdErr != nil {
-		errMsg := fmt.Sprintf("更新进程PID到Redis失败: %v, 队列: %s, PID: %d", setProcessIdErr, qName, pid)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
-		return nil, fmt.Errorf(errMsg)
-	}
-
-	// 7. 启动goroutine监控进程（增加退出条件和日志）
-	go func(pid int, qName string, headerKey string) {
-		checkCount := 0
-		maxCheckCount := 1800 // 最多检查1小时（2秒/次 * 1800次 = 3600秒）
-		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("开始监控进程PID: %d, 队列: %s", pid, qName))
-
-		for {
-			time.Sleep(2 * time.Second)
-			checkCount++
-
-			// 检查进程是否存在
-			if !isProcessExistWindows(pid) {
-				logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("进程PID: %d已退出，开始清理Redis记录", pid))
-				if headerKey != "" {
-					deleteProcessIdErr := service.DeleteProcessId(headerKey)
-					if deleteProcessIdErr != nil {
-						logStr := fmt.Sprintf("清理Redis进程记录失败，PID: %d, 队列: %s, 错误: %v", pid, qName, deleteProcessIdErr)
-						logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, logStr)
-					} else {
-						logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("成功清理Redis进程记录，PID: %d, Key: %s", pid, headerKey))
-					}
-				}
-				break
-			}
-
-			// 防止无限循环，超过最大检查次数自动退出
-			if checkCount >= maxCheckCount {
-				logs.LoggingMiddleware(logs.LOG_LEVEL_WARNING, fmt.Sprintf("进程PID: %d监控超时（1小时），停止监控", pid))
-				break
-			}
-		}
-	}(int(pid), qName, headerKey)
-
-	// 8. 返回进程句柄
-	process := &os.Process{Pid: int(pid)}
-	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("成功启动进程PID: %d, 程序路径: %s, 队列: %s", pid, absProgramPath, qName))
-	return process, nil
-}
-
-// SuspendProcess 暂停指定PID的进程
-func SuspendProcess(pidStr string) error {
-	// 将字符串转换为整数
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		return fmt.Errorf("PID格式错误: %s, 错误: %v", pidStr, err)
-	}
-
-	// 检查PID是否有效
-	if pid <= 0 {
-		return fmt.Errorf("PID必须为正整数")
-	}
-
-	// 打开进程
-	hProcess, _, err := procOpenProcess.Call(
-		PROCESS_SUSPEND_RESUME,
-		uintptr(0),
-		uintptr(pid),
-	)
-
-	if hProcess == 0 {
-		return fmt.Errorf("打开进程失败: %v", err)
-	}
-	defer procCloseHandle.Call(hProcess)
-
-	// 暂停进程
-	status, _, _ := procNtSuspendProcess.Call(hProcess)
-	if status != 0 {
-		return fmt.Errorf("NtSuspendProcess 失败: 0x%X", status)
-	}
-
-	return nil
-}
-
-// ResumeProcess 恢复指定PID的进程
-func ResumeProcess(pidStr string) error {
-
-	// 将字符串转换为整数
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		return fmt.Errorf("PID格式错误: %s, 错误: %v", pidStr, err)
-	}
-
-	// 检查PID是否有效
-	if pid <= 0 {
-		return fmt.Errorf("PID必须为正整数")
-	}
-	// 打开进程
-	hProcess, _, err := procOpenProcess.Call(
-		PROCESS_SUSPEND_RESUME,
-		uintptr(0),
-		uintptr(pid),
-	)
-
-	if hProcess == 0 {
-		return fmt.Errorf("打开进程失败: %v", err)
-	}
-	defer procCloseHandle.Call(hProcess)
-
-	// 恢复进程
-	status, _, _ := procNtResumeProcess.Call(hProcess)
-	if status != 0 {
-		return fmt.Errorf("NtResumeProcess 失败: 0x%X", status)
-	}
-
-	return nil
 }
 
 // isProcessExistWindows 检查Windows进程是否存在

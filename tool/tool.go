@@ -294,3 +294,19 @@ func JsonResponse(w http.ResponseWriter, statusCode int, resp _type.APIResponse)
 		return
 	}
 }
+
+// StringToArray 将字符串根据/转为数组
+func StringToArray(str string) []string {
+
+	// 1. 分割字符串
+	parts := strings.Split(str, "/")
+
+	// 2. 创建结果切片
+	result := make([]string, 0, len(parts))
+
+	// 3. 遍历转换
+	for _, part := range parts {
+		result = append(result, part)
+	}
+	return result
+}

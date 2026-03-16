@@ -1,6 +1,11 @@
 package _type
 
-import "sync/atomic"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"sync/atomic"
+)
 
 // TaskStatus 任务状态
 type TaskStatus int64
@@ -86,6 +91,7 @@ type ShopMsg struct {
 	TitleConsistOf              string      `json:"title_consist_of"`                 //标题包含信息 如：作者、出版社等等
 	SpaceCharacter              string      `json:"space_character"`                  //是否使用空格 1为使用
 	WatermarkImgUrl             string      `json:"watermark_img_url"`                //水印图片链接
+	WatermarkPosition           string      `json:"watermark_position"`               //水印位置 0全部  1第一张
 	CarouseLastImgUrlArray      []string    `json:"carouse_last_img_url_array"`       //轮播图最后图片
 	GoodsDetailFirstImgUrlArray []string    `json:"goods_detail_first_img_url_array"` //商品详情首图 URL 数组
 	GoodsDetailLastImgUrlArray  []string    `json:"goods_detail_last_img_url_array"`  //商品详情最后图片 URL 数组
@@ -151,7 +157,7 @@ type TaskDetail struct {
 	GoodsName  string `json:"goods_name"`   // 商品名称
 }
 
-// 价格处理
+// PriceMod 价格处理
 type PriceMod struct {
 	Min         int64 `json:"min"`          // 价格区间最小值
 	Max         int64 `json:"max"`          // 价格区间最大值
@@ -160,10 +166,74 @@ type PriceMod struct {
 }
 
 type CatIdObject struct {
-	PinDuoDuoCatId int64 `json:"pin_duo_duo_cat_id"` // 拼多多分类 ID
-	KongFuZiCatId  int64 `json:"kong_fu_zi_cat_id"`  // 孔夫子分类 ID
-	XianYuCatId    int64 `json:"xian_yu_cat_id"`     // 闲鱼分类 ID
+	PinDuoDuoCatId FlexibleStr `json:"pin_duo_duo_cat_id"` // 拼多多分类 ID
+	KongFuZiCatId  FlexibleStr `json:"kong_fu_zi_cat_id"`  // 孔夫子分类 ID
+	XianYuCatId    FlexibleStr `json:"xian_yu_cat_id"`     // 闲鱼分类 ID
 }
+
+// FlexibleInt64 ====================== 临时 ======================
+type FlexibleStr string
+
+// UnmarshalJSON 反序列化：接受数字、布尔值、字符串等任意类型，都转换为字符串
+func (fi *FlexibleStr) UnmarshalJSON(data []byte) error {
+	// 1. 尝试直接解析为字符串
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*fi = FlexibleStr(s)
+		return nil
+	}
+
+	// 2. 尝试解析为数字
+	var num json.Number
+	if err := json.Unmarshal(data, &num); err == nil {
+		*fi = FlexibleStr(num.String())
+		return nil
+	}
+
+	// 3. 尝试解析为布尔值
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		*fi = FlexibleStr(strconv.FormatBool(b))
+		return nil
+	}
+
+	// 4. 其他任意类型
+	var any interface{}
+	if err := json.Unmarshal(data, &any); err != nil {
+		return err
+	}
+
+	// 将任意类型转为字符串
+	*fi = FlexibleStr(fmt.Sprintf("%v", any))
+	return nil
+}
+
+// MarshalJSON 序列化：总是输出为字符串
+func (fi FlexibleStr) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(fi))
+}
+
+// String 实现 Stringer 接口
+func (fi FlexibleStr) String() string {
+	return string(fi)
+}
+
+// ToInt64 如果需要转换为 int64
+func (fi FlexibleStr) ToInt64() (int64, error) {
+	return strconv.ParseInt(string(fi), 10, 64)
+}
+
+// ToFloat64 如果需要转换为 float64
+func (fi FlexibleStr) ToFloat64() (float64, error) {
+	return strconv.ParseFloat(string(fi), 64)
+}
+
+// ToBool 如果需要转换为 bool
+func (fi FlexibleStr) ToBool() (bool, error) {
+	return strconv.ParseBool(string(fi))
+}
+
+// FlexibleInt64 ====================== 临时 ======================
 
 // DllGoodsSpec 拼多多接口 PddGoodsSpecIdGet 返回结构体
 type DllGoodsSpec struct {
@@ -198,18 +268,18 @@ type PddSuccessResponse struct {
 	OuterCatMappingGetResponse PddCategoryMappingResponse `json:"outer_cat_mapping_get_response"`
 }
 type PddCategoryMappingResponse struct {
-	CatID1    int64  `json:"cat_id1"`    // 一级类目ID
-	CatID2    int64  `json:"cat_id2"`    // 二级类目ID
-	CatID3    int64  `json:"cat_id3"`    // 三级类目ID
-	CatID4    int64  `json:"cat_id4"`    // 四级类目ID
-	RequestID string `json:"request_id"` // 请求ID
+	CatID1    int64  `json:"cat_id1"`    // 一级类目 ID
+	CatID2    int64  `json:"cat_id2"`    // 二级类目 ID
+	CatID3    int64  `json:"cat_id3"`    // 三级类目 ID
+	CatID4    int64  `json:"cat_id4"`    // 四级类目 ID
+	RequestID string `json:"request_id"` // 请求 ID
 }
 type PddErrorResponse struct {
 	ErrorCode int64   `json:"error_code"` // 错误码
 	ErrorMsg  string  `json:"error_msg"`  // 错误信息
 	SubCode   *string `json:"sub_code"`   // 子错误码
 	SubMsg    string  `json:"sub_msg"`    // 子错误信息
-	RequestID string  `json:"request_id"` // 请求ID
+	RequestID string  `json:"request_id"` // 请求 ID
 }
 
 // GoodsCommitDetailResponse 拼多多接口 PddGoodsCommitDetail 响应结构体
@@ -373,4 +443,20 @@ type MatchRule struct {
 type DistrictMsg struct {
 	DistrictId   int64  `json:"district_id"`
 	DistrictType string `json:"district_type"`
+}
+
+// Returns DLL水印响应结构体
+type Returns struct {
+	Success bool   `json:"success"`
+	Format  string `json:"format"`
+	Data    string `json:"data"` // Base64编码的图片数据
+	Size    int    `json:"size"`
+}
+
+// GoodsImageUploadResponse 商品图片上传响应
+type GoodsImageUploadResponse struct {
+	GoodsImageUploadResponse struct { // 注意：字段名与JSON中的key一致
+		ImageURL  string `json:"image_url"`  // 图片URL地址
+		RequestID string `json:"request_id"` // 请求ID
+	} `json:"goods_image_upload_response"` // 外层字段名
 }

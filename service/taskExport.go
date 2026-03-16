@@ -183,13 +183,13 @@ func GetTaskExportsWithPage(page, pageSize int, userId string) ([]sqLiteType.Tas
 	return records, total, nil
 }
 
-// DeleteOldExportSQLite 删除task_Export表中7天前的记录
+// DeleteOldExportSQLite 删除task_Export表中3天前的记录
 // @return error 错误信息
 func DeleteOldExportSQLite() error {
-	// 使用SQLite的date函数计算7天前
+	// 使用SQLite的date函数计算3天前
 	result, err := golabl.SqliteDb.Exec(`
         DELETE FROM task_export 
-        WHERE create_at < datetime('now', '-7 days')
+        WHERE create_at < datetime('now', '-3 days')
     `)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)
@@ -200,16 +200,16 @@ func DeleteOldExportSQLite() error {
 		return fmt.Errorf("获取影响行数失败: %v", err)
 	}
 
-	fmt.Printf("已删除 %d 条大于7天的记录\n", rowsAffected)
+	fmt.Printf("已删除 %d 条大于3天的记录\n", rowsAffected)
 	return nil
 }
 
-// GetOldExportSQLite 获取task_Export表中7天前的记录
+// GetOldExportSQLite 获取task_Export表中3天前的记录
 func GetOldExportSQLite() ([]sqLiteType.TaskExport, error) {
-	// 计算7天前的时间
-	sevenDaysAgo := time.Now().AddDate(0, 0, -7)
+	// 计算3天前的时间
+	sevenDaysAgo := time.Now().AddDate(0, 0, -3)
 
-	// 查询7天前的记录
+	// 查询3天前的记录
 	rows, err := golabl.SqliteDb.Query(`
         SELECT id, user_id, task_id, shop_name, file_url, status, total, complete_at, create_at 
         FROM task_export 
@@ -218,7 +218,7 @@ func GetOldExportSQLite() ([]sqLiteType.TaskExport, error) {
     `, sevenDaysAgo)
 
 	if err != nil {
-		return nil, fmt.Errorf("查询7天前导出记录失败: %v", err)
+		return nil, fmt.Errorf("查询3天前导出记录失败: %v", err)
 	}
 	defer rows.Close()
 
@@ -260,6 +260,60 @@ func GetOldExportSQLite() ([]sqLiteType.TaskExport, error) {
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("遍历导出记录失败: %v", err)
+	}
+
+	return tasks, nil
+}
+
+// GetOldTaskRecordsSQLite 获取task_records表中3天前的记录
+func GetOldTaskRecordsSQLite() ([]sqLiteType.TaskRecord, error) {
+	// 计算3天前的时间
+	threeDaysAgo := time.Now().AddDate(0, 0, -3)
+
+	// 查询3天前的记录（适配task_records表结构）
+	rows, err := golabl.SqliteDb.Query(`
+        SELECT id, user_id, task_id, shop_name, is_export, task_type, create_at 
+        FROM task_records 
+        WHERE create_at < ? 
+        ORDER BY create_at ASC
+    `, threeDaysAgo)
+
+	if err != nil {
+		return nil, fmt.Errorf("查询3天前任务记录失败: %v", err)
+	}
+	defer rows.Close()
+
+	var tasks []sqLiteType.TaskRecord
+
+	for rows.Next() {
+		var task sqLiteType.TaskRecord
+		var createAt sql.NullTime // 处理可能的空时间（根据实际业务调整）
+
+		// 适配task_records表的字段顺序和类型
+		err := rows.Scan(
+			&task.ID,
+			&task.UserID,
+			&task.TaskID,
+			&task.ShopName,
+			&task.IsExport,
+			&task.TaskType,
+			&createAt,
+		)
+
+		if err != nil {
+			return nil, fmt.Errorf("扫描任务记录失败: %v", err)
+		}
+
+		// 转换时间字段（如果create_at字段不允许为空，可简化）
+		if createAt.Valid {
+			task.CreateAt = createAt.Time
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历任务记录失败: %v", err)
 	}
 
 	return tasks, nil

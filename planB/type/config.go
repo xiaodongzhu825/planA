@@ -99,6 +99,7 @@ type FileUrl struct {
 	PddDll                    string
 	XianYuDll                 string
 	LogDll                    string
+	ImageDll                  string
 	BFileName                 string
 	CreateTaskUrl             string
 	BannedWordSubstitutionUrl string

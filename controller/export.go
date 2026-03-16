@@ -33,7 +33,7 @@ func GetExportTask(httpMsg http.ResponseWriter, data *http.Request) {
 		if getExportFileProgressErr != nil {
 			errMsg := "获取任务进度失败: " + getExportFileProgressErr.Error()
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-			return
+			continue
 		}
 		taskExportdata := map[string]interface{}{
 			"task_id":     v.TaskID,

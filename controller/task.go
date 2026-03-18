@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"planA/rep"
 	"planA/tool/process"
 	"planA/validator"
 
@@ -12,7 +13,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"planA/controlState/lock"
 	"planA/initialization/config"
 	"planA/modules/logs"
@@ -20,15 +20,12 @@ import (
 	"planA/service"
 	"planA/tool"
 	"planA/type"
+	redisType "planA/type/redis"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
-
-	mysqlType "planA/type/mysql"
-	redisType "planA/type/redis"
-	sqLiteType "planA/type/sqLite"
 
 	_redis "github.com/go-redis/redis/v8"
 )
@@ -120,7 +117,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	fmt.Printf("店铺ID: %s, 店铺类型: %s, 任务数量: %s 任务id: %s \n", dataVal.ShopType, dataVal.TaskType, dataVal.TaskCount, taskId)
+	fmt.Printf("店铺ID: %s, 店铺类型: %s, 任务类型: %s, 任务数量: %s 任务id: %s \n", dataVal.ShopID, dataVal.ShopType, dataVal.TaskType, dataVal.TaskCount, taskId)
 
 	// 创建任务逻辑...
 	createAt := time.Now().Unix()
@@ -145,28 +142,31 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	//写入 sqlite
-	insertTaskRecordErr := service.InsertTaskRecord(sqLiteType.TaskRecord{
-		UserID:   shopData.Shop.CreateBy,
-		TaskID:   taskId,
+	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
+
+	//写入 mysql数据
+	mysqlCreateTaskRecordsErr := mysqlWrite.CreateTaskRecords(_type.TaskRecordsDTO{
+		UserId:   strconv.FormatInt(shopData.Shop.CreateBy, 10),
+		ShopId:   strconv.FormatInt(shopData.Shop.ID, 10),
+		TaskId:   taskId,
 		ShopName: shop.ShopName,
 		TaskType: taskType,
 	})
-	if insertTaskRecordErr != nil {
-		errMsg := "插入任务记录失败: " + insertTaskRecordErr.Error()
+	if mysqlCreateTaskRecordsErr != nil {
+		errMsg := "插入任务用户失败: " + mysqlCreateTaskRecordsErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	//写入 mysql
-	insertTaskUserErr := service.InsertTaskUser(&mysqlType.TaskUser{
-		UserID:   &shopData.Shop.CreateBy,
-		ShopID:   &shopData.Shop.ID,
-		TaskID:   &taskId,
-		ShopName: &shop.ShopName,
-		TaskType: &taskType,
+	//写入 sqlite数据
+	sqliteTaskExportErr := sqliteWrite.CreateTaskRecords(_type.TaskRecordsDTO{
+		UserId:   strconv.FormatInt(shopData.Shop.CreateBy, 10),
+		ShopId:   strconv.FormatInt(shopData.Shop.ID, 10),
+		TaskId:   taskId,
+		ShopName: shop.ShopName,
+		TaskType: taskType,
 	})
-	if insertTaskUserErr != nil {
-		errMsg := "插入任务用户失败: " + insertTaskUserErr.Error()
+	if sqliteTaskExportErr != nil {
+		errMsg := "插入任务用户失败: " + sqliteTaskExportErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -232,6 +232,7 @@ func SetTaskBody(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
+
 	//验证状态
 	header, getTaskHeaderErr := service.GetTaskHeader(taskId)
 	if getTaskHeaderErr != nil {
@@ -259,6 +260,7 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	//验证状态
 	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
 	if getTaskHeaderErr != nil {
@@ -266,6 +268,7 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
+
 	if header.Status != _type.TaskStatusRunning {
 		errMsg := "当前状态不是执行中"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -397,20 +400,50 @@ func DelTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	// 删除 redis中的内容
-	time.Sleep(time.Duration(3) * time.Second)
+	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
 	delTaskErr := service.DelTask(dataVal.TaskID)
 	if delTaskErr != nil {
 		errMsg := "删除任务失败: " + delTaskErr.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 		return
 	}
+	//删除 mysql中TaskRecords指定数据
+	mysqlDeleteTaskRecordsByTaskIdErr := mysqlWrite.DeleteTaskRecordsByTaskId(dataVal.TaskID)
+	if mysqlDeleteTaskRecordsByTaskIdErr != nil {
+		errMsg := "删除任务失败: " + delTaskErr.Error()
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return
+	}
+	// 删除 sqlite中TaskRecords指定数据
+	sqLiteDeleteTaskRecordsByTaskIDErr := sqliteWrite.DeleteTaskRecordsByTaskId(dataVal.TaskID)
+	if sqLiteDeleteTaskRecordsByTaskIDErr != nil {
+		errMsg := "删除任务失败: " + delTaskErr.Error()
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return
+	}
+	//3秒后再次删除，避免删除期间body进入数据
 	go func() {
+		mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
 		// 删除任务 延迟3后删除
 		time.Sleep(time.Duration(3) * time.Second)
 		delTaskErr := service.DelTask(dataVal.TaskID)
 		if delTaskErr != nil {
 			errMsg := "删除任务失败: " + delTaskErr.Error()
-			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			return
+		}
+		//删除 mysql中TaskRecords指定数据
+		mysqlDeleteTaskRecordsByTaskIdErr := mysqlWrite.DeleteTaskRecordsByTaskId(dataVal.TaskID)
+		if mysqlDeleteTaskRecordsByTaskIdErr != nil {
+			errMsg := "删除任务失败: " + delTaskErr.Error()
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			return
+		}
+		// 删除 sqlite中TaskRecords指定数据
+		sqLiteDeleteTaskRecordsByTaskIDErr := sqliteWrite.DeleteTaskRecordsByTaskId(dataVal.TaskID)
+		if sqLiteDeleteTaskRecordsByTaskIDErr != nil {
+			errMsg := "删除任务失败: " + delTaskErr.Error()
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 			return
 		}
 	}()
@@ -451,29 +484,39 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
 
-	taskTypeInt := 0
-	var atoiErr error
+	taskTypeInt64 := int64(0)
+	var taskTypeAtoiErr error
 	if dataVal.TaskType != "" {
 		//将 taskTypeStr 转为 int
-		taskTypeInt, atoiErr = strconv.Atoi(dataVal.TaskType)
-		if atoiErr != nil {
+		var temp int
+		temp, taskTypeAtoiErr = strconv.Atoi(dataVal.TaskType)
+		if taskTypeAtoiErr != nil {
 			errMsg := "任务类型转换失败"
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
-
+		taskTypeInt64 = int64(temp)
 	}
 
-	records, total, err := service.GetTaskRecordsWithPage(page, size, dataVal.TaskID, dataVal.ShopName, taskTypeInt)
-	if err != nil {
-		errMsg := err.Error()
+	read := rep.CreateDbFactoryRead()
+	records, total, getTaskRecordsListErr := read.GetTaskRecordsList(_type.GetTaskRecordsListReq{
+		UserId:   "",
+		TaskId:   dataVal.TaskID,
+		TaskType: taskTypeInt64,
+		ShopName: dataVal.ShopName,
+		Page:     page,
+		Size:     size,
+	})
+	if getTaskRecordsListErr != nil {
+		errMsg := getTaskRecordsListErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
+
 	dataTaskAll := []map[string]interface{}{}
 	for _, v := range records {
 		//查询 header 信息
-		header, getTaskHeaderErr := service.GetTaskHeader(v.TaskID)
+		header, getTaskHeaderErr := service.GetTaskHeader(v.TaskId)
 		if getTaskHeaderErr != nil {
 			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskHeaderErr)
 			fmt.Println(errMsg)
@@ -481,7 +524,7 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 		//获取 footer 信息
-		footer, getTaskFooterErr := service.GetTaskFooter(v.TaskID)
+		footer, getTaskFooterErr := service.GetTaskFooter(v.TaskId)
 		if getTaskFooterErr != nil {
 			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskFooterErr)
 			fmt.Println(errMsg)
@@ -489,7 +532,7 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 		//获取 body_over 信息
-		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskID)
+		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId)
 		if GetTaskBodyOverLimit10Err != nil {
 			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", GetTaskBodyOverLimit10Err)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -533,12 +576,6 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	// 获取分页参数
 	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
-	userId, parseIntuserIdErr := strconv.ParseInt(dataVal.UserID, 10, 64)
-	if parseIntuserIdErr != nil {
-		errMsg := "用户ID 转换失败"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
 	taskTypeInt64 := int64(0)
 	var parseIntTaskTypeErr error
 	if dataVal.TaskType != "" {
@@ -550,39 +587,39 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 	}
-	records, total, PageQueryTaskUserByUserIdErr := service.PageQueryTaskUserByUserId(&mysqlType.PageQueryTaskUserByUserIdParams{
-		Page: _type.Page{
-			PageNum:  page,
-			PageSize: size,
-		},
-		ShopName: dataVal.ShopName,
-		TaskID:   dataVal.TaskID,
-		UserID:   userId,
+
+	read := rep.CreateDbFactoryRead()
+	records, total, GetTaskUserListErr := read.GetTaskRecordsList(_type.GetTaskRecordsListReq{
+		UserId:   dataVal.UserID,
+		TaskId:   dataVal.TaskID,
 		TaskType: taskTypeInt64,
+		ShopName: dataVal.ShopName,
+		Page:     page,
+		Size:     size,
 	})
-	if PageQueryTaskUserByUserIdErr != nil {
-		errMsg := PageQueryTaskUserByUserIdErr.Error()
+	if GetTaskUserListErr != nil {
+		errMsg := GetTaskUserListErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 	dataTaskAll := []map[string]interface{}{}
 	for _, v := range records {
 		//查询 header 信息
-		header, getTaskHeaderErr := service.GetTaskHeader(*v.TaskID)
+		header, getTaskHeaderErr := service.GetTaskHeader(v.TaskId)
 		if getTaskHeaderErr != nil {
 			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskHeaderErr)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
 		//获取 footer 信息
-		footer, getTaskFooterErr := service.GetTaskFooter(*v.TaskID)
+		footer, getTaskFooterErr := service.GetTaskFooter(v.TaskId)
 		if getTaskFooterErr != nil {
 			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskFooterErr)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
 		//获取 body_over 信息
-		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(*v.TaskID)
+		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId)
 		if GetTaskBodyOverLimit10Err != nil {
 			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", getTaskFooterErr)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -613,6 +650,24 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 		"list":  dataTaskAll,
 	}
 	tool.Session(httpMsg, dataRet)
+}
+
+// GetTaskHeader 获取 header信息
+func GetTaskHeader(httpMsg http.ResponseWriter, data *http.Request) {
+
+	// 验证表单
+	dataVal, getHeaderValidatorErr := validator.GetHeaderValidator(data)
+	if getHeaderValidatorErr != nil {
+		tool.Error(httpMsg, getHeaderValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
+	if getTaskHeaderErr != nil {
+		errMsg := getTaskHeaderErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	tool.Session(httpMsg, header)
 }
 
 func B(httpMsg http.ResponseWriter, data *http.Request) {
@@ -927,21 +982,6 @@ func parseAdjustPercent(adjustPercent interface{}) (int64, error) {
 		return int64(adjustPercent.(float64)), nil
 	}
 	return adjustPercent.(int64), nil
-}
-
-// isProcessExistWindows 检查Windows进程是否存在
-func isProcessExistWindows(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	// 使用tasklist命令检查进程是否存在
-	cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("PID eq %d", pid))
-	output, err := cmd.Output()
-	if err != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_WARNING, fmt.Sprintf("检查进程PID:%d失败: %v", pid, err))
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(output)), fmt.Sprintf("%d", pid))
 }
 
 // CreateTaskRequest 请求接口创建任务

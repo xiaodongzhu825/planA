@@ -306,3 +306,13 @@ func BuildGoodsName(goodsNamePrefix string, goodsNameSuffix string, titleConsist
 	title = strings.Trim(title, "\"")
 	return title
 }
+
+// PauseTask 暂停B程序运行
+// @param url 暂停接口地址
+// @param taskId 任务ID
+// @return error 错误信息
+func PauseTask(url string, taskId string) error {
+	_, _, err := HttpGetRequest(url + "/task/pause/" + taskId)
+	fmt.Println(err)
+	return err
+}

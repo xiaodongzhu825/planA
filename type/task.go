@@ -37,7 +37,7 @@ type TaskHeader struct {
 	TaskQpm          int64      `json:"task_qpm"`           // 任务 QPM
 	TaskCreateAt     int64      `json:"task_create_at"`     // 任务创建时间
 	TaskOverAt       int64      `json:"task_over_at"`       // 任务结束时间
-	LastIndex        int64      `json:"last_index"`         // 最后任务索引
+	LastIndex        int64      `json:"last_index"`         // 最后任务索引（记录程序集错误 10001=body_wait中没有数据一致读取，11002=店铺发布商品已达到上限，10003=过滤关键词异常）
 	ImgType          int64      `json:"img_type"`           //图片类型 1仅观图 2 实拍图 3 优先观图 4 优先实拍图
 }
 

@@ -3,6 +3,8 @@ server:
   filter: 0 #是否开启违禁词过滤器  0=关闭 1=开启
   replaceMark: "0" #标题违规词是否替换*  0 不替换  1 替换（替换会继续发布，不替换则不发布）
   redisExp: 192 #redis过期时间 192小时（8天）
+  readDb: "sqlite" #读数据库 mysql sqlite
+  errPauseTime: 3000 #错误暂停时间（毫秒）
 alive:
   fluent: 50 #存活状态-流程时间（毫秒）
   slow: 200 #存活状态-缓慢时间（毫秒）
@@ -18,7 +20,7 @@ mysqlConfig:
   password: "root"  #数据库密码
   host: "127.0.0.1" #数据库地址
   port: 3306  #数据库端口
-  loglevel: "error"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
+  loglevel: "info"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
   maxRetryTimes: 3  #数据库重试次数
   baseRetryInterval: 100  #数据库重试间隔（毫秒）
   maxRetryInterval: 3 #数据库最大重试间隔（秒）
@@ -67,6 +69,7 @@ fileUrl:
   imageDll: "D:\\www\\wwwroot\\planA\\planB\\modules\\image"  #水印 DLL库路径
   bFileName: "D:\\www\\wwwroot\\planA\\planB\\planB.exe"   #B 程序文件路径
   createTaskUrl: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
+  pauseTaskUrl: "http://36.212.1.63:8055/task/pause" #暂停任务接口
   createTaskNoticeUrl: "http://36.212.1.63:8055/task" #核价软件提交数据通知接口
   BannedWordSubstitutionUrl : "http://36.212.16.27:13001/task/getFilterSetNew" #违禁词替换接口
   pddTokenUrl: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token

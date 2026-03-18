@@ -3,6 +3,8 @@ server:
   filter: 0 #是否开启违禁词过滤器  0=关闭 1=开启
   replaceMark: "0" #标题违规词是否替换*  0 不替换  1 替换（替换会继续发布，不替换则不发布）
   redisExp: 192 #redis过期时间 192小时（8天）
+  readDb: "sqlite" #读数据库 mysql sqlite
+  errPauseTime: 3000 #错误暂停时间（毫秒）
 alive:
   fluent: 50 #存活状态-流程时间（毫秒）
   slow: 200 #存活状态-缓慢时间（毫秒）
@@ -68,6 +70,7 @@ fileUrl:
   bFileName: "D:\\www\\wwwroot\\planA\\planB\\main.exe"   #B 程序文件路径
   createTaskUrl: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   createTaskNoticeUrl: "http://36.212.1.63:8055/task" #核价软件提交数据通知接口
+  pauseTaskUrl: "http://36.212.1.63:8055/task/pause" #暂停任务接口
   BannedWordSubstitutionUrl : "http://36.212.16.27:13001/task/getFilterSetNew" #违禁词替换接口
   pddTokenUrl: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deductionUrl: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口

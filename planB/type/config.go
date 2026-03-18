@@ -17,9 +17,12 @@ type Config struct {
 
 // Server 服务器配置结构
 type Server struct {
-	Port        string
-	Filter      int
-	ReplaceMark string
+	Port         string
+	Filter       int
+	ReplaceMark  string
+	RedisExp     int
+	ReadDb       string
+	ErrPauseTime int
 }
 
 // Alive 存活状态结构

@@ -77,3 +77,19 @@ func GetTaskByUserIdValidator(data *http.Request) (taskValidator.GetTaskByUserId
 	}
 	return form, nil
 }
+
+// GetHeaderValidator 获取 header信息验证
+func GetHeaderValidator(data *http.Request) (taskValidator.UpdateTaskStatus, error) {
+	vars := mux.Vars(data)
+	taskId := vars["id"]
+
+	form := taskValidator.UpdateTaskStatus{
+		TaskID: taskId,
+	}
+	fieldCN := map[string]string{"TaskID": "任务ID"}
+	if err := golabl.Validator.Struct(form); err != nil {
+		errMsg := ValidatorRule(err, fieldCN)
+		return form, fmt.Errorf("参数错误：%s", errMsg)
+	}
+	return form, nil
+}

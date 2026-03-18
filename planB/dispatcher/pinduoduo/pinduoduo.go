@@ -120,7 +120,6 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	//if taskHeader.ShopMsg.WatermarkImgUrl == "" && len(taskHeader.ShopMsg.CarouseLastImgUrlArray) == 0 && len(taskMsg.BookInfo.ImageObject.CarouselUrlArray) == 0 && taskMsg.BookInfo.ImageObject.DefaultImageUrl == "" {
 	//	return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd,fmt.Errorf("缺少构造轮播图图片-未提交 isbn %v", taskMsg.BookInfo.Isbn))
 	//}
-	taskMsg.Detail.GoodsName = goodsAdd.GoodsName
 	goodsAdd.CarouselGallery = tool.BuildCarouselGallery(taskHeader.ShopMsg.WatermarkImgUrl, taskHeader.ShopMsg.CarouseLastImgUrlArray, taskMsg.BookInfo.ImageObject.CarouselUrlArray)
 	if len(goodsAdd.CarouselGallery) == 0 && taskHeader.ImgType == 3 && taskMsg.BookInfo.ImageObject.DefaultImageUrl != "" {
 		goodsAdd.CarouselGallery = append(goodsAdd.CarouselGallery, taskMsg.BookInfo.ImageObject.DefaultImageUrl)
@@ -216,6 +215,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	if taskMsgBookInfoPrice < 10000 {
 		taskMsgBookInfoPrice = 10000
 	}
+
 	goodsAdd.GoodsProperties = BuildGoodsPropertiesList(
 		taskMsg.BookInfo.Isbn,       // ISBN
 		goodsAdd.GoodsName,          // 商品名称
@@ -260,6 +260,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	if getGoodsCommitDetailErr != nil {
 		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("获取商品提交的商品详情失败 %w", getGoodsCommitDetailErr))
 	}
+
 	//拼接接口调用成功的返回数据
 	if len(goodsCommitDetail.GoodsCommitDetailResponse.SkuList) > 0 {
 		taskMsg.Detail.SkuCode = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].OutSkuSn

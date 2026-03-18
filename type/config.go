@@ -19,10 +19,12 @@ type Config struct {
 
 // Server 服务器配置结构
 type Server struct {
-	Port        string
-	Filter      int
-	ReplaceMark string
-	RedisExp    int
+	Port         string
+	Filter       int
+	ReplaceMark  string
+	RedisExp     int
+	ReadDb       string
+	ErrPauseTime int
 }
 
 // Alive 存活状态结构
@@ -94,7 +96,9 @@ type HttpUrl struct {
 
 type FileUrl struct {
 	PddDll                    string
+	XianYuDll                 string
 	LogDll                    string
+	ImageDll                  string
 	BFileName                 string
 	CreateTaskUrl             string
 	BannedWordSubstitutionUrl string

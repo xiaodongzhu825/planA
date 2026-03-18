@@ -1,4 +1,4 @@
-package service
+package sqLite
 
 import (
 	"database/sql"
@@ -16,7 +16,8 @@ func CreateTaskExportTab() error {
 	createTableSQL := `
     CREATE TABLE IF NOT EXISTS task_export (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL DEFAULT 0,
+        user_id VARCHAR(100) NOT NULL,
+        shop_id VARCHAR(100) NOT NULL,
         task_id VARCHAR(100) NOT NULL,
         shop_name VARCHAR(100) NOT NULL,
         file_url VARCHAR(300),
@@ -37,18 +38,19 @@ func CreateTaskExportTab() error {
 	return nil
 }
 
-// InsertTaskExport 向task_export表插入一条记录
+// CreateTaskExport 向task_export表插入一条记录
 // @param export TaskExport 要插入的导出记录
 // @return int64 插入记录的自增ID
 // @return error 错误信息
-func InsertTaskExport(export sqLiteType.TaskExport) (int64, error) {
+func CreateTaskExport(export sqLiteType.TaskExport) (int64, error) {
 	// 在 Go 代码中计算当前时间
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 
-	insertSQL := `INSERT INTO task_export (user_id, task_id, shop_name, file_url, status,total,create_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	insertSQL := `INSERT INTO task_export (user_id, shop_id, task_id, shop_name, file_url, status,total,create_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 	result, err := golabl.SqliteDb.Exec(
 		insertSQL,
 		export.UserID,   // user_id
+		export.ShopID,   // shop_id
 		export.TaskID,   // task_id
 		export.ShopName, // shop_name
 		export.FileUrl,  // file_url（允许空字符串）
@@ -69,40 +71,40 @@ func InsertTaskExport(export sqLiteType.TaskExport) (int64, error) {
 }
 
 // UpdateTaskExportStatus 更新task_export表中的status字段
-// @param exportId int64 导出记录的ID
+// @param taskId string 任务Id
 // @param status int64 状态
 // @param fullPath string 文件路径
 // @return error 错误信息
-func UpdateTaskExportStatus(exportId int64, status int64, fullPath string) error {
+func UpdateTaskExportStatus(taskId string, status int64, fullPath string) error {
 	var err error
 	if status == 2 {
 		// 当status=2时，同时更新status、complete_at和file_url字段
 		_, err = golabl.SqliteDb.Exec(
-			"UPDATE task_export SET status = ?, complete_at = ?, file_url = ? WHERE id = ?",
+			"UPDATE task_export SET status = ?, complete_at = ?, file_url = ? WHERE task_id = ?",
 			status,
 			time.Now().Format("2006-01-02 15:04:05"), // 设置为当前系统时间
 			fullPath,
-			exportId,
+			taskId,
 		)
 	} else {
 		// 其他状态只更新status字段
 		_, err = golabl.SqliteDb.Exec(
-			"UPDATE task_export SET status = ? WHERE id = ?",
+			"UPDATE task_export SET status = ? WHERE task_id = ?",
 			status,
-			exportId,
+			taskId,
 		)
 	}
 	return err
 }
 
-// GetTaskExportsWithPage 分页查询task_export表记录（无查询条件）
+// GetTaskExportsList 分页查询task_export表记录（无查询条件）
 // @param page 页码（从1开始）
 // @param pageSize 每页条数
 // @param userId 用户ID
 // @return []TaskExport 记录列表
 // @return int64 总记录数
 // @return error 错误信息
-func GetTaskExportsWithPage(page, pageSize int, userId string) ([]sqLiteType.TaskExport, int64, error) {
+func GetTaskExportsList(page, pageSize int, userId string) ([]sqLiteType.TaskExport, int64, error) {
 	// 参数校验
 	pageSize, offset := tool.GetPage(page, pageSize)
 
@@ -183,9 +185,9 @@ func GetTaskExportsWithPage(page, pageSize int, userId string) ([]sqLiteType.Tas
 	return records, total, nil
 }
 
-// DeleteOldExportSQLite 删除task_Export表中3天前的记录
+// DeleteOldExport 删除task_export表中3天前的记录
 // @return error 错误信息
-func DeleteOldExportSQLite() error {
+func DeleteOldExport() error {
 	// 使用SQLite的date函数计算3天前
 	result, err := golabl.SqliteDb.Exec(`
         DELETE FROM task_export 
@@ -204,8 +206,8 @@ func DeleteOldExportSQLite() error {
 	return nil
 }
 
-// GetOldExportSQLite 获取task_Export表中3天前的记录
-func GetOldExportSQLite() ([]sqLiteType.TaskExport, error) {
+// GetOldExport 获取task_export表中3天前的记录
+func GetOldExport() ([]sqLiteType.TaskExport, error) {
 	// 计算3天前的时间
 	sevenDaysAgo := time.Now().AddDate(0, 0, -3)
 
@@ -260,60 +262,6 @@ func GetOldExportSQLite() ([]sqLiteType.TaskExport, error) {
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("遍历导出记录失败: %v", err)
-	}
-
-	return tasks, nil
-}
-
-// GetOldTaskRecordsSQLite 获取task_records表中3天前的记录
-func GetOldTaskRecordsSQLite() ([]sqLiteType.TaskRecord, error) {
-	// 计算3天前的时间
-	threeDaysAgo := time.Now().AddDate(0, 0, -3)
-
-	// 查询3天前的记录（适配task_records表结构）
-	rows, err := golabl.SqliteDb.Query(`
-        SELECT id, user_id, task_id, shop_name, is_export, task_type, create_at 
-        FROM task_records 
-        WHERE create_at < ? 
-        ORDER BY create_at ASC
-    `, threeDaysAgo)
-
-	if err != nil {
-		return nil, fmt.Errorf("查询3天前任务记录失败: %v", err)
-	}
-	defer rows.Close()
-
-	var tasks []sqLiteType.TaskRecord
-
-	for rows.Next() {
-		var task sqLiteType.TaskRecord
-		var createAt sql.NullTime // 处理可能的空时间（根据实际业务调整）
-
-		// 适配task_records表的字段顺序和类型
-		err := rows.Scan(
-			&task.ID,
-			&task.UserID,
-			&task.TaskID,
-			&task.ShopName,
-			&task.IsExport,
-			&task.TaskType,
-			&createAt,
-		)
-
-		if err != nil {
-			return nil, fmt.Errorf("扫描任务记录失败: %v", err)
-		}
-
-		// 转换时间字段（如果create_at字段不允许为空，可简化）
-		if createAt.Valid {
-			task.CreateAt = createAt.Time
-		}
-
-		tasks = append(tasks, task)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("遍历任务记录失败: %v", err)
 	}
 
 	return tasks, nil

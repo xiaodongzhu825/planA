@@ -109,10 +109,9 @@ func GetTaskToPopFromBodyWait(client *redis.Client, taskKey string) (_type.TaskB
 		return _type.TaskBody{}, pingErr
 	}
 	// 获取 body 数据
-	bodyData, rPopErr := client.LPop(gCtx, taskKey+":body_wait").Result() // 正式环境使用
-	//bodyData, rPopErr := client.LIndex(gCtx, taskKey+":body_wait", 0).Result() // 测试环境使用
+	bodyData, rPopErr := client.LPop(gCtx, taskKey+":body_wait").Result()
 	if rPopErr != nil {
-		return _type.TaskBody{}, fmt.Errorf("读取任务详情信息失败: %v\n", rPopErr)
+		return _type.TaskBody{}, rPopErr
 	}
 
 	// 判断 body 数据是否为空

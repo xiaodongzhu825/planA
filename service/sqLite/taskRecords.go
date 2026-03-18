@@ -1,4 +1,4 @@
-package service
+package sqLite
 
 import (
 	"fmt"
@@ -15,7 +15,8 @@ func CreateTaskIdTab() error {
 	createTableSQL := `
     CREATE TABLE IF NOT EXISTS task_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL DEFAULT 0,
+        user_id VARCHAR(100) NOT NULL,
+        shop_id VARCHAR(100) NOT NULL,
         task_id VARCHAR(100) NOT NULL,
         shop_name VARCHAR(100) NOT NULL,
         is_export INTEGER NOT NULL DEFAULT 0,
@@ -33,15 +34,15 @@ func CreateTaskIdTab() error {
 	return nil
 }
 
-// InsertTaskRecord 向task_records表插入一条记录
+// CreateTaskRecords 向task_records表插入一条记录
 // @param record TaskRecord 要插入的记录
 // @return error 错误信息
-func InsertTaskRecord(record sqLiteType.TaskRecord) error {
+func CreateTaskRecords(record sqLiteType.TaskRecords) error {
 	// 在 Go 代码中计算当前时间
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 
-	insertSQL := `INSERT INTO task_records (user_id,task_id,shop_name,task_type, create_at) VALUES (?, ?, ?, ?, ?)`
-	result, err := golabl.SqliteDb.Exec(insertSQL, record.UserID, record.TaskID, record.ShopName, record.TaskType, currentTime)
+	insertSQL := `INSERT INTO task_records (user_id,shop_id,task_id,shop_name,task_type, create_at) VALUES (?, ?, ?, ?, ?, ?)`
+	result, err := golabl.SqliteDb.Exec(insertSQL, record.UserID, record.ShopID, record.TaskID, record.ShopName, record.TaskType, currentTime)
 	if err != nil {
 		return err
 	}
@@ -51,11 +52,11 @@ func InsertTaskRecord(record sqLiteType.TaskRecord) error {
 		return err
 	}
 
-	record.ID = int(lastID)
+	record.ID = lastID
 	return nil
 }
 
-// GetTaskRecordsWithPage 分页查询task_records表记录
+// GetTaskRecordsList 分页查询task_records表记录
 // @param page 页码（从1开始）
 // @param pageSize 每页条数
 // @param taskId 任务ID（可选，为空时不作为条件）
@@ -64,26 +65,26 @@ func InsertTaskRecord(record sqLiteType.TaskRecord) error {
 // @return []TaskRecord 记录列表
 // @return int64 总记录数
 // @return error 错误信息
-func GetTaskRecordsWithPage(page, pageSize int, taskId string, shopName string, taskType int) ([]sqLiteType.TaskRecord, int64, error) {
+func GetTaskRecordsList(params sqLiteType.GetTaskRecordsByUserIdParams) ([]sqLiteType.TaskRecords, int64, error) {
 	// 参数校验
-	pageSize, offset := tool.GetPage(page, pageSize)
+	pageSize, offset := tool.GetPage(params.Page.PageNum, params.Page.PageSize)
 
 	// 构建查询条件
 	var conditions []string
 	var args []interface{}
 
-	if taskId != "" {
+	if params.TaskID != "" {
 		conditions = append(conditions, "task_id = ?")
-		args = append(args, taskId)
+		args = append(args, params.TaskID)
 	}
 
-	if shopName != "" {
+	if params.ShopName != "" {
 		conditions = append(conditions, "shop_name = ?")
-		args = append(args, shopName)
+		args = append(args, params.ShopName)
 	}
-	if taskType != 0 {
+	if params.TaskType != 0 {
 		conditions = append(conditions, "task_type = ?")
-		args = append(args, taskType)
+		args = append(args, params.TaskType)
 	}
 
 	// 构建 WHERE子句
@@ -95,7 +96,6 @@ func GetTaskRecordsWithPage(page, pageSize int, taskId string, shopName string, 
 	// 查询总数
 	var total int64
 	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM task_records %s`, whereClause)
-
 	var countErr error
 	if len(args) > 0 {
 		countErr = golabl.SqliteDb.QueryRow(countSQL, args...).Scan(&total)
@@ -109,10 +109,10 @@ func GetTaskRecordsWithPage(page, pageSize int, taskId string, shopName string, 
 
 	// 分页查询
 	querySQL := fmt.Sprintf(`
-        SELECT id,user_id, task_id, shop_name,is_export, task_type,create_at 
+        SELECT id,user_id, shop_id, task_id, shop_name,is_export, task_type,create_at 
         FROM task_records 
         %s
-        ORDER BY create_at DESC 
+        ORDER BY id DESC 
         LIMIT ? OFFSET ?
     `, whereClause)
 
@@ -124,11 +124,11 @@ func GetTaskRecordsWithPage(page, pageSize int, taskId string, shopName string, 
 	}
 	defer rows.Close()
 
-	var records []sqLiteType.TaskRecord
+	var records []sqLiteType.TaskRecords
 
 	for rows.Next() {
-		var record sqLiteType.TaskRecord
-		err = rows.Scan(&record.ID, &record.UserID, &record.TaskID, &record.ShopName, &record.IsExport, &record.TaskType, &record.CreateAt)
+		var record sqLiteType.TaskRecords
+		err = rows.Scan(&record.ID, &record.UserID, &record.ShopID, &record.TaskID, &record.ShopName, &record.IsExport, &record.TaskType, &record.CreateAt)
 		if err != nil {
 			return nil, 0, fmt.Errorf("扫描数据失败: %v", err)
 		}
@@ -142,22 +142,38 @@ func GetTaskRecordsWithPage(page, pageSize int, taskId string, shopName string, 
 	return records, total, nil
 }
 
+// UpdateTaskRecord 根据任务ID更新任务记录
+func UpdateTaskRecord(record sqLiteType.TaskRecords) error {
+	updateSQL := `UPDATE task_records SET user_id = ?, shop_id = ?, task_id = ?, shop_name = ?, task_type = ?, is_export = ? WHERE id = ?`
+	_, err := golabl.SqliteDb.Exec(updateSQL, record.UserID, record.ShopID, record.TaskID, record.ShopName, record.TaskType, record.IsExport, record.ID)
+	return err
+}
+
+// DeleteTaskRecordsByTaskID 根据任务ID删除数据
+// @param taskID 任务ID
+// @return error 错误
+func DeleteTaskRecordsByTaskID(taskID string) error {
+	_, err := golabl.SqliteDb.Exec("DELETE FROM task_records WHERE task_id = ?", taskID)
+	return err
+}
+
 // GetTaskRecordByTaskID 根据taskId查询单个任务记录
 // @param taskID 任务ID
 // @return *TaskRecord 记录指针
 // @return error 错误信息
-func GetTaskRecordByTaskID(taskID string) (*sqLiteType.TaskRecord, error) {
-	query := `SELECT id,user_id, task_id, shop_name, task_type, create_at 
+func GetTaskRecordByTaskID(taskID string) (*sqLiteType.TaskRecords, error) {
+	query := `SELECT id,user_id, shop_id, task_id, shop_name, task_type, create_at 
               FROM task_records 
               WHERE task_id = ? 
               LIMIT 1`
 
-	var record sqLiteType.TaskRecord
+	var record sqLiteType.TaskRecords
 	var createAtStr string
 
 	err := golabl.SqliteDb.QueryRow(query, taskID).Scan(
 		&record.ID,
 		&record.UserID,
+		&record.ShopID,
 		&record.TaskID,
 		&record.ShopName,
 		&record.TaskType,
@@ -171,48 +187,9 @@ func GetTaskRecordByTaskID(taskID string) (*sqLiteType.TaskRecord, error) {
 	return &record, nil
 }
 
-// GetTaskRecordsByTaskID 根据任务id查询任务记录（task_records表）
-// 注意：函数名可能重复，建议重命名，这里保持原样
-// @param taskID 任务id
-// @return *TaskRecord 任务记录
+// DeleteOldTaskRecords 删除task_records表中3天前的记录
 // @return error 错误信息
-func GetTaskRecordsByTaskID(taskID string) (*sqLiteType.TaskRecord, error) {
-	query := `SELECT id, task_id, shop_name, is_export, task_type, create_at 
-              FROM task_records
-              WHERE task_id = ? 
-              LIMIT 1`
-	var export sqLiteType.TaskRecord
-	err := golabl.SqliteDb.QueryRow(query, taskID).Scan(
-		&export.ID,
-		&export.TaskID,
-		&export.ShopName,
-		&export.IsExport,
-		&export.TaskType,
-		&export.CreateAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("查询失败: %v", err)
-	}
-	return &export, nil
-}
-
-// UpdateTaskRecordIsExport 更新task_records表的IsExport字段为1
-// @param taskID 任务id
-// @return error 错误信息
-func UpdateTaskRecordIsExport(taskID string) error {
-	_, err := golabl.SqliteDb.Exec("UPDATE task_records SET is_export = 1 WHERE task_id = ?", taskID)
-	return err
-}
-
-// GetTaskRecordById 根据id查询task_records表id=1的数据（仅用于测试心跳）
-func GetTaskRecordById() {
-	var record sqLiteType.TaskRecord
-	golabl.SqliteDb.QueryRow("SELECT * FROM task_records WHERE id = ?", 1).Scan(&record.ID, &record.TaskID, &record.ShopName, &record.CreateAt)
-}
-
-// DeleteOldRecordsSQLite 删除task_records表中3天前的记录
-// @return error 错误信息
-func DeleteOldRecordsSQLite() error {
+func DeleteOldTaskRecords() error {
 	// 使用SQLite的date函数计算3天前
 	result, err := golabl.SqliteDb.Exec(`
         DELETE FROM task_records 
@@ -231,11 +208,11 @@ func DeleteOldRecordsSQLite() error {
 	return nil
 }
 
-// GetAllTaskRecords 查询task_records中24小时内的所有数据
-func GetAllTaskRecords() ([]sqLiteType.TaskRecord, error) {
+// GetTaskRecords24Hour 查询task_records中24小时内的所有数据
+func GetTaskRecords24Hour() ([]sqLiteType.TaskRecords, error) {
 	// 查询24小时内的记录，按创建时间倒序排列
 	querySQL := `
-    SELECT id, user_id, task_id, shop_name, is_export, task_type, create_at 
+    SELECT id, user_id, shop_id, task_id, shop_name, is_export, task_type, create_at 
     FROM task_records 
     WHERE create_at >= datetime('now', '-4 hours')
     AND create_at <= datetime('now', '-10 minutes')
@@ -249,15 +226,16 @@ func GetAllTaskRecords() ([]sqLiteType.TaskRecord, error) {
 	defer rows.Close() // 确保结果集最终被关闭
 
 	// 初始化结果切片
-	var records []sqLiteType.TaskRecord
+	var records []sqLiteType.TaskRecords
 
 	// 遍历查询结果
 	for rows.Next() {
-		var record sqLiteType.TaskRecord
+		var record sqLiteType.TaskRecords
 		// 扫描每一行数据到结构体中
 		err = rows.Scan(
 			&record.ID,
 			&record.UserID,
+			&record.ShopID,
 			&record.TaskID,
 			&record.ShopName,
 			&record.IsExport,

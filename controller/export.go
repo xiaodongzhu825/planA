@@ -1,42 +1,47 @@
 package controller
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"planA/modules/logs"
-	"planA/tool"
-	"time"
-
+	"planA/rep"
 	"planA/service"
-	sqLiteType "planA/type/sqLite"
-
-	"github.com/gorilla/mux"
+	"planA/tool"
+	_type "planA/type"
+	"planA/validator"
 )
 
 // GetExportTask 导出任务列表
 func GetExportTask(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 获取分页参数
-	page, size := tool.SetPage(data.URL.Query().Get("page"), data.URL.Query().Get("size"))
+	// 验证表单
+	dataVal, GetExportValidatorErr := validator.GetExportValidator(data)
+	if GetExportValidatorErr != nil {
+		tool.Error(httpMsg, GetExportValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
 
-	records, total, getTaskExportsWithPageErr := service.GetTaskExportsWithPage(page, size, "")
-	if getTaskExportsWithPageErr != nil {
-		errMsg := getTaskExportsWithPageErr.Error()
+	read := rep.CreateDbFactoryRead()
+	records, total, getTaskRecordsListErr := read.GetTaskExportList(page, size, "")
+	if getTaskRecordsListErr != nil {
+		errMsg := getTaskRecordsListErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	dataTaskAll := []map[string]interface{}{}
+	var dataTaskAll []map[string]interface{}
 	for _, v := range records {
-		complete, getExportFileProgressErr := service.GetExportFileProgress(v.TaskID)
+		complete, getExportFileProgressErr := service.GetExportFileProgress(v.TaskId)
 		if getExportFileProgressErr != nil {
 			errMsg := "获取任务进度失败: " + getExportFileProgressErr.Error()
-			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 			continue
 		}
 		taskExportdata := map[string]interface{}{
-			"task_id":     v.TaskID,
+			"task_id":     v.TaskId,
 			"shop_name":   v.ShopName,
 			"status":      v.Status,
 			"total":       v.Total,
@@ -56,31 +61,34 @@ func GetExportTask(httpMsg http.ResponseWriter, data *http.Request) {
 	tool.Session(httpMsg, dataRet)
 }
 
-// GetExportTaskUser 导出任务列表-用户
-func GetExportTaskUser(httpMsg http.ResponseWriter, data *http.Request) {
-	// 从路径参数获取 id
-	vars := mux.Vars(data)
-	userId := vars["userId"]
+// GetExportTaskByUserId 导出任务列表-用户
+func GetExportTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 获取分页参数
-	page, size := tool.SetPage(data.URL.Query().Get("page"), data.URL.Query().Get("size"))
+	// 验证表单
+	dataVal, GetExportByUserIdValidatorErr := validator.GetExportByUserIdValidator(data)
+	if GetExportByUserIdValidatorErr != nil {
+		tool.Error(httpMsg, GetExportByUserIdValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
 
-	records, total, getTaskExportsWithPageErr := service.GetTaskExportsWithPage(page, size, userId)
-	if getTaskExportsWithPageErr != nil {
-		errMsg := getTaskExportsWithPageErr.Error()
+	read := rep.CreateDbFactoryRead()
+	records, total, getTaskRecordsListErr := read.GetTaskExportList(page, size, dataVal.UserID)
+	if getTaskRecordsListErr != nil {
+		errMsg := getTaskRecordsListErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 	dataTaskAll := []map[string]interface{}{}
 	for _, v := range records {
-		complete, getExportFileProgressErr := service.GetExportFileProgress(v.TaskID)
+		complete, getExportFileProgressErr := service.GetExportFileProgress(v.TaskId)
 		if getExportFileProgressErr != nil {
 			errMsg := "获取任务进度失败: " + getExportFileProgressErr.Error()
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
 		taskExportdata := map[string]interface{}{
-			"task_id":     v.TaskID,
+			"task_id":     v.TaskId,
 			"shop_name":   v.ShopName,
 			"status":      v.Status,
 			"total":       v.Total,
@@ -103,21 +111,17 @@ func GetExportTaskUser(httpMsg http.ResponseWriter, data *http.Request) {
 // ExportTaskDetail 根据任务 id导出任务详情
 func ExportTaskDetail(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 从路径参数获取 id
-	vars := mux.Vars(data)
-	taskId := vars["id"]
-
-	task, getTaskRecordByTaskIDErr := service.GetTaskRecordByTaskID(taskId)
-
-	//查询任务信息
-	if getTaskRecordByTaskIDErr != nil {
-		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskRecordByTaskIDErr)
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+	// 验证表单
+	dataVal, GetExportDetailValidatorErr := validator.GetExportDetailValidator(data)
+	if GetExportDetailValidatorErr != nil {
+		tool.Error(httpMsg, GetExportDetailValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	//查询是任务状态
-	taskRecord, getTaskRecordsByTaskIDErr := service.GetTaskRecordsByTaskID(taskId)
+	read := rep.CreateDbFactoryRead()
+
+	//查询是任务信息
+	taskRecord, getTaskRecordsByTaskIDErr := read.GetTaskRecordsByTaskId(dataVal.TaskID)
 	if getTaskRecordsByTaskIDErr != nil {
 		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskRecordsByTaskIDErr)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -131,125 +135,174 @@ func ExportTaskDetail(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	//获取任务详情总数
-	total, GetBodyOverCount := service.GetBodyOverCount(taskId)
+	total, GetBodyOverCount := service.GetBodyOverCount(dataVal.TaskID)
 	if GetBodyOverCount != nil {
 		errMsg := fmt.Sprintf("获取任务详情总数失败 %v", GetBodyOverCount)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	//写入 sqlite
-	exportId, insertTaskExportErr := service.InsertTaskExport(sqLiteType.TaskExport{
-		UserID:   task.UserID,
-		TaskID:   taskId,
-		ShopName: task.ShopName,
-		FileUrl:  "",
-		Status:   0,
-		Total:    int(total),
-		CreateAt: time.Time{},
+	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
+	//创建一条导出任务
+	var status int64
+	var fileUrl string
+	mysqlCreateTaskExportErr := mysqlWrite.CreateTaskExport(_type.TaskExportDTO{
+		UserId:     taskRecord.UserId,
+		ShopId:     taskRecord.ShopId,
+		TaskId:     taskRecord.TaskId,
+		ShopName:   taskRecord.ShopName,
+		FileUrl:    fileUrl,
+		Status:     status,
+		Total:      total,
+		CompleteAt: sql.NullTime{},
 	})
-	if insertTaskExportErr != nil {
-		errMsg := fmt.Sprintf("写入任务信息失败 %v", insertTaskExportErr)
+	if mysqlCreateTaskExportErr != nil {
+		errMsg := fmt.Sprintf("写入任务信息失败 %v", mysqlCreateTaskExportErr)
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	sqLiteCreateTaskExportErr := sqliteWrite.CreateTaskExport(_type.TaskExportDTO{
+		UserId:     taskRecord.UserId,
+		ShopId:     taskRecord.ShopId,
+		TaskId:     taskRecord.TaskId,
+		ShopName:   taskRecord.ShopName,
+		FileUrl:    fileUrl,
+		Status:     status,
+		Total:      total,
+		CompleteAt: sql.NullTime{},
+	})
+	if sqLiteCreateTaskExportErr != nil {
+		errMsg := fmt.Sprintf("写入任务信息失败 %v", sqLiteCreateTaskExportErr)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 	//修改任务导出状态
-	updateTaskRecordIsExportErr := service.UpdateTaskRecordIsExport(taskId)
-	if updateTaskRecordIsExportErr != nil {
-		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", updateTaskRecordIsExportErr)
+	mysqlUpdateTaskRecordsErr := mysqlWrite.UpdateTaskRecords(_type.TaskRecordsDTO{
+		Id:       taskRecord.Id,
+		UserId:   taskRecord.UserId,
+		ShopId:   taskRecord.ShopId,
+		TaskId:   taskRecord.TaskId,
+		ShopName: taskRecord.ShopName,
+		IsExport: 1,
+		TaskType: taskRecord.TaskType,
+	})
+	if mysqlUpdateTaskRecordsErr != nil {
+		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", mysqlUpdateTaskRecordsErr)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	UpdateTaskUserIsExportErr := service.UpdateTaskUserIsExport(taskId, 1)
-	if UpdateTaskUserIsExportErr != nil {
-		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", UpdateTaskUserIsExportErr)
+	sqLiteUpdateTaskRecordsErr := sqliteWrite.UpdateTaskRecords(_type.TaskRecordsDTO{
+		Id:       taskRecord.Id,
+		UserId:   taskRecord.UserId,
+		ShopId:   taskRecord.ShopId,
+		TaskId:   taskRecord.TaskId,
+		ShopName: taskRecord.ShopName,
+		IsExport: 1,
+		TaskType: taskRecord.TaskType,
+	})
+	if sqLiteUpdateTaskRecordsErr != nil {
+		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", sqLiteUpdateTaskRecordsErr)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 
-	go ExportCSV(exportId, taskId, total)
+	go ExportCSV(dataVal.TaskID, total)
 	tool.Session(httpMsg, "")
 }
 
 // ExportTaskDetailByUserId 根据任务 id导出任务详情-用户
 func ExportTaskDetailByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 
-	// 从路径参数获取 id
-	vars := mux.Vars(data)
-	userId := vars["userId"]
-	taskId := vars["id"]
+	// 验证表单
+	dataVal, GetExportDetailValidatorErr := validator.GetExportDetailByUserIdValidator(data)
+	if GetExportDetailValidatorErr != nil {
+		tool.Error(httpMsg, GetExportDetailValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	read := rep.CreateDbFactoryRead()
 
-	task, getTaskRecordByTaskIDErr := service.GetTaskRecordByTaskID(taskId)
+	//查询任务信息
+	task, getTaskRecordsByTaskIdErr := read.GetTaskRecordsByTaskId(dataVal.TaskID)
+	if getTaskRecordsByTaskIdErr != nil {
+		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskRecordsByTaskIdErr)
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
 
 	// 验证用户
-	if userId != fmt.Sprintf("%v", task.UserID) {
+	if dataVal.UserID != fmt.Sprintf("%v", task.UserId) {
 		errMsg := "用户验证失败"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 
-	//查询任务信息
-	if getTaskRecordByTaskIDErr != nil {
-		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskRecordByTaskIDErr)
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-
-	//查询是任务状态
-	taskRecord, getTaskRecordsByTaskIDErr := service.GetTaskUserByTaskId(taskId)
-	if getTaskRecordsByTaskIDErr != nil {
-		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskRecordsByTaskIDErr)
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-
-	if *taskRecord.IsExport == 1 {
+	if task.IsExport == 1 {
 		errMsg := "任务已导出过"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 
 	//获取任务详情总数
-	total, GetBodyOverCount := service.GetBodyOverCount(taskId)
+	total, GetBodyOverCount := service.GetBodyOverCount(dataVal.TaskID)
 	if GetBodyOverCount != nil {
 		errMsg := fmt.Sprintf("获取任务详情总数失败 %v", GetBodyOverCount)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	//写入 sqlite
-	exportId, insertTaskExportErr := service.InsertTaskExport(sqLiteType.TaskExport{
-		UserID:   task.UserID,
-		TaskID:   taskId,
-		ShopName: task.ShopName,
-		FileUrl:  "",
-		Status:   0,
-		Total:    int(total),
-		CreateAt: time.Time{},
+	//向导出任务表写入一条数据
+	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
+	mysqlCreateTaskExportErr := mysqlWrite.CreateTaskExport(_type.TaskExportDTO{
+		UserId:     task.UserId,
+		ShopId:     task.ShopId,
+		TaskId:     dataVal.TaskID,
+		ShopName:   task.ShopName,
+		FileUrl:    "",
+		Status:     0,
+		Total:      total,
+		CompleteAt: sql.NullTime{},
 	})
-	if insertTaskExportErr != nil {
-		errMsg := fmt.Sprintf("写入任务信息失败 %v", insertTaskExportErr)
+	if mysqlCreateTaskExportErr != nil {
+		errMsg := fmt.Sprintf("写入任务信息失败 %v", mysqlCreateTaskExportErr)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	//修改任务导出状态
-	updateTaskRecordIsExportErr := service.UpdateTaskRecordIsExport(taskId)
-	if updateTaskRecordIsExportErr != nil {
-		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", updateTaskRecordIsExportErr)
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	UpdateTaskUserIsExportErr := service.UpdateTaskUserIsExport(taskId, 1)
-	if UpdateTaskUserIsExportErr != nil {
-		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", UpdateTaskUserIsExportErr)
+	sqLiteCreateTaskExport := sqliteWrite.CreateTaskExport(_type.TaskExportDTO{
+		UserId:     task.UserId,
+		ShopId:     task.ShopId,
+		TaskId:     dataVal.TaskID,
+		ShopName:   task.ShopName,
+		FileUrl:    "",
+		Status:     0,
+		Total:      total,
+		CompleteAt: sql.NullTime{},
+	})
+	if sqLiteCreateTaskExport != nil {
+		errMsg := fmt.Sprintf("写入任务信息失败 %v", sqLiteCreateTaskExport)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 
-	go ExportCSV(exportId, taskId, total)
+	//修改任务导出状态
+	mysqlUpdateTaskExportStatusErr := mysqlWrite.UpdateTaskExportStatus(dataVal.TaskID, 1, "")
+	if mysqlUpdateTaskExportStatusErr != nil {
+		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", mysqlUpdateTaskExportStatusErr)
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	sqLiteUpdateTaskExportStatusErr := sqliteWrite.UpdateTaskExportStatus(dataVal.TaskID, 1, "")
+	if sqLiteUpdateTaskExportStatusErr != nil {
+		errMsg := fmt.Sprintf("修改任务导出状态失败 %v", sqLiteUpdateTaskExportStatusErr)
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+
+	go ExportCSV(dataVal.TaskID, total)
 	tool.Session(httpMsg, "")
 }
 
 // ExportCSV 导出CSV
-func ExportCSV(exportId int64, taskId string, total int64) {
+// taskId 任务id
+// total 总数
+func ExportCSV(taskId string, total int64) {
 	// 定义每次获取的数量和 CSV文件名
 	batchSize := 1000
 	csvFileName := fmt.Sprintf("%v.csv", taskId)
@@ -270,10 +323,17 @@ func ExportCSV(exportId int64, taskId string, total int64) {
 	// 拼接完整的文件路径（自动处理路径分隔符，兼容Windows/Linux）
 	fullPath := filepath.Join(exportDir, csvFileName)
 
+	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
 	// 更新任务导出状态-导出中
-	updateTaskExportStatusErr := service.UpdateTaskExportStatus(exportId, 1, "")
-	if updateTaskExportStatusErr != nil {
-		errMsg := fmt.Sprintf("更新任务导出状态失败: %v", updateTaskExportStatusErr)
+	mysqlUpdateTaskExportStatusErr := mysqlWrite.UpdateTaskExportStatus(taskId, 1, "")
+	if mysqlUpdateTaskExportStatusErr != nil {
+		errMsg := fmt.Sprintf("更新任务导出状态失败: %v", mysqlUpdateTaskExportStatusErr)
+		fmt.Println(errMsg)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+	}
+	sqLiteUpdateTaskExportStatusErr := sqliteWrite.UpdateTaskExportStatus(taskId, 1, "")
+	if sqLiteUpdateTaskExportStatusErr != nil {
+		errMsg := fmt.Sprintf("更新任务导出状态失败: %v", sqLiteUpdateTaskExportStatusErr)
 		fmt.Println(errMsg)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 	}
@@ -292,9 +352,16 @@ func ExportCSV(exportId int64, taskId string, total int64) {
 		// 没有数据了，退出循环
 		if len(dataBatch) == 0 {
 			//导出完成
-			updateTaskExportStatusErr := service.UpdateTaskExportStatus(exportId, 2, fullPath)
-			if updateTaskExportStatusErr != nil {
-				errMsg := fmt.Sprintf("更新任务导出状态失败: %v", updateTaskExportStatusErr)
+
+			mysqlUpdateTaskExportStatusErr = mysqlWrite.UpdateTaskExportStatus(taskId, 2, fullPath)
+			if mysqlUpdateTaskExportStatusErr != nil {
+				errMsg := fmt.Sprintf("更新任务导出状态失败: %v", mysqlUpdateTaskExportStatusErr)
+				fmt.Println(errMsg)
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			}
+			sqLiteUpdateTaskExportStatusErr = sqliteWrite.UpdateTaskExportStatus(taskId, 2, fullPath)
+			if sqLiteUpdateTaskExportStatusErr != nil {
+				errMsg := fmt.Sprintf("更新任务导出状态失败: %v", sqLiteUpdateTaskExportStatusErr)
 				fmt.Println(errMsg)
 				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 			}

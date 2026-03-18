@@ -18,12 +18,14 @@ import (
 	"planA/planB/tool"
 	_type "planA/planB/type"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 
 	"planA/planB/golabl"
 
+	"github.com/go-redis/redis/v8"
 	"golang.org/x/time/rate"
 
 	"sync"
@@ -171,7 +173,6 @@ func main() {
 		fmt.Printf(errMsg)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 	}
-	fmt.Println(mainConfig.RedisConfig[5])
 	// 装入全局变量
 	golabl.RedisClientD = redisClientD
 	defer func() {
@@ -219,8 +220,20 @@ func main() {
 	// 统计执行时间 停止
 	startBeginz := time.Now()
 	taskIndex := 0
+	redisNilCon := 0      //连续读出 redisNil 的次数
+	replaceMarkCon := 0   //连续违规词出现的次数
+	lastIndex := int64(0) //记录程序集错误
 	for task.Footer.TaskCountWait.Load() > 0 {
 		taskIndex++
+		//重新获取配置文件
+		mainConfig, configErr = config.Init(ctx, "")
+		if configErr != nil {
+			errMsg := fmt.Sprintf("初始化配置失败-原因来自于:%v", configErr)
+			fmt.Printf(errMsg)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			continue
+		}
+		golabl.MainConfig = &mainConfig
 		// 使用令牌桶进行速率控制（每秒20个）
 		err := globalLimiter.Wait(ctx)
 		if err != nil {
@@ -255,6 +268,12 @@ func main() {
 			}
 		}
 
+		if redisNilCon > 10 {
+			lastIndex = 10001
+			//暂停 5000毫秒
+			fmt.Printf("连续读出 redisNil 的次数 %v 暂停%v毫秒", redisNilCon, golabl.MainConfig.Server.ErrPauseTime)
+			time.Sleep(time.Duration(golabl.MainConfig.Server.ErrPauseTime) * time.Millisecond)
+		}
 		// 创建等待
 		wg.Add(1)
 
@@ -271,9 +290,15 @@ func main() {
 			errorStr := "执行成功"
 			// 获取任务信息
 			taskMsg, taskMsgErr := _myRedis.GetTaskToPopFromBodyWait(golabl.RedisClientA, taskKey)
-			if taskMsgErr != nil {
+			if errors.Is(taskMsgErr, redis.Nil) {
+				redisNilCon++
 				errMsg := fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr)
-				fmt.Printf(errMsg)
+				fmt.Println(errMsg)
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+				return
+			} else if taskMsgErr != nil {
+				errMsg := fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr)
+				fmt.Println(errMsg)
 				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 				return
 			}
@@ -341,12 +366,25 @@ func main() {
 					return
 				}
 				if replaceMark == "0" && len(substitution.Data) > 0 {
+					replaceMarkCon++
 					status = 2
 					errorStr = "违规词命中 "
 					for _, v := range substitution.Data {
 						errorStr = errorStr + " " + v.AddTxt + "(" + v.MatchType + ") "
 					}
+					fmt.Println(errorStr, " isbn：", taskMsg.BookInfo.Isbn)
 					bodyOver = taskMsg
+
+					if replaceMarkCon > 10 {
+						lastIndex = 10003
+						//暂停 B程序运行
+						fmt.Println("十次 违规词命中 暂停B程序 运行")
+						pauseTaskErr := tool.PauseTask(mainConfig.HttpUrl.TaskUrl, task.Header.TaskId)
+						if pauseTaskErr != nil {
+							fmt.Println("十次 违规词命中 暂停B程序 运行失败")
+						}
+						replaceMarkCon = 0
+					}
 				}
 				if replaceMark == "1" {
 					//替换违禁词
@@ -355,6 +393,7 @@ func main() {
 					taskMsg.BookInfo.Publishing = substitution.Publisher
 					taskMsg.BookInfo.Isbn = substitution.Isbn
 				}
+				replaceMarkCon = 0
 			}
 
 			//// 初始化 任务是否错误
@@ -424,6 +463,16 @@ func main() {
 				fmt.Println(taskErr.Error())
 			}
 
+			// 如果错误是 店铺商品发布达到上限则暂停程序
+			if strings.Contains(errorStr, "店铺内发布商品总数已达到上限") {
+				lastIndex = 11002
+				//暂停 B程序运行
+				fmt.Println("店铺内发布商品总数已达到上限 暂停B程序 运行")
+				pauseTaskErr := tool.PauseTask(mainConfig.HttpUrl.TaskUrl, task.Header.TaskId)
+				if pauseTaskErr != nil {
+					fmt.Println("暂停B程序 运行失败")
+				}
+			}
 			// 关闭当前协程
 			return
 		})
@@ -443,6 +492,7 @@ func main() {
 				task.Header.TaskCountOver = task.Footer.TaskCountOver.Load()
 				task.Header.TaskCountSuccess = task.Footer.TaskCountSuccess.Load()
 				task.Header.TaskCountError = task.Footer.TaskCountError.Load()
+				task.Header.LastIndex = lastIndex
 				_, updateTaskHeaderCountErr := _myRedis.UpdateTaskHeaderCount(redisClientA, taskKey, task.Header)
 				if updateTaskHeaderCountErr != nil {
 					errMsg := fmt.Sprintf("更新任务尾信息失败-原因来自:%v", updateTaskHeaderCountErr)
@@ -462,6 +512,7 @@ func main() {
 	task.Header.TaskCountOver = task.Footer.TaskCountOver.Load()
 	task.Header.TaskCountSuccess = task.Footer.TaskCountSuccess.Load()
 	task.Header.TaskCountError = task.Footer.TaskCountError.Load()
+	task.Header.LastIndex = lastIndex
 	_, updateTaskHeaderCountErr := _myRedis.UpdateTaskHeaderCount(redisClientA, taskKey, task.Header)
 	if updateTaskHeaderCountErr != nil {
 		errMsg := fmt.Sprintf("更新任务尾信息失败-原因来自:%v", updateTaskHeaderCountErr)

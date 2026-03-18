@@ -11,11 +11,10 @@ func Init() {
 	c := cron.New(cron.WithSeconds()) // 支持秒级别的精度
 	// 每日执行删除sqlite过期记录
 	_, delSqlIteErr := c.AddFunc("0 0 0 * * ?", func() {
-		DeleteOldExportRedis()   //删除 redis中过期数据
-		DeleteOldExportFile()    //删除过期的导出文件
-		DeleteOldExportSQLite()  //删除task_export过期记录
-		DeleteOldRecordsSQLite() //删除task_record过期记录
-		DeleteOldTaskUser()      //删除task_user过期记录
+		DeleteOldExportFile() //删除过期的导出文件
+		DeleteOldRedis()      //删除 redis中过期数据
+		DeleteOldRecords()    //删除task_record过期记录
+		DeleteOldExport()     //删除task_export过期记录
 	})
 	if delSqlIteErr != nil {
 		logs.LoggingMiddleware("error", "定时任务 每日执行删除sqlite过期记录 失败")
@@ -26,7 +25,6 @@ func Init() {
 		CheckBannedWordSubstitutionUrlAlive() // 违禁词替换心跳
 		CheckMysqlAlive()                     // mysql 心跳
 		CheckRedisAlive()                     // redis 心跳
-		CheckSqliteAlive()                    // sqlite 心跳
 		CheckPddAlive()                       // 拼多多心跳
 		CheckCreateTaskNoticeUrlAlive()       // 创建任务通知心跳
 		return

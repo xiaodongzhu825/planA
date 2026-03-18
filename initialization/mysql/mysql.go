@@ -81,8 +81,12 @@ func Init() error {
 
 // Migrate 迁移表
 func Migrate(db *gorm.DB) error {
-	// task_user表
-	if err := mysqlModle.MigrateTaskUser(db); err != nil {
+	// task_records表
+	if err := mysqlModle.MigrateTaskRecords(db); err != nil {
+		return err
+	}
+	// task_export表
+	if err := mysqlModle.MigrateTaskExport(db); err != nil {
 		return err
 	}
 	return nil

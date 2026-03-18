@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"planA/initialization/golabl"
-	"planA/service"
+	sqLiteServer "planA/service/sqLite"
 
 	_ "modernc.org/sqlite"
 )
@@ -34,11 +34,11 @@ func Init() error {
 
 // CreateTable 自动建表
 func CreateTable() error {
-	createTaskIdTabErr := service.CreateTaskIdTab()
+	createTaskIdTabErr := sqLiteServer.CreateTaskIdTab()
 	if createTaskIdTabErr != nil {
 		return fmt.Errorf("自动创建表失败: %v", createTaskIdTabErr)
 	}
-	createTaskExportTabErr := service.CreateTaskExportTab()
+	createTaskExportTabErr := sqLiteServer.CreateTaskExportTab()
 	if createTaskExportTabErr != nil {
 		return fmt.Errorf("自动创建表失败: %v", createTaskExportTabErr)
 	}

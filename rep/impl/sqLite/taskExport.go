@@ -40,14 +40,37 @@ func (s *SqlAdapter) GetTaskExportList(page, pageSize int, userId string) ([]*_t
 // @return *mysqlType.TaskExportDTO 导出任务
 // @return error 错误信息
 func (s *SqlAdapter) GetTaskExportByTaskId(taskId string) (_type.TaskExportDTO, error) {
-	return _type.TaskExportDTO{}, nil
+	info, err := sqLiteServer.GetTaskExportByTaskID(taskId)
+	infoDTO := _type.TaskExportDTO{
+		Id:         info.ID,
+		UserId:     info.UserID,
+		ShopId:     info.ShopID,
+		TaskId:     info.TaskID,
+		ShopName:   info.ShopName,
+		FileUrl:    info.FileUrl,
+		Status:     info.Status,
+		Total:      info.Total,
+		CompleteAt: info.CompleteAt,
+		CreateAt:   info.CreateAt,
+	}
+	return infoDTO, err
 }
 
 // UpdateTaskExport 更新导出任务
 // @param export 导出任务
 // @return error 错误信息
 func (s *SqlAdapter) UpdateTaskExport(export _type.TaskExportDTO) error {
-	return nil
+	err := sqLiteServer.UpdateTaskExport(sqliteType.TaskExport{
+		UserID:     export.UserId,
+		ShopID:     export.ShopId,
+		TaskID:     export.TaskId,
+		ShopName:   export.ShopName,
+		FileUrl:    export.FileUrl,
+		Status:     export.Status,
+		Total:      export.Total,
+		CompleteAt: export.CompleteAt,
+	})
+	return err
 }
 
 // GetTaskExportOldList 获取任务导出旧数据列表

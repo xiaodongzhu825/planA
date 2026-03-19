@@ -101,3 +101,10 @@ func GetOldExportSQLite() ([]mysqlType.TaskExport, error) {
 	err := golabl.MysqlDb.Where("create_at < ?", threeDaysAgo).Find(&taskExport).Error
 	return taskExport, err
 }
+
+// UpdateTaskExport 更新task_export信息
+// @param taskExport mysqlType.TaskExport 要更新的任务信息
+// @return error 错误信息
+func UpdateTaskExport(taskExport mysqlType.TaskExport) error {
+	return golabl.MysqlDb.Model(&mysqlType.TaskExport{}).Where("task_id = ?", taskExport.TaskID).Updates(taskExport).Error
+}

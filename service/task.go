@@ -206,12 +206,12 @@ func UpdateTaskFooter(taskKey string, footer *_type.TaskFooter) error {
 // 键格式: {taskKey}:body_file
 // ============================================
 
-// UpdateExportFileProgress 更新导出文件进度
+// UpdateExportFileProgress 更新导出文件进度（每次自增+1）
 // @param taskKey 任务键
-// @param complete 完成进度
 // @return error 错误信息
-func UpdateExportFileProgress(taskKey string, complete int) error {
-	return golabl.RedisDbA.HSet(golabl.Ctx, getBodyFileKey(taskKey), "complete", complete).Err()
+func UpdateExportFileProgress(taskKey string) error {
+	// 使用 HIncrBy 对指定字段进行自增操作，每次增加1
+	return golabl.RedisDbA.HIncrBy(golabl.Ctx, getBodyFileKey(taskKey), "complete", 1).Err()
 }
 
 // GetExportFileProgress 获取导出文件进度

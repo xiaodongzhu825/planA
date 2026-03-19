@@ -261,7 +261,7 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	//验证状态
+	// 验证状态
 	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
 	if getTaskHeaderErr != nil {
 		errMsg := "获取任务头失败: " + getTaskHeaderErr.Error()
@@ -271,6 +271,61 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	if header.Status != _type.TaskStatusRunning {
 		errMsg := "当前状态不是执行中"
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+
+	read := rep.CreateDbFactoryRead()
+	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
+	// 查询当前任务信息
+	taskRecords, getTaskRecordsByTaskIdErr := read.GetTaskRecordsByTaskId(dataVal.TaskID)
+	if getTaskRecordsByTaskIdErr != nil {
+		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskRecordsByTaskIdErr)
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	// 查询当前导出任务信息
+	taskExport, getTaskExportByTaskIdErr := read.GetTaskExportByTaskId(dataVal.TaskID)
+	if getTaskExportByTaskIdErr != nil {
+		return
+	}
+	// 暂停时将task_records表状态改为未导出状态
+	mysqlUpdateTaskRecordsErr := mysqlWrite.UpdateTaskRecords(_type.TaskRecordsDTO{
+		UserId:   taskRecords.UserId,
+		ShopId:   taskRecords.ShopId,
+		TaskId:   taskRecords.TaskId,
+		ShopName: taskRecords.ShopName,
+		IsExport: 0,
+		TaskType: taskRecords.TaskType,
+	})
+	if mysqlUpdateTaskRecordsErr != nil {
+		errMsg := "更新任务用户失败: " + mysqlUpdateTaskRecordsErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	sqliteUpdateTaskRecordsErr := sqliteWrite.UpdateTaskRecords(_type.TaskRecordsDTO{
+		UserId:   taskRecords.UserId,
+		ShopId:   taskRecords.ShopId,
+		TaskId:   taskRecords.TaskId,
+		ShopName: taskRecords.ShopName,
+		IsExport: 0,
+		TaskType: taskRecords.TaskType,
+	})
+	if sqliteUpdateTaskRecordsErr != nil {
+		errMsg := "更新任务用户失败: " + sqliteUpdateTaskRecordsErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	// 暂停时将task_export状态改为未导出状态
+	mysqlUpdateTaskExportStatusErr := mysqlWrite.UpdateTaskExportStatus(taskExport.TaskId, 1, taskExport.FileUrl)
+	if mysqlUpdateTaskExportStatusErr != nil {
+		errMsg := "更新任务用户失败: " + mysqlUpdateTaskExportStatusErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	sqliteUpdateTaskExportStatusErr := sqliteWrite.UpdateTaskExportStatus(taskExport.TaskId, 1, taskExport.FileUrl)
+	if sqliteUpdateTaskExportStatusErr != nil {
+		errMsg := "更新任务用户失败: " + sqliteUpdateTaskExportStatusErr.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -1067,9 +1122,8 @@ func TaskDeduction(shopId string, userId string) (_type.TaskDeductionResponse, e
 // @param data 数据
 // @param writeHeader 是否写入表头
 // @param taskId 任务ID
-// @param completed 完成数量
 // @return error
-func AppendToCSV(fileName string, data []_type.TaskBody, writeHeader bool, taskId string, completed *int) error {
+func AppendToCSV(fileName string, data []_type.TaskBody, writeHeader bool, taskId string) error {
 
 	// 打开文件（不存在则创建，存在则追加）
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -1109,8 +1163,7 @@ func AppendToCSV(fileName string, data []_type.TaskBody, writeHeader bool, taskI
 			return fmt.Errorf("写入CSV数据失败: %v, 数据: %+v", err, item)
 		}
 		// 更新redis中的Complete字段，展示导出进度
-		*completed++
-		err := service.UpdateExportFileProgress(taskId, *completed)
+		err := service.UpdateExportFileProgress(taskId)
 		if err != nil {
 			return fmt.Errorf("更新redis进度失败: %v", err)
 		}

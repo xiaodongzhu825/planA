@@ -2,6 +2,7 @@ package sqLite
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"planA/initialization/golabl"
 	"planA/tool"
@@ -207,6 +208,8 @@ func DeleteOldExport() error {
 }
 
 // GetOldExport 获取task_export表中3天前的记录
+// @return []TaskExport 3天前的记录
+// @return error 错误信息
 func GetOldExport() ([]sqLiteType.TaskExport, error) {
 	// 计算3天前的时间
 	sevenDaysAgo := time.Now().AddDate(0, 0, -3)
@@ -265,4 +268,71 @@ func GetOldExport() ([]sqLiteType.TaskExport, error) {
 	}
 
 	return tasks, nil
+}
+
+// GetTaskExportByTaskID 根据任务ID获取导出记录
+// @param taskID string 任务ID
+// @return sqLiteType.TaskExport 导出记录
+// @return error 错误信息
+func GetTaskExportByTaskID(taskID string) (sqLiteType.TaskExport, error) {
+	query := `SELECT id, user_id, shop_id, task_id, shop_name, file_url, 
+                     status, total, complete_at, create_at 
+              FROM task_export 
+              WHERE task_id = ?`
+
+	var task sqLiteType.TaskExport
+	err := golabl.SqliteDb.QueryRow(query, taskID).Scan(
+		&task.ID,
+		&task.UserID,
+		&task.ShopID,
+		&task.TaskID,
+		&task.ShopName,
+		&task.FileUrl,
+		&task.Status,
+		&task.Total,
+		&task.CompleteAt,
+		&task.CreateAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return task, nil // 未找到记录
+		}
+		return task, err
+	}
+
+	return task, nil
+}
+
+// UpdateTaskExport 更新task_export信息
+// @param export sqLiteType.TaskExport 要更新的任务信息
+// @return error 错误信息
+func UpdateTaskExport(export sqLiteType.TaskExport) error {
+	query := `
+        UPDATE task_export 
+        SET user_id = ?,
+            shop_id = ?,
+            task_id = ?,
+            shop_name = ?,
+            file_url = ?,
+            status = ?,  
+            total = ?,
+            complete_at = ?
+        WHERE task_id = ?
+    `
+
+	result, err := golabl.SqliteDb.Exec(query, export.TaskID, export.ShopID, export.TaskID, export.ShopName, export.FileUrl, export.Status, export.Total, export.CompleteAt, export.TaskID)
+	if err != nil {
+		return fmt.Errorf("更新任务失败: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取影响行数失败: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("未找到task_id为 %s 的任务", export.TaskID)
+	}
+	return nil
 }

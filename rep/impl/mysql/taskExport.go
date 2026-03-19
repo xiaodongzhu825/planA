@@ -47,7 +47,17 @@ func (g *GormAdapter) GetTaskExportByTaskId(taskId string) (_type.TaskExportDTO,
 // @param export 导出任务
 // @return error 错误信息
 func (g *GormAdapter) UpdateTaskExport(export _type.TaskExportDTO) error {
-	return nil
+	err := mysqlServer.UpdateTaskExport(mysqlType.TaskExport{
+		UserID:     &export.UserId,
+		ShopID:     &export.ShopId,
+		TaskID:     &export.TaskId,
+		ShopName:   &export.ShopName,
+		FileUrl:    &export.FileUrl,
+		Status:     &export.Status,
+		Total:      &export.Total,
+		CompleteAt: &export.CompleteAt,
+	})
+	return err
 }
 
 // GetTaskExportOldList 获取任务导出旧数据列表

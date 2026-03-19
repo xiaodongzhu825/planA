@@ -249,28 +249,28 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	}
 	goodsAdd.SkuList = []Sku{sku}
 
-	// 发送请求
-	goodsAddRet, _, err := AddGoods(pddDll, logUuid, taskHeader.ShopMsg.Token, goodsAdd)
-	if err != nil {
-		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("商品提交 %v", err))
-	}
-
-	// 获取商品提交的商品详情
-	goodsCommitDetail, _, getGoodsCommitDetailErr := GetGoodsCommitDetail(pddDll, taskHeader.ShopMsg.Token, goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
-	if getGoodsCommitDetailErr != nil {
-		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("获取商品提交的商品详情失败 %w", getGoodsCommitDetailErr))
-	}
-
-	//拼接接口调用成功的返回数据
-	if len(goodsCommitDetail.GoodsCommitDetailResponse.SkuList) > 0 {
-		taskMsg.Detail.SkuCode = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].OutSkuSn
-		taskMsg.Detail.SkuId = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].SkuID
-	}
-	taskMsg.Detail.GoodsId = goodsAddRet.Response.GoodsID
-	taskMsg.Detail.ReturnId = goodsAddRet.Response.GoodsCommitID
-	taskMsg.Detail.OutGoodsId = goodsAdd.OutGoodsId
-	taskMsg.Detail.Img = goodsAdd.CarouselGallery[0]
-	taskMsg.Detail.SkuCode = goodsAdd.OutGoodsId
+	//// 发送请求
+	//goodsAddRet, _, err := AddGoods(pddDll, logUuid, taskHeader.ShopMsg.Token, goodsAdd)
+	//if err != nil {
+	//	return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("商品提交 %v", err))
+	//}
+	//
+	//// 获取商品提交的商品详情
+	//goodsCommitDetail, _, getGoodsCommitDetailErr := GetGoodsCommitDetail(pddDll, taskHeader.ShopMsg.Token, goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
+	//if getGoodsCommitDetailErr != nil {
+	//	return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("获取商品提交的商品详情失败 %w", getGoodsCommitDetailErr))
+	//}
+	//
+	////拼接接口调用成功的返回数据
+	//if len(goodsCommitDetail.GoodsCommitDetailResponse.SkuList) > 0 {
+	//	taskMsg.Detail.SkuCode = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].OutSkuSn
+	//	taskMsg.Detail.SkuId = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].SkuID
+	//}
+	//taskMsg.Detail.GoodsId = goodsAddRet.Response.GoodsID
+	//taskMsg.Detail.ReturnId = goodsAddRet.Response.GoodsCommitID
+	//taskMsg.Detail.OutGoodsId = goodsAdd.OutGoodsId
+	//taskMsg.Detail.Img = goodsAdd.CarouselGallery[0]
+	//taskMsg.Detail.SkuCode = goodsAdd.OutGoodsId
 
 	return tool.GoodsAddReturnSuccess(taskMsg)
 }

@@ -142,38 +142,82 @@ func ExportTaskDetail(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
-	//创建一条导出任务
-	var status int64
-	var fileUrl string
-	mysqlCreateTaskExportErr := mysqlWrite.CreateTaskExport(_type.TaskExportDTO{
-		UserId:     taskRecord.UserId,
-		ShopId:     taskRecord.ShopId,
-		TaskId:     taskRecord.TaskId,
-		ShopName:   taskRecord.ShopName,
-		FileUrl:    fileUrl,
-		Status:     status,
-		Total:      total,
-		CompleteAt: sql.NullTime{},
-	})
-	if mysqlCreateTaskExportErr != nil {
-		errMsg := fmt.Sprintf("写入任务信息失败 %v", mysqlCreateTaskExportErr)
+	//查询导出任务是存在
+	taskExport, getTaskExportByTaskIdErr := read.GetTaskExportByTaskId(dataVal.TaskID)
+	if getTaskExportByTaskIdErr != nil {
+		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskExportByTaskIdErr)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	sqLiteCreateTaskExportErr := sqliteWrite.CreateTaskExport(_type.TaskExportDTO{
-		UserId:     taskRecord.UserId,
-		ShopId:     taskRecord.ShopId,
-		TaskId:     taskRecord.TaskId,
-		ShopName:   taskRecord.ShopName,
-		FileUrl:    fileUrl,
-		Status:     status,
-		Total:      total,
-		CompleteAt: sql.NullTime{},
-	})
-	if sqLiteCreateTaskExportErr != nil {
-		errMsg := fmt.Sprintf("写入任务信息失败 %v", sqLiteCreateTaskExportErr)
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
+	if taskExport.Id == 0 {
+		//创建一条导出任务
+		var status int64
+		var fileUrl string
+		mysqlCreateTaskExportErr := mysqlWrite.CreateTaskExport(_type.TaskExportDTO{
+			UserId:     taskRecord.UserId,
+			ShopId:     taskRecord.ShopId,
+			TaskId:     taskRecord.TaskId,
+			ShopName:   taskRecord.ShopName,
+			FileUrl:    fileUrl,
+			Status:     status,
+			Total:      total,
+			CompleteAt: sql.NullTime{},
+		})
+		if mysqlCreateTaskExportErr != nil {
+			errMsg := fmt.Sprintf("写入任务信息失败 %v", mysqlCreateTaskExportErr)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		sqLiteCreateTaskExportErr := sqliteWrite.CreateTaskExport(_type.TaskExportDTO{
+			UserId:     taskRecord.UserId,
+			ShopId:     taskRecord.ShopId,
+			TaskId:     taskRecord.TaskId,
+			ShopName:   taskRecord.ShopName,
+			FileUrl:    fileUrl,
+			Status:     status,
+			Total:      total,
+			CompleteAt: sql.NullTime{},
+		})
+		if sqLiteCreateTaskExportErr != nil {
+			errMsg := fmt.Sprintf("写入任务信息失败 %v", sqLiteCreateTaskExportErr)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		newTotal := taskExport.Total + total
+		// 如果数据存在 清空完成时间 并且 修改任务总数量
+		mysqlUpdateTaskExportErr := mysqlWrite.UpdateTaskExport(_type.TaskExportDTO{
+			Id:         taskExport.Id,
+			UserId:     taskExport.UserId,
+			ShopId:     taskExport.ShopId,
+			TaskId:     taskExport.TaskId,
+			ShopName:   taskExport.ShopName,
+			FileUrl:    taskExport.FileUrl,
+			Status:     taskExport.Status,
+			Total:      newTotal,
+			CompleteAt: sql.NullTime{},
+		})
+		if mysqlUpdateTaskExportErr != nil {
+			errMsg := fmt.Sprintf("修改任务信息失败 %v", mysqlUpdateTaskExportErr)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		sqLiteUpdateTaskExportErr := sqliteWrite.UpdateTaskExport(_type.TaskExportDTO{
+			Id:         taskExport.Id,
+			UserId:     taskExport.UserId,
+			ShopId:     taskExport.ShopId,
+			TaskId:     taskExport.TaskId,
+			ShopName:   taskExport.ShopName,
+			FileUrl:    taskExport.FileUrl,
+			Status:     taskExport.Status,
+			Total:      newTotal,
+			CompleteAt: sql.NullTime{},
+		})
+		if sqLiteUpdateTaskExportErr != nil {
+			errMsg := fmt.Sprintf("修改任务信息失败 %v", sqLiteUpdateTaskExportErr)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
 	}
 	//修改任务导出状态
 	mysqlUpdateTaskRecordsErr := mysqlWrite.UpdateTaskRecords(_type.TaskRecordsDTO{
@@ -248,37 +292,80 @@ func ExportTaskDetailByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	//向导出任务表写入一条数据
 	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
-	mysqlCreateTaskExportErr := mysqlWrite.CreateTaskExport(_type.TaskExportDTO{
-		UserId:     task.UserId,
-		ShopId:     task.ShopId,
-		TaskId:     dataVal.TaskID,
-		ShopName:   task.ShopName,
-		FileUrl:    "",
-		Status:     0,
-		Total:      total,
-		CompleteAt: sql.NullTime{},
-	})
-	if mysqlCreateTaskExportErr != nil {
-		errMsg := fmt.Sprintf("写入任务信息失败 %v", mysqlCreateTaskExportErr)
+	//查询导出任务是存在
+	taskExport, getTaskExportByTaskIdErr := read.GetTaskExportByTaskId(dataVal.TaskID)
+	if getTaskExportByTaskIdErr != nil {
+		errMsg := fmt.Sprintf("获取任务信息失败 %v", getTaskExportByTaskIdErr)
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	sqLiteCreateTaskExport := sqliteWrite.CreateTaskExport(_type.TaskExportDTO{
-		UserId:     task.UserId,
-		ShopId:     task.ShopId,
-		TaskId:     dataVal.TaskID,
-		ShopName:   task.ShopName,
-		FileUrl:    "",
-		Status:     0,
-		Total:      total,
-		CompleteAt: sql.NullTime{},
-	})
-	if sqLiteCreateTaskExport != nil {
-		errMsg := fmt.Sprintf("写入任务信息失败 %v", sqLiteCreateTaskExport)
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
+	if taskExport.Id == 0 {
+		//向导出任务表写入一条数据
+		mysqlCreateTaskExportErr := mysqlWrite.CreateTaskExport(_type.TaskExportDTO{
+			UserId:     task.UserId,
+			ShopId:     task.ShopId,
+			TaskId:     dataVal.TaskID,
+			ShopName:   task.ShopName,
+			FileUrl:    "",
+			Status:     0,
+			Total:      total,
+			CompleteAt: sql.NullTime{},
+		})
+		if mysqlCreateTaskExportErr != nil {
+			errMsg := fmt.Sprintf("写入任务信息失败 %v", mysqlCreateTaskExportErr)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		sqLiteCreateTaskExport := sqliteWrite.CreateTaskExport(_type.TaskExportDTO{
+			UserId:     task.UserId,
+			ShopId:     task.ShopId,
+			TaskId:     dataVal.TaskID,
+			ShopName:   task.ShopName,
+			FileUrl:    "",
+			Status:     0,
+			Total:      total,
+			CompleteAt: sql.NullTime{},
+		})
+		if sqLiteCreateTaskExport != nil {
+			errMsg := fmt.Sprintf("写入任务信息失败 %v", sqLiteCreateTaskExport)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// 如果数据存在 清空完成时间 并且 修改任务总数量
+		mysqlUpdateTaskExportErr := mysqlWrite.UpdateTaskExport(_type.TaskExportDTO{
+			Id:         taskExport.Id,
+			UserId:     taskExport.UserId,
+			ShopId:     taskExport.ShopId,
+			TaskId:     taskExport.TaskId,
+			ShopName:   taskExport.ShopName,
+			FileUrl:    taskExport.FileUrl,
+			Status:     taskExport.Status,
+			Total:      taskExport.Total + total,
+			CompleteAt: sql.NullTime{},
+		})
+		if mysqlUpdateTaskExportErr != nil {
+			errMsg := fmt.Sprintf("修改任务信息失败 %v", mysqlUpdateTaskExportErr)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		sqLiteUpdateTaskExportErr := sqliteWrite.UpdateTaskExport(_type.TaskExportDTO{
+			Id:         taskExport.Id,
+			UserId:     taskExport.UserId,
+			ShopId:     taskExport.ShopId,
+			TaskId:     taskExport.TaskId,
+			ShopName:   taskExport.ShopName,
+			FileUrl:    taskExport.FileUrl,
+			Status:     taskExport.Status,
+			Total:      taskExport.Total + total,
+			CompleteAt: sql.NullTime{},
+		})
+		if sqLiteUpdateTaskExportErr != nil {
+			errMsg := fmt.Sprintf("修改任务信息失败 %v", sqLiteUpdateTaskExportErr)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	//修改任务导出状态
@@ -302,28 +389,49 @@ func ExportTaskDetailByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 // ExportCSV 导出CSV
 // taskId 任务id
 // total 总数
+// ExportCSV 导出CSV
+// taskId 任务id
+// total 总数
 func ExportCSV(taskId string, total int64) {
-	// 定义每次获取的数量和 CSV文件名
+	// 定义每次获取的数量
 	batchSize := 1000
 	csvFileName := fmt.Sprintf("%v.csv", taskId)
 
-	// 初始化偏移量
-	offset := 0
-	// 标记是否是第一次写入（用于写入CSV表头）
-	isFirstWrite := true
 	// 定义导出目录
 	exportDir := "export"
 	// 检查并创建目录（如果不存在）
-	err := os.MkdirAll(exportDir, 0755) // 0755是目录权限，保证可读可写
+	err := os.MkdirAll(exportDir, 0755)
 	if err != nil {
 		errMsg := fmt.Sprintf("创建目录失败: %v", err)
 		fmt.Println(errMsg)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return
 	}
-	// 拼接完整的文件路径（自动处理路径分隔符，兼容Windows/Linux）
+
+	// 拼接完整的文件路径
 	fullPath := filepath.Join(exportDir, csvFileName)
 
+	// 检查文件是否已存在
+	fileExists := false
+	if _, err := os.Stat(fullPath); err == nil {
+		fileExists = true
+		fmt.Printf("文件已存在: %s，将在末尾追加数据\n", fullPath)
+	} else if !os.IsNotExist(err) {
+		// 其他错误（如权限问题）
+		errMsg := fmt.Sprintf("检查文件状态失败: %v", err)
+		fmt.Println(errMsg)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return
+	}
+
+	// 初始化偏移量
+	offset := 0
+	// 标记是否是第一次写入（用于写入CSV表头）
+	// 如果文件已存在，则不需要写入表头
+	isFirstWrite := !fileExists
+
 	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
+
 	// 更新任务导出状态-导出中
 	mysqlUpdateTaskExportStatusErr := mysqlWrite.UpdateTaskExportStatus(taskId, 1, "")
 	if mysqlUpdateTaskExportStatusErr != nil {
@@ -340,7 +448,7 @@ func ExportCSV(taskId string, total int64) {
 
 	// 循环获取并写入数据
 	for {
-		// 每次获取1000条数据
+		// 每次获取batchSize条数据
 		dataBatch, err := service.GetBodyOverDataByBatch(taskId, offset, batchSize)
 		if err != nil {
 			errMsg := fmt.Sprintf("获取任务详情批次数据失败 offset:%d, err:%v", offset, err)
@@ -351,8 +459,7 @@ func ExportCSV(taskId string, total int64) {
 
 		// 没有数据了，退出循环
 		if len(dataBatch) == 0 {
-			//导出完成
-
+			// 导出完成
 			mysqlUpdateTaskExportStatusErr = mysqlWrite.UpdateTaskExportStatus(taskId, 2, fullPath)
 			if mysqlUpdateTaskExportStatusErr != nil {
 				errMsg := fmt.Sprintf("更新任务导出状态失败: %v", mysqlUpdateTaskExportStatusErr)
@@ -365,7 +472,8 @@ func ExportCSV(taskId string, total int64) {
 				fmt.Println(errMsg)
 				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 			}
-			//清空body_over
+
+			// 清空body_over
 			clearBodyOverErr := service.ClearBodyOver(taskId)
 			if clearBodyOverErr != nil {
 				errMsg := fmt.Sprintf("清空body_over失败: %v", clearBodyOverErr)
@@ -376,13 +484,9 @@ func ExportCSV(taskId string, total int64) {
 			break
 		}
 
-		// 更新进度（可选）
-		completed := offset
-		if completed > int(total) {
-			completed = int(total)
-		}
-		// 追加写入 CSV文件
-		if writeErr := AppendToCSV(fullPath, dataBatch, isFirstWrite, taskId, &completed); writeErr != nil {
+		// 追加写入CSV文件
+		// 注意：AppendToCSV函数需要修改以支持文件存在时的追加模式
+		if writeErr := AppendToCSV(fullPath, dataBatch, isFirstWrite, taskId); writeErr != nil {
 			errMsg := fmt.Sprintf("写入CSV文件失败 offset:%d, err:%v", offset, writeErr)
 			fmt.Println(errMsg)
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)

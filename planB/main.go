@@ -203,7 +203,12 @@ func main() {
 	}
 
 	// 初始化 协程池
-	myPool, poolErr := pool.Init(mainConfig.PoolConfig)
+	poolConfig := mainConfig.PoolConfig
+	if task.Header.Pool.Size > 0 {
+		poolConfig = task.Header.Pool
+	}
+
+	myPool, poolErr := pool.Init(poolConfig)
 	if poolErr != nil {
 		errMsg := fmt.Sprintf("初始化 协程池 失败-原因来自于:%v", poolErr)
 		fmt.Println(errMsg)

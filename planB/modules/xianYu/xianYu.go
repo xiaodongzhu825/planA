@@ -46,6 +46,7 @@ func (m *XianYuDLL) XianYuGoodsAdd(bodyJson string, configFile string) (string, 
 		return "", fmt.Errorf("找不到函数 ExecuteGoodsCreat: %v", err)
 	}
 	bodyJsonPtr, _ := syscall.BytePtrFromString(bodyJson)
+	configFile = configFile + "\\config.ini"
 	configFilePtr, _ := syscall.BytePtrFromString(configFile)
 
 	resultPtr, _, _ := proc.Call(
@@ -53,6 +54,24 @@ func (m *XianYuDLL) XianYuGoodsAdd(bodyJson string, configFile string) (string, 
 		uintptr(unsafe.Pointer(configFilePtr)),
 	)
 
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// XianYuLaunchGoods 商品上架
+func (m *XianYuDLL) XianYuLaunchGoods(bodyJson string, configFile string) (string, error) {
+	proc, err := m.Dll.FindProc("ExecuteGoodsPublish")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 ExecuteGoodsPublish: %v", err)
+	}
+	bodyJsonPtr, _ := syscall.BytePtrFromString(bodyJson)
+	configFile = configFile + "\\config.ini"
+	configFilePtr, _ := syscall.BytePtrFromString(configFile)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(bodyJsonPtr)),
+		uintptr(unsafe.Pointer(configFilePtr)),
+	)
 	result := cStr(resultPtr)
 	return result, nil
 }

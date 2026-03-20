@@ -96,7 +96,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
 	}
 	//拼接返回结果
-	price := buildPrice(taskHeader.PriceMod, taskMsg.Detail.Price)
+	price := tool.BuildPrice(taskHeader.PriceMod, taskMsg.Detail.Price)
 	if price == 0 {
 		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("不在价格区间内 isbn:%v", taskMsg.BookInfo.Isbn))
 	}
@@ -180,7 +180,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	goodsAdd.GoodsType = 1
 
 	// 构建参考价格
-	goodsAdd.MarketPrice = buildGoodsPrice(taskMsg.BookInfo.Price/100, price)
+	goodsAdd.MarketPrice = tool.BuildGoodsPrice(price)
 
 	// 构建商品编码
 	if taskMsg.Detail.OutGoodsId != "" {
@@ -249,28 +249,28 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskHeader _type.TaskHeader, taskMsg _t
 	}
 	goodsAdd.SkuList = []Sku{sku}
 
-	//// 发送请求
-	//goodsAddRet, _, err := AddGoods(pddDll, logUuid, taskHeader.ShopMsg.Token, goodsAdd)
-	//if err != nil {
-	//	return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("商品提交 %v", err))
-	//}
-	//
-	//// 获取商品提交的商品详情
-	//goodsCommitDetail, _, getGoodsCommitDetailErr := GetGoodsCommitDetail(pddDll, taskHeader.ShopMsg.Token, goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
-	//if getGoodsCommitDetailErr != nil {
-	//	return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("获取商品提交的商品详情失败 %w", getGoodsCommitDetailErr))
-	//}
-	//
-	////拼接接口调用成功的返回数据
-	//if len(goodsCommitDetail.GoodsCommitDetailResponse.SkuList) > 0 {
-	//	taskMsg.Detail.SkuCode = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].OutSkuSn
-	//	taskMsg.Detail.SkuId = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].SkuID
-	//}
-	//taskMsg.Detail.GoodsId = goodsAddRet.Response.GoodsID
-	//taskMsg.Detail.ReturnId = goodsAddRet.Response.GoodsCommitID
-	//taskMsg.Detail.OutGoodsId = goodsAdd.OutGoodsId
-	//taskMsg.Detail.Img = goodsAdd.CarouselGallery[0]
-	//taskMsg.Detail.SkuCode = goodsAdd.OutGoodsId
+	// 发送请求
+	goodsAddRet, _, err := AddGoods(pddDll, logUuid, taskHeader.ShopMsg.Token, goodsAdd)
+	if err != nil {
+		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("商品提交 %v", err))
+	}
+
+	// 获取商品提交的商品详情
+	goodsCommitDetail, _, getGoodsCommitDetailErr := GetGoodsCommitDetail(pddDll, taskHeader.ShopMsg.Token, goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
+	if getGoodsCommitDetailErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, _type.GoodsTypeAdd, fmt.Errorf("获取商品提交的商品详情失败 %w", getGoodsCommitDetailErr))
+	}
+
+	//拼接接口调用成功的返回数据
+	if len(goodsCommitDetail.GoodsCommitDetailResponse.SkuList) > 0 {
+		taskMsg.Detail.SkuCode = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].OutSkuSn
+		taskMsg.Detail.SkuId = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].SkuID
+	}
+	taskMsg.Detail.GoodsId = goodsAddRet.Response.GoodsID
+	taskMsg.Detail.ReturnId = goodsAddRet.Response.GoodsCommitID
+	taskMsg.Detail.OutGoodsId = goodsAdd.OutGoodsId
+	taskMsg.Detail.Img = goodsAdd.CarouselGallery[0]
+	taskMsg.Detail.SkuCode = goodsAdd.OutGoodsId
 
 	return tool.GoodsAddReturnSuccess(taskMsg)
 }
@@ -284,32 +284,6 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() string {
 
 func (pinDuoDuo *PinDuoDuo) DelGoodsTask() string {
 	return ""
-}
-
-// 构建商品价格
-// @param bookInfoPrice 图书价格
-// @param price 价格
-// @return int64 商品价格
-func buildGoodsPrice(bookInfoPrice int64, price int64) int64 {
-	//if bookInfoPrice > price {
-	//	return bookInfoPrice
-	//}
-	return price * 4
-}
-
-// 价格处理
-// @param priceMods 价格处理列表
-// @param price 价格
-// @return int64 处理后的价格
-func buildPrice(priceMods []_type.PriceMod, price int64) int64 {
-	for _, mod := range priceMods {
-		if price >= mod.Min && price <= mod.Max {
-			newPrice := price * (100 + mod.MarkupRate) / 100
-			newPrice += mod.MarkupValue
-			return newPrice
-		}
-	}
-	return 0 // 没有匹配到价格模版，直接返回0
 }
 
 // BuildSkuList sku规格生成

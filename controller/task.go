@@ -69,6 +69,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	shop := shopData.Shop
 	spec := shopData.Spec
 	detail := shopData.ShopDetail
+	context := shopData.ShopContext
 	priceTemplateRangeStr := shopData.PriceTemplate.RangePrice
 
 	var priceRange []_type.PriceRange
@@ -121,7 +122,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	// 创建任务逻辑...
 	createAt := time.Now().Unix()
-	task, err := CreateTaskData(taskId, taskType, createAt, shop, priceRange, spec, detail, dataVal.TaskCount, imgType)
+	task, err := CreateTaskData(taskId, taskType, createAt, shop, priceRange, spec, detail, context, dataVal.TaskCount, imgType)
 	if err != nil {
 		errMsg := "创建任务失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -813,12 +814,13 @@ func parseShopData(shopData string) (*_type.ShopInfo, error) {
 // @param shop 店铺信息
 // @param priceRange 价格模版
 // @param spec 商品规格
+// @param context 店铺描述
 // @param taskCount 任务数量
 // @param detail 店铺详情
 // @param imgType 图片类型
 // @return *_type.Task 任务数据
 // @return error 错误
-func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.Shop, priceRange []_type.PriceRange, spec *_type.Spec, detail *_type.ShopDetail, taskCount string, imgType int64) (*_type.Task, error) {
+func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.Shop, priceRange []_type.PriceRange, spec *_type.Spec, detail *_type.ShopDetail, context *_type.ShopContext, taskCount string, imgType int64) (*_type.Task, error) {
 	var task _type.Task
 	//处理价格模版
 	var priceModArr []_type.PriceMod
@@ -840,15 +842,15 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 	var carouseLastImgUrlArrayToDo []string
 	var goodsDetailLastImgUrlArrayToDo []string
 	var token string
-	//var districtId int64
-	//var districtType string
+	var districtId int64
+	var districtType string
 	//处理 Token
 	if shop.ShopType == "1" { //拼多店铺
 		token = shop.Token
 	} else if shop.ShopType == "5" { // 闲鱼店铺
-		//token = fmt.Sprintf("{\"app_id\":%v,\"app_secret\":\"%v\",\"username\":\"%v\"}", shop.MallID, shop.Token, shop.ShopKey)
-		//districtId = detail.DistrictId
-		//districtType = detail.DistrictType
+		token = fmt.Sprintf("{\"app_id\":%v,\"app_secret\":\"%v\",\"username\":\"%v\"}", shop.MallID, shop.Token, shop.ShopKey)
+		districtId = detail.DistrictId
+		districtType = detail.DistrictType
 	}
 	// specTypeID 转换为int64
 	specTypeID, err := parseAdjustPercent(spec.SpecTypeID)
@@ -897,10 +899,11 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 				DefStock:                    int64(detail.StockDeff),                             //默认库存
 				TwoDiscount:                 detail.TowDiscount,                                  //2折
 				IsSecondHand:                detail.IsSecondHand == "1",                          //是否二手 1 -二手商品 ，0-全新商品
-				//DistrictMsg: _type.DistrictMsg{
-				//	DistrictId:   districtId,
-				//	DistrictType: districtType,
-				//},
+				DistrictMsg: _type.DistrictMsg{
+					DistrictId:   districtId,
+					DistrictType: districtType,
+				},
+				ShopContext: context.Context, //店铺描述
 			},
 			PriceMod:         priceModArr,             //价格模版
 			ShipPriceMod:     "",                      //运费模版
@@ -916,6 +919,13 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 			TaskOverAt:       0,                       //任务完成时间
 			LastIndex:        0,                       //最后索引
 			ImgType:          imgType,                 //图片类型 0=无图片 1=轮播图 2=商品详情首图 3=商品详情最后图片
+			Pool: _type.PoolConfig{
+				Size:                 0,
+				WithExpiryDuration:   10,
+				WithPreAlloc:         true,
+				WithMaxBlockingTasks: 2000,
+				WithNonblocking:      true,
+			},
 		},
 		BodyOver: _type.TaskBody{},
 		Footer: _type.TaskFooter{
@@ -994,7 +1004,11 @@ func AddTask(taskId string, bodyData []string) int {
 		} else if len(pinDuoDuoCatIdArr) == 4 {
 			catId = pinDuoDuoCatIdArr[3]
 		}
-		bookInfo.CatIdObject.PinDuoDuoCatId = _type.FlexibleStr(catId)
+		if header.ShopType == "1" {
+			bookInfo.CatIdObject.PinDuoDuoCatId = _type.FlexibleStr(catId)
+		} else if header.ShopType == "5" {
+			bookInfo.CatIdObject.XianYuCatId = _type.FlexibleStr(bookInfo.CatIdObject.XianYuCatId.String())
+		}
 		// 更新 BookInfo
 		taskBody.BookInfo = bookInfo
 

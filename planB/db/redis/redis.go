@@ -305,35 +305,45 @@ func GetRandomDistrictInProvince(client *redis.Client, provinceID int) (map[stri
 	return client.HGetAll(gCtx, fmt.Sprintf("region:%s", districtID)).Result()
 }
 
-// GetProvinceAndCity 根据地区获取获取省市信息
-func GetProvinceAndCity(client *redis.Client, districtID int) (int, int, error) {
-	// 获取该地区的详细信息
-	district, err := client.HGet(gCtx, "region:1", "pid").Result()
-	fmt.Println("------------------------------")
-	fmt.Println(district)
-	fmt.Println(fmt.Sprintf("region:%v", districtID))
-	fmt.Println("------------------------------")
+// GetRegionId 根据地区Id获取获取省市信息
+// @param client Redis客户端
+// @param districtID 地区ID
+// @return int 省份ID
+// @return int 城市ID
+// @return int 区县ID
+// @return error 错误信息
+func GetRegionId(client *redis.Client, districtID string) (int, int, int, error) {
+	//获取区县 code
+	district, err := client.HGetAll(gCtx, fmt.Sprintf("region:%s", districtID)).Result()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
-	//获取省份ID
-	//province, err := client.Get(gCtx, fmt.Sprintf("region:%s", district["pid"])).Result()
-	//if err != nil {
-	//	return 0, 0, err
-	//}
-	//将 province["id"] 与 district["pid"]  转为 int
-	//provinceId, atoiErr := strconv.Atoi(province["id"])
-	//if atoiErr != nil {
-	//	fmt.Println(province)
-	//	fmt.Printf("province_id 转 int 失败: %v %v\n", districtID, atoiErr)
-	//	return 0, 0, atoiErr
-	//}
-	//cityId, atoiErr := strconv.Atoi(district["pid"])
-	//if atoiErr != nil {
-	//	fmt.Printf("cityId 转 int 失败: %v %v\n", cityId, atoiErr)
-	//	return 0, 0, atoiErr
-	//}
-	return 0, 0, nil
+	// 将 district["code"] 转为 int
+	districtCode, districtErr := strconv.Atoi(district["code"])
+	if districtErr != nil {
+		return 0, 0, 0, fmt.Errorf("区县code转换失败 id %v %v", districtID, districtErr)
+	}
+	//获取市 code
+	city, err := client.HGetAll(gCtx, fmt.Sprintf("region:%s", district["pid"])).Result()
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	// 将 city["code"] 转为 int
+	cityCode, cityErr := strconv.Atoi(city["code"])
+	if cityErr != nil {
+		return 0, 0, 0, fmt.Errorf("市code转换失败 id %v %v", district["pid"], err)
+	}
+	//获取市 province
+	province, err := client.HGetAll(gCtx, fmt.Sprintf("region:%s", city["pid"])).Result()
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	// 将 province["code"] 转为 int
+	provinceCode, provinceErr := strconv.Atoi(province["code"])
+	if provinceErr != nil {
+		return 0, 0, 0, fmt.Errorf("省code转换失败 id %v %v", city["pid"], err)
+	}
+	return provinceCode, cityCode, districtCode, nil
 }
 
 // SetNoImgCount 无图片信息isbn计次
@@ -386,23 +396,27 @@ func parseTaskHeader(taskHeader map[string]string, header *_type.TaskHeader) err
 	}
 	// 解析 header task_count
 	if header.TaskCount, _ = strconv.ParseInt(taskHeader["task_count"], 10, 64); header.TaskCount == 0 {
-		return fmt.Errorf("参数错误: %s", "task_count 为 空")
+		//return fmt.Errorf("参数错误: %s", "task_count 为 空")
 	}
 	// 解析 header task_count_true
 	if header.TaskCountTrue, _ = strconv.ParseInt(taskHeader["task_count_true"], 10, 64); header.TaskCountTrue == 0 {
-		return fmt.Errorf("参数错误: %s ", "task_count_true 为 空")
+		//return fmt.Errorf("参数错误: %s ", "task_count_true 为 空")
 	}
 	// 解析 header task_count_wait
 	if header.TaskCountWait, _ = strconv.ParseInt(taskHeader["task_count_wait"], 10, 64); header.TaskCountWait == 0 {
+		//return fmt.Errorf("参数错误: %s", "task_count_wait 为 空")
 	}
 	// 解析 header task_count_over
 	if header.TaskCountOver, _ = strconv.ParseInt(taskHeader["task_count_over"], 10, 64); header.TaskCountOver == 0 {
+		//return fmt.Errorf("参数错误: %s", "task_count_over 为 空")
 	}
 	// 解析 header task_count_success
 	if header.TaskCountSuccess, _ = strconv.ParseInt(taskHeader["task_count_success"], 10, 64); header.TaskCountSuccess == 0 {
+		//return fmt.Errorf("参数错误: %s", "task_count_success 为 空")
 	}
 	// 解析 header task_count_error
 	if header.TaskCountError, _ = strconv.ParseInt(taskHeader["task_count_error"], 10, 64); header.TaskCountError == 0 {
+		//return fmt.Errorf("参数错误: %s", "task_count_error 为 空")
 	}
 	// 将headerData["status"] 转换为 TaskStatus
 	taskStatus, _ := strconv.ParseInt(taskHeader["status"], 10, 64)
@@ -412,16 +426,29 @@ func parseTaskHeader(taskHeader map[string]string, header *_type.TaskHeader) err
 	}
 	// 解析 header task_qpm
 	if header.TaskQpm, _ = strconv.ParseInt(taskHeader["task_qpm"], 10, 64); header.TaskQpm == 0 {
+		//return fmt.Errorf("参数错误: %s", "task_qpm 为 空")
 	}
 	// 解析 header task_create_at
 	if header.TaskCreateAt, _ = strconv.ParseInt(taskHeader["task_create_at"], 10, 64); header.TaskCreateAt == 0 {
-		return fmt.Errorf("参数错误: %s", "task_create_at 为 空")
+		//return fmt.Errorf("参数错误: %s", "task_create_at 为 空")
 	}
 	// 解析 header task_over_at
 	if header.TaskOverAt, _ = strconv.ParseInt(taskHeader["task_over_at"], 10, 64); header.TaskOverAt == 0 {
+		//return fmt.Errorf("参数错误: %s", "task_over_at 为 空")
 	}
 	// 解析 header last_index
 	if header.LastIndex, _ = strconv.ParseInt(taskHeader["last_index"], 10, 64); header.LastIndex == 0 {
+		//return fmt.Errorf("参数错误: %s", "last_index 为 空")
+	}
+	// 解析 header pool
+	if taskHeader["pool"] != "" {
+		err = json.Unmarshal([]byte(taskHeader["pool"]), &header.Pool)
+		if err != nil {
+			return fmt.Errorf("参数错误: %s", "pool 转结构体失败 pool:="+taskHeader["pool"])
+		}
+	} else {
+		// 空字符串时，初始化为空的切片或结构体
+		header.Pool = _type.PoolConfig{} // 如果是切片类型
 	}
 
 	// 返回结果

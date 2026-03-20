@@ -21,10 +21,11 @@ const (
 type GoodsType string
 
 const (
-	GoodsTypeAdd GoodsType = "新增商品" // 新增商品
-	GoodsTypeSet GoodsType = "设置商品" // 设置商品
-	GoodsTypeGet GoodsType = "获取商品" // 获取商品
-	GoodsTypeDel GoodsType = "删除商品" // 删除商品
+	GoodsTypeAdd    GoodsType = "新增商品" // 新增商品
+	GoodsTypeSet    GoodsType = "设置商品" // 设置商品
+	GoodsTypeGet    GoodsType = "获取商品" // 获取商品
+	GoodsTypeDel    GoodsType = "删除商品" // 删除商品
+	GoodsTypeLaunch GoodsType = "上架商品" // 新增商品
 )
 
 // Task 任务结构
@@ -58,6 +59,8 @@ type TaskHeader struct {
 	TaskOverAt       int64      `json:"task_over_at"`       // 任务结束时间
 	LastIndex        int64      `json:"last_index"`         // 最后任务索引
 	ImgType          int64      `json:"img_type"`           //图片类型 1仅观图 2 实拍图 3 优先观图 4 优先实拍图
+	Pool             PoolConfig `json:"pool"`               //线程池配置
+
 }
 
 // TaskBody 任务主体结构
@@ -107,6 +110,7 @@ type ShopMsg struct {
 	DefStock                    int64       `json:"def_stock"`                        // 默认库存
 	TwoDiscount                 int64       `json:"two_discount"`                     // 两件折扣
 	DistrictMsg                 DistrictMsg `json:"district_msg"`                     //地区信息【限闲鱼使用】
+	ShopContext                 string      `json:"shop_context"`                     // 店铺描述
 }
 
 // BookInfo 书籍信息结构
@@ -151,7 +155,7 @@ type TaskDetail struct {
 	GoodsId    int64  `json:"goods_id"`     // 商品 ID
 	ReturnId   int64  `json:"return_id"`    // 拼多多返回 ID
 	SkuCode    string `json:"sku_code"`     // 规格编码（sku维度）
-	SkuId      int64  `json:"sku_id"`       // sku编码
+	SkuId      int64  `json:"sku_id"`       // sku 编码
 	Img        string `json:"img"`          // 图片
 	OutGoodsId string `json:"out_goods_id"` // 商家编码
 	GoodsName  string `json:"goods_name"`   // 商品名称
@@ -459,4 +463,22 @@ type GoodsImageUploadResponse struct {
 		ImageURL  string `json:"image_url"`  // 图片URL地址
 		RequestID string `json:"request_id"` // 请求ID
 	} `json:"goods_image_upload_response"` // 外层字段名
+}
+
+// XianYuAddGoodsResponse 闲鱼商品新增响应结构体
+type XianYuAddGoodsResponse struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+	Data Data   `json:"data"`
+}
+
+type Data struct {
+	Success []SuccessItem `json:"success"`
+	Error   []interface{} `json:"error"` // 空数组，使用 interface{} 或定义具体结构
+}
+
+type SuccessItem struct {
+	ItemKey       string `json:"item_key"`
+	ProductID     int64  `json:"product_id"` // 注意：这个数字较大，使用 int64
+	ProductStatus int    `json:"product_status"`
 }

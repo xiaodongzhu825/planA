@@ -316,3 +316,25 @@ func PauseTask(url string, taskId string) error {
 	fmt.Println(err)
 	return err
 }
+
+// BuildPrice 价格处理
+// @param priceMods 价格处理列表
+// @param price 价格
+// @return int64 处理后的价格
+func BuildPrice(priceMods []_type.PriceMod, price int64) int64 {
+	for _, mod := range priceMods {
+		if price >= mod.Min && price <= mod.Max {
+			newPrice := price * (100 + mod.MarkupRate) / 100
+			newPrice += mod.MarkupValue
+			return newPrice
+		}
+	}
+	return 0 // 没有匹配到价格模版，直接返回0
+}
+
+// BuildGoodsPrice 构建商品价格
+// @param bookInfoPrice 图书价格
+// @return int64 商品价格
+func BuildGoodsPrice(price int64) int64 {
+	return price * 4
+}

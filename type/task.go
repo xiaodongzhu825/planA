@@ -39,6 +39,7 @@ type TaskHeader struct {
 	TaskOverAt       int64      `json:"task_over_at"`       // 任务结束时间
 	LastIndex        int64      `json:"last_index"`         // 最后任务索引（记录程序集错误 10001=body_wait中没有数据一致读取，11002=店铺发布商品已达到上限，10003=过滤关键词异常）
 	ImgType          int64      `json:"img_type"`           //图片类型 1仅观图 2 实拍图 3 优先观图 4 优先实拍图
+	Pool             PoolConfig `json:"pool"`               //线程池配置
 }
 
 // TaskBody 任务主体结构
@@ -101,7 +102,8 @@ type ShopMsg struct {
 	CostTemplateId              int64       `json:"cost_template_id"`                 //物流运费模板 ID
 	DefStock                    int64       `json:"def_stock"`                        // 默认库存
 	TwoDiscount                 int64       `json:"two_discount"`                     // 两件折扣
-	DistrictMsg                 DistrictMsg `json:"district_msg"`                     //地区信息【限闲鱼使用】
+	DistrictMsg                 DistrictMsg `json:"district_msg"`                     // 地区信息【限闲鱼使用】
+	ShopContext                 string      `json:"shop_context"`                     // 店铺描述
 }
 
 // PriceMod 价格模版结构体

@@ -192,7 +192,7 @@ func DeleteOldExport() error {
 	// 使用SQLite的date函数计算3天前
 	result, err := golabl.SqliteDb.Exec(`
         DELETE FROM task_export 
-        WHERE create_at < datetime('now', '-3 days')
+        WHERE create_at < datetime('now','localtime', '-3 days')
     `)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)

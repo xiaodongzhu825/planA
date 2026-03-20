@@ -193,7 +193,7 @@ func DeleteOldTaskRecords() error {
 	// 使用SQLite的date函数计算3天前
 	result, err := golabl.SqliteDb.Exec(`
         DELETE FROM task_records 
-        WHERE create_at < datetime('now', '-3 days')
+        WHERE create_at < datetime('now', 'localtime', '-3 days')
     `)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)
@@ -214,8 +214,8 @@ func GetTaskRecords24Hour() ([]sqLiteType.TaskRecords, error) {
 	querySQL := `
     SELECT id, user_id, shop_id, task_id, shop_name, is_export, task_type, create_at 
     FROM task_records 
-    WHERE create_at >= datetime('now', '-4 hours')
-    AND create_at <= datetime('now', '-10 minutes')
+    WHERE create_at >= datetime('now', 'localtime', '-4 hours')
+    AND create_at <= datetime('now', 'localtime', '-10 minutes')
     ORDER BY create_at DESC`
 
 	// 执行查询

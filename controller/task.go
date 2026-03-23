@@ -920,7 +920,7 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 			LastIndex:        0,                       //最后索引
 			ImgType:          imgType,                 //图片类型 0=无图片 1=轮播图 2=商品详情首图 3=商品详情最后图片
 			Pool: _type.PoolConfig{
-				Size:                 0,
+				Size:                 1,
 				WithExpiryDuration:   10,
 				WithPreAlloc:         true,
 				WithMaxBlockingTasks: 2000,

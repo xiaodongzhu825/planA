@@ -24,21 +24,21 @@ func Init() error {
 	// Redis B - Redis实例
 	redisClientB, redisErr := NewRedisClient(redisConfig[1])
 	if redisErr != nil {
-		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[0].Addr, redisConfig[0].DB, redisErr)
+		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[1].Addr, redisConfig[1].DB, redisErr)
 	}
 	golabl.RedisDbB = redisClientB
 
 	// Redis C - Redis实例
 	redisClientC, redisErr := NewRedisClient(redisConfig[2])
 	if redisErr != nil {
-		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[0].Addr, redisConfig[0].DB, redisErr)
+		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[2].Addr, redisConfig[2].DB, redisErr)
 	}
 	golabl.RedisDbC = redisClientC
 
 	// Redis D - Redis实例
 	redisClientD, redisErr := NewRedisClient(redisConfig[6])
 	if redisErr != nil {
-		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[0].Addr, redisConfig[0].DB, redisErr)
+		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[6].Addr, redisConfig[6].DB, redisErr)
 	}
 	golabl.RedisDbD = redisClientD
 

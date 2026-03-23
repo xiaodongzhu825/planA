@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/planB/config"
+	"planA/planB/initialization/golabl"
 	"syscall"
 	"unsafe"
 )
@@ -22,11 +22,7 @@ type ImageDLL struct {
 
 // InitImageDll 初始化 imageDLL
 func InitImageDll() (*ImageDLL, error) {
-	fileConfig, getDllFileConfigErr := config.GetFileUrlConfig()
-	if getDllFileConfigErr != nil {
-		return nil, getDllFileConfigErr
-	}
-	dllPath := filepath.Join(fileConfig.ImageDll, "image.dll")
+	dllPath := filepath.Join(golabl.Config.FileUrl.ImageDll, "image.dll")
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Image DLL 不存在: %s", dllPath)
 	}

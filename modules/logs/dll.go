@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/initialization/config"
+	"planA/initialization/golabl"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -54,16 +54,12 @@ func ensureLoggerDLL() (*LoggerDLL, error) {
 		return loggerDLLInstance, nil
 	}
 
-	// 检查是否在 Windows平台
+	// 检查是否在Windows平台
 	if runtime.GOOS != "windows" {
 		return nil, fmt.Errorf("logger DLL only supported on Windows platform")
 	}
 
-	fileConfig, getDllFileConfigErr := config.GetFileUrlConfig()
-	if getDllFileConfigErr != nil {
-		return nil, getDllFileConfigErr
-	}
-	dllPath := filepath.Join(fileConfig.LogDll, "logger.dll")
+	dllPath := filepath.Join(golabl.Config.FileUrl.LogDll, "logger.dll")
 
 	// 检查文件是否存在
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
@@ -124,13 +120,13 @@ func InitializeLogger(logDir string) error {
 	// 创建logger配置
 	config := LoggerConfig{
 		LogDir:          logDir,
-		SplitType:       2,                 // 分片方式（0=按月，1=按天，2=按小时，3=按分钟，4=按秒）
-		RotateType:      0,                 // 轮转方式（0=按大小，1=按数量）
-		MaxSize:         100 * 1024 * 1024, // 100MB 最大文件大小（字节），仅在rotate_type=0时有效
-		MaxCount:        10,                //最大文件数量，仅在rotate_type=1时有效
-		Level:           1,                 // LevelInfo - 只显示INFO及以上级别的日志  日志级别（0=SUCCESS，1=INFO，2=WARNING，3=ERROR）
-		EnableCaller:    true,              //是否启用调用者信息
-		DefaultTaskType: "main",            //默认任务类型
+		SplitType:       1,                 // SplitByDay
+		RotateType:      0,                 // RotateBySize
+		MaxSize:         100 * 1024 * 1024, // 100MB
+		MaxCount:        10,
+		Level:           1, // LevelInfo - 只显示INFO及以上级别的日志
+		EnableCaller:    true,
+		DefaultTaskType: "main",
 	}
 
 	configJSON, err := json.Marshal(config)
@@ -357,38 +353,43 @@ func LogConsoleAndFile(level, message string) {
 }
 
 // LoggingMiddleware 记录日志
-func LoggingMiddleware(level string, str string) error {
+func LoggingMiddleware(level string, str string) {
 	initializeLoggerErr := InitializeLogger("logs")
 	if initializeLoggerErr != nil {
-		return initializeLoggerErr
+		fmt.Println("初始化日志失败:", initializeLoggerErr)
+		return
 	}
 	setLogTaskTypeErr := SetLogTaskType("task")
 	if setLogTaskTypeErr != nil {
-		return setLogTaskTypeErr
+		fmt.Println("设置日志任务类型失败:", setLogTaskTypeErr)
+		return
 	}
 
 	switch {
 	case level == LOG_LEVEL_ERROR:
+		fmt.Println(str)
 		logErrorErr := LogError(str)
 		if logErrorErr != nil {
-			return logErrorErr
+			fmt.Println("记录错误日志失败:", logErrorErr)
+			return
 		}
 	case level == LOG_LEVEL_WARNING:
 		logWarningErr := LogWarning(str)
 		if logWarningErr != nil {
-			return logWarningErr
+			fmt.Println("记录警告日志失败:", logWarningErr)
+			return
 		}
 	case level == LOG_LEVEL_SUCCESS:
 		logSuccessErr := LogSuccess(str)
 		if logSuccessErr != nil {
-			return logSuccessErr
+			fmt.Println("记录成功日志失败:", logSuccessErr)
+			return
 		}
 	default:
 		logInfoErr := LogInfo(str)
 		if logInfoErr != nil {
-			return logInfoErr
+			fmt.Println("记录信息日志失败:", logInfoErr)
+			return
 		}
 	}
-
-	return nil
 }

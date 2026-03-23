@@ -44,8 +44,9 @@ type TaskHeader struct {
 
 // TaskBody 任务主体结构
 type TaskBody struct {
-	BookInfo BookInfo   `json:"book_info"`
-	Detail   TaskDetail `json:"detail"`
+	BookInfo   BookInfo   `json:"book_info"`
+	Detail     TaskDetail `json:"detail"`
+	Publishing Publishing `json:"publishing"` //出版社信息
 }
 
 // BookInfo 书籍信息结构
@@ -238,4 +239,10 @@ type PriceRange struct {
 type DistrictMsg struct {
 	DistrictId   int64  `json:"district_id"`
 	DistrictType string `json:"district_type"`
+}
+
+// Publishing Redis中存储的出版社信息结构体
+type Publishing struct {
+	Value string `json:"value"`
+	Vid   int64  `json:"vid"`
 }

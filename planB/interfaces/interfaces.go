@@ -1,13 +1,13 @@
 package interfaces
 
 import (
-	_type "planA/planB/type"
+	planAType "planA/type"
 )
 
 // GoodsTask 商品任务接口
 type GoodsTask interface {
 	// AddGoodsTask 添加商品任务
-	AddGoodsTask(header _type.TaskHeader, bodyWait _type.TaskBody) (string, error)
+	AddGoodsTask(bodyWait planAType.TaskBody) (string, error)
 
 	// SetGoodsTask 设置商品任务
 	SetGoodsTask() string

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/planB/config"
+	"planA/planB/initialization/golabl"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -59,11 +59,7 @@ func ensureLoggerDLL() (*LoggerDLL, error) {
 		return nil, fmt.Errorf("logger DLL only supported on Windows platform")
 	}
 
-	fileConfig, getDllFileConfigErr := config.GetFileUrlConfig()
-	if getDllFileConfigErr != nil {
-		return nil, getDllFileConfigErr
-	}
-	dllPath := filepath.Join(fileConfig.LogDll, "logger.dll")
+	dllPath := filepath.Join(golabl.Config.FileUrl.LogDll, "logger.dll")
 
 	// 检查文件是否存在
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
@@ -357,38 +353,43 @@ func LogConsoleAndFile(level, message string) {
 }
 
 // LoggingMiddleware 记录日志
-func LoggingMiddleware(level string, str string) error {
+func LoggingMiddleware(level string, str string) {
 	initializeLoggerErr := InitializeLogger("logs")
 	if initializeLoggerErr != nil {
-		return initializeLoggerErr
+		fmt.Println("初始化日志失败:", initializeLoggerErr)
+		return
 	}
 	setLogTaskTypeErr := SetLogTaskType("task")
 	if setLogTaskTypeErr != nil {
-		return setLogTaskTypeErr
+		fmt.Println("设置日志任务类型失败:", setLogTaskTypeErr)
+		return
 	}
 
 	switch {
 	case level == LOG_LEVEL_ERROR:
+		fmt.Println(str)
 		logErrorErr := LogError(str)
 		if logErrorErr != nil {
-			return logErrorErr
+			fmt.Println("记录错误日志失败:", logErrorErr)
+			return
 		}
 	case level == LOG_LEVEL_WARNING:
 		logWarningErr := LogWarning(str)
 		if logWarningErr != nil {
-			return logWarningErr
+			fmt.Println("记录警告日志失败:", logWarningErr)
+			return
 		}
 	case level == LOG_LEVEL_SUCCESS:
 		logSuccessErr := LogSuccess(str)
 		if logSuccessErr != nil {
-			return logSuccessErr
+			fmt.Println("记录成功日志失败:", logSuccessErr)
+			return
 		}
 	default:
 		logInfoErr := LogInfo(str)
 		if logInfoErr != nil {
-			return logInfoErr
+			fmt.Println("记录信息日志失败:", logInfoErr)
+			return
 		}
 	}
-
-	return nil
 }

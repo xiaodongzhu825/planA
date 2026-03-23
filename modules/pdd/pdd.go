@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/planB/config"
+	"planA/initialization/golabl"
 	"syscall"
 	"unsafe"
 )
@@ -13,7 +13,7 @@ var (
 	gPddDll *PddDLL
 )
 
-// 定义完整的响应结构（包含成功和失败两种情况）
+// PddResponse 定义完整的响应结构（包含成功和失败两种情况）
 type PddResponse struct {
 	SuccessResponse *PddSuccessResponse `json:"outer_cat_mapping_get_response,omitempty"`
 	ErrorResponse   *PddErrorResponse   `json:"error_response,omitempty"`
@@ -22,13 +22,13 @@ type PddSuccessResponse struct {
 	OuterCatMappingGetResponse PddCategoryMappingResponse `json:"outer_cat_mapping_get_response"`
 }
 
-// 定义拼多多API响应结构（根据文档规范）
+// PddCategoryMappingResponse 定义拼多多API响应结构（根据文档规范）
 type PddCategoryMappingResponse struct {
-	CatID1    int64  `json:"cat_id1"`    // 一级类目ID
-	CatID2    int64  `json:"cat_id2"`    // 二级类目ID
-	CatID3    int64  `json:"cat_id3"`    // 三级类目ID
-	CatID4    int64  `json:"cat_id4"`    // 四级类目ID
-	RequestID string `json:"request_id"` // 请求ID
+	CatID1    int64  `json:"cat_id1"`    // 一级类目 ID
+	CatID2    int64  `json:"cat_id2"`    // 二级类目 ID
+	CatID3    int64  `json:"cat_id3"`    // 三级类目 ID
+	CatID4    int64  `json:"cat_id4"`    // 四级类目 ID
+	RequestID string `json:"request_id"` // 请求 ID
 }
 
 // PddDLL 拼多多工具DLL结构
@@ -47,14 +47,7 @@ type PddErrorResponse struct {
 
 // InitPddDll 初始化 pddDLL
 func InitPddDll() (*PddDLL, error) {
-	if gPddDll != nil {
-		return gPddDll, nil
-	}
-	fileConfig, getDllFileConfigErr := config.GetFileUrlConfig()
-	if getDllFileConfigErr != nil {
-		return nil, getDllFileConfigErr
-	}
-	dllPath := filepath.Join(fileConfig.PddDll, "pdd.dll")
+	dllPath := filepath.Join(golabl.Config.FileUrl.PddDll, "pdd.dll")
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("pdd DLL 不存在: %s", dllPath)
 	}
@@ -203,6 +196,28 @@ func (m *PddDLL) PddTimeGet(clientId, clientSecret, accessToken string) (string,
 		uintptr(unsafe.Pointer(accessTokenPtr)),
 	)
 
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// PddGoodsImageUpload 上传图片
+func (m *PddDLL) PddGoodsImageUpload(imgBase64 string) (string, error) {
+	proc, err := m.Dll.FindProc("PddGoodsImageUpload")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 PddGoodsImageUpload: %v", err)
+	}
+
+	clientIdPtr, _ := syscall.BytePtrFromString("203c5a7ba8bd4b8488d5e26f93052642")
+	clientSecretPtr, _ := syscall.BytePtrFromString("892ffaa86e12b7a3d8d2942b669d9aa520ad8179")
+	accessTokenPtr, _ := syscall.BytePtrFromString("973fd15135d342dcb433b90e264424a298ba33d3")
+	imgBase64Ptr, _ := syscall.BytePtrFromString(imgBase64)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(clientIdPtr)),
+		uintptr(unsafe.Pointer(clientSecretPtr)),
+		uintptr(unsafe.Pointer(accessTokenPtr)),
+		uintptr(unsafe.Pointer(imgBase64Ptr)),
+	)
 	result := cStr(resultPtr)
 	return result, nil
 }

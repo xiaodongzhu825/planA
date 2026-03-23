@@ -9,7 +9,7 @@ type pddDLL struct {
 	freeCString                   *syscall.Proc // 释放C字符串
 }
 
-// 初始化pddDLL
+// <初始化pddDLL></初始化pddDLL>
 func InitPddDLL() (*pddDLL, error) {
 	dllPath := filepath.Join("dll", "pdd.dll")
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {

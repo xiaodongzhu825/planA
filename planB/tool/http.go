@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 )
 
 // HttpGetRequest 发起 GET 请求
@@ -72,4 +73,29 @@ func SubmitFormData(url string, params map[string]string) (string, error) {
 	}
 
 	return string(respBody), nil
+}
+
+// BuildURLWithParams 将map参数拼接到URL后面
+func BuildURLWithParams(baseURL string, params map[string]string) (string, error) {
+	if len(params) == 0 {
+		return baseURL, nil
+	}
+
+	// 解析基础URL
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("解析URL失败: %v", err)
+	}
+
+	// 获取现有的查询参数
+	query := parsedURL.Query()
+
+	// 添加新的参数
+	for key, value := range params {
+		query.Set(key, value)
+	}
+	// 重新编码查询参数
+	parsedURL.RawQuery = query.Encode()
+
+	return parsedURL.String(), nil
 }

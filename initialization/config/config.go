@@ -36,6 +36,7 @@ func Init(dir string) error {
 	if ReadConfigFileErr != nil {
 		return fmt.Errorf("读取配置文件失败：%v", ReadConfigFileErr)
 	}
+	fmt.Println(configJson)
 	jsonUnmarshalErr := json.Unmarshal([]byte(configJson), &config)
 	if jsonUnmarshalErr != nil {
 		return fmt.Errorf("解析配置文件失败：%v", jsonUnmarshalErr)

@@ -26,7 +26,7 @@ func GetExportValidator(data *http.Request) (taskValidator.GetExportTask, error)
 // GetExportByUserIdValidator 获取导出列表验证-用户
 func GetExportByUserIdValidator(data *http.Request) (taskValidator.GetTaskByUserId, error) {
 	vars := mux.Vars(data)
-	userId := vars["id"]
+	userId := vars["userId"]
 
 	form := taskValidator.GetTaskByUserId{
 		UserID: userId,

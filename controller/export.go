@@ -2,6 +2,7 @@ package controller
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"planA/tool"
 	_type "planA/type"
 	"planA/validator"
+
+	"github.com/go-redis/redis/v8"
 )
 
 // GetExportTask 导出任务列表
@@ -82,7 +85,9 @@ func GetExportTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 	dataTaskAll := []map[string]interface{}{}
 	for _, v := range records {
 		complete, getExportFileProgressErr := service.GetExportFileProgress(v.TaskId)
-		if getExportFileProgressErr != nil {
+		if errors.Is(getExportFileProgressErr, redis.Nil) {
+			complete = int(v.Total)
+		} else if getExportFileProgressErr != nil {
 			errMsg := "获取任务进度失败: " + getExportFileProgressErr.Error()
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return

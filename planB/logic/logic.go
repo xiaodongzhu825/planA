@@ -105,7 +105,7 @@ func taskExecute() {
 
 	//初始化 变量
 	status := golabl.BodyStatusSuccess //默认的书籍执行状态·
-	errorStr := "执行成功"                 //默认的书籍执行描述
+	errorStr := "执行成功"             //默认的书籍执行描述
 	// 获取任务信息
 	taskMsg, taskMsgErr := server.GetTaskToPopFromBodyWait()
 	if errors.Is(taskMsgErr, redis.Nil) {
@@ -141,16 +141,13 @@ func taskExecute() {
 	}
 	// 任务调度
 	if status != golabl.BodyStatusError {
-		fmt.Println("00000000000000000")
 		bodyOverJson, err := dispatcher.Go(taskMsg)
 		if err != nil {
-			fmt.Println("1111111111")
 			//任务调度失败
 			status = golabl.BodyStatusError
 			errorStr = fmt.Sprintf("任务调度失败-原因来自:%v", err)
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务调度失败-原因来自:%v", err))
 		} else {
-			fmt.Println("222222222222")
 			//任务调度成功
 			var bodyOver planAType.TaskBody
 			unmarshalErr := json.Unmarshal([]byte(bodyOverJson), &bodyOver)

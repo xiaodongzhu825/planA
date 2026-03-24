@@ -27,8 +27,8 @@ func CreateTaskValidator(data *http.Request) (taskValidator.CreateTask, error) {
 	return form, nil
 }
 
-// UpdateTaskStatusValidator 更改任务状态验证
-func UpdateTaskStatusValidator(data *http.Request) (taskValidator.UpdateTaskStatus, error) {
+// TaskIdValidator 验证任务id
+func TaskIdValidator(data *http.Request) (taskValidator.UpdateTaskStatus, error) {
 	vars := mux.Vars(data)
 	taskId := vars["id"]
 
@@ -71,22 +71,6 @@ func GetTaskByUserIdValidator(data *http.Request) (taskValidator.GetTaskByUserId
 		UserID:   data.URL.Query().Get("user_id"),
 	}
 	fieldCN := map[string]string{"Page": "页码", "Size": "每页数量", "TaskID": "任务ID", "ShopName": "店铺名称", "TaskType": "任务类型", "UserID": "用户ID"}
-	if err := golabl.Validator.Struct(form); err != nil {
-		errMsg := ValidatorRule(err, fieldCN)
-		return form, fmt.Errorf("参数错误：%s", errMsg)
-	}
-	return form, nil
-}
-
-// GetHeaderValidator 获取 header信息验证
-func GetHeaderValidator(data *http.Request) (taskValidator.UpdateTaskStatus, error) {
-	vars := mux.Vars(data)
-	taskId := vars["id"]
-
-	form := taskValidator.UpdateTaskStatus{
-		TaskID: taskId,
-	}
-	fieldCN := map[string]string{"TaskID": "任务ID"}
 	if err := golabl.Validator.Struct(form); err != nil {
 		errMsg := ValidatorRule(err, fieldCN)
 		return form, fmt.Errorf("参数错误：%s", errMsg)

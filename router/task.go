@@ -19,4 +19,5 @@ func TaskInit() {
 	taskRouter.HandleFunc("/del/{id}", controller.DelTask).Methods("GET")              // 删除任务
 	taskRouter.HandleFunc("/b", controller.B).Methods("GET")                           // 运行B程序（特殊功能）
 	taskRouter.HandleFunc("/header/get/{id}", controller.GetTaskHeader).Methods("GET") // 获取任务 header信息
+	taskRouter.HandleFunc("/getOver/{id}", controller.GetBodyOver).Methods("GET")      // 根据任务ID 获取任务详情
 }

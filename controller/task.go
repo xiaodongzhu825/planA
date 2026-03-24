@@ -256,7 +256,7 @@ func SetTaskBody(httpMsg http.ResponseWriter, data *http.Request) {
 // PauseTask 暂停任务
 func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 	// 验证表单
-	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	dataVal, updateTaskStatusValidatorErr := validator.TaskIdValidator(data)
 	if updateTaskStatusValidatorErr != nil {
 		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
@@ -346,7 +346,7 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	// 验证表单
-	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	dataVal, updateTaskStatusValidatorErr := validator.TaskIdValidator(data)
 	if updateTaskStatusValidatorErr != nil {
 		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
@@ -387,7 +387,7 @@ func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 func StopTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	// 验证表单
-	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	dataVal, updateTaskStatusValidatorErr := validator.TaskIdValidator(data)
 	if updateTaskStatusValidatorErr != nil {
 		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
@@ -422,7 +422,7 @@ func StopTask(httpMsg http.ResponseWriter, data *http.Request) {
 func DelTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	// 验证表单
-	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	dataVal, updateTaskStatusValidatorErr := validator.TaskIdValidator(data)
 	if updateTaskStatusValidatorErr != nil {
 		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
@@ -511,7 +511,7 @@ func DelTask(httpMsg http.ResponseWriter, data *http.Request) {
 func OverTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	// 验证表单
-	dataVal, updateTaskStatusValidatorErr := validator.UpdateTaskStatusValidator(data)
+	dataVal, updateTaskStatusValidatorErr := validator.TaskIdValidator(data)
 	if updateTaskStatusValidatorErr != nil {
 		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
@@ -712,7 +712,7 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 func GetTaskHeader(httpMsg http.ResponseWriter, data *http.Request) {
 
 	// 验证表单
-	dataVal, getHeaderValidatorErr := validator.GetHeaderValidator(data)
+	dataVal, getHeaderValidatorErr := validator.TaskIdValidator(data)
 	if getHeaderValidatorErr != nil {
 		tool.Error(httpMsg, getHeaderValidatorErr.Error(), http.StatusInternalServerError)
 		return
@@ -724,6 +724,24 @@ func GetTaskHeader(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 	tool.Session(httpMsg, header)
+}
+
+// GetBodyOver 获取body_over
+func GetBodyOver(httpMsg http.ResponseWriter, data *http.Request) {
+	// 验证表单
+	dataVal, getHeaderValidatorErr := validator.TaskIdValidator(data)
+	if getHeaderValidatorErr != nil {
+		tool.Error(httpMsg, getHeaderValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	bodyOver, getTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(dataVal.TaskID)
+	if getTaskBodyOverLimit10Err != nil {
+		errMsg := getTaskBodyOverLimit10Err.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	tool.Session(httpMsg, bodyOver)
+
 }
 
 func B(httpMsg http.ResponseWriter, data *http.Request) {

@@ -7,7 +7,7 @@ import (
 	"planA/planB/initialization/golabl"
 	"planA/planB/modules/logs"
 	xianYuDll "planA/planB/modules/xianYu"
-	"planA/planB/server"
+	"planA/planB/service"
 	"planA/planB/tool"
 	planBTypeXianyu "planA/planB/type/xianyu"
 	planAType "planA/type"
@@ -232,30 +232,30 @@ func (xianYu *XianYu) DelGoodsTask() string {
 func getProvinceCityDistrict(types int64, id int) (int, int, int, error) {
 	if types == 0 { // 直接指定区域的省市区
 		//根据区id 获取省、市、区code
-		provinceCode, cityCode, districtCode, getRegionIdErr := server.GetRegionId(strconv.Itoa(id))
+		provinceCode, cityCode, districtCode, getRegionIdErr := service.GetRegionId(strconv.Itoa(id))
 		if getRegionIdErr != nil {
 			return 0, 0, 0, getRegionIdErr
 		}
 		return provinceCode, cityCode, districtCode, nil
 	} else if types == 1 { // 返回指定省下的随机区
-		region, getRandomDistrictInProvinceErr := server.GetRandomDistrictInProvince(id)
+		region, getRandomDistrictInProvinceErr := service.GetRandomDistrictInProvince(id)
 		if getRandomDistrictInProvinceErr != nil {
 			return 0, 0, 0, getRandomDistrictInProvinceErr
 		}
 		//根据区id 获取省、市、区code
-		provinceCode, cityCode, districtCode, getRegionIdErr := server.GetRegionId(region["id"])
+		provinceCode, cityCode, districtCode, getRegionIdErr := service.GetRegionId(region["id"])
 		if getRegionIdErr != nil {
 			return 0, 0, 0, getRegionIdErr
 		}
 		return provinceCode, cityCode, districtCode, nil
 
 	} else if types == 2 { //在全国返回随机省下的随机区
-		region, getRandomDistrictErr := server.GetRandomDistrict()
+		region, getRandomDistrictErr := service.GetRandomDistrict()
 		if getRandomDistrictErr != nil {
 			return 0, 0, 0, getRandomDistrictErr
 		}
 		//根据区id 获取省、市、区code
-		provinceCode, cityCode, districtCode, getRegionIdErr := server.GetRegionId(region["id"])
+		provinceCode, cityCode, districtCode, getRegionIdErr := service.GetRegionId(region["id"])
 		if getRegionIdErr != nil {
 			return 0, 0, 0, getRegionIdErr
 		}

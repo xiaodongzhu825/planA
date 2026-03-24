@@ -7,7 +7,7 @@ import (
 	"planA/planB/initialization/golabl"
 	"planA/planB/modules/logs"
 	"planA/planB/modules/pdd"
-	"planA/planB/server"
+	"planA/planB/service"
 	"planA/planB/tool"
 	planBTypePinduoduo "planA/planB/type/pinduoduo"
 	planAType "planA/type"
@@ -75,7 +75,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	}
 	if len(goodsAdd.CarouselGallery) == 0 {
 		// 无图片信息 isbn计次
-		setNoImgCountErr := server.SetNoImgCount(taskMsg.BookInfo.Isbn)
+		setNoImgCountErr := service.SetNoImgCount(taskMsg.BookInfo.Isbn)
 		if setNoImgCountErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error()))
 		}

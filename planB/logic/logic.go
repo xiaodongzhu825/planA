@@ -9,7 +9,7 @@ import (
 	"planA/planB/initialization/golabl"
 	"planA/planB/initialization/task"
 	"planA/planB/modules/logs"
-	"planA/planB/server"
+	"planA/planB/service"
 	"planA/planB/tool"
 	planAType "planA/type"
 	"strings"
@@ -110,7 +110,7 @@ func taskExecute() {
 	status := golabl.BodyStatusSuccess //默认的书籍执行状态·
 	errorStr := "执行成功"                 //默认的书籍执行描述
 	// 获取任务信息
-	taskMsg, taskMsgErr := server.GetTaskToPopFromBodyWait()
+	taskMsg, taskMsgErr := service.GetTaskToPopFromBodyWait()
 	if errors.Is(taskMsgErr, redis.Nil) {
 		//redis 读nil空+1
 		fmt.Printf("第 %v 次读出 Redis Nil", atomic.LoadInt64(&golabl.Logic.RedisNilCon))
@@ -131,7 +131,7 @@ func taskExecute() {
 
 	//获取出版社信息并解析
 	if status != golabl.BodyStatusError {
-		if getPublishingErr := server.GetPublishingVid(&taskMsg); getPublishingErr != nil {
+		if getPublishingErr := service.GetPublishingVid(&taskMsg); getPublishingErr != nil {
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取出版社信息失败-原因来自:%v", getPublishingErr))
 			return
 		}
@@ -168,11 +168,11 @@ func taskExecute() {
 	taskMsg.Detail.Error = errorStr
 
 	// 添加任务到bodyOver、bodyData、bodyBackup
-	if addTaskToBodyOverErr := server.AddTaskToBodyOver(taskMsg); addTaskToBodyOverErr != nil {
+	if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg); addTaskToBodyOverErr != nil {
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))
 	}
 	// 更新 footer信息
-	if updateTaskFooterErr := server.UpdateTaskFooter(status); updateTaskFooterErr != nil {
+	if updateTaskFooterErr := service.UpdateTaskFooter(status); updateTaskFooterErr != nil {
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", updateTaskFooterErr))
 	}
 	// 如果错误是 店铺商品发布达到上限则暂停程序
@@ -235,5 +235,5 @@ func updateTaskHeader() error {
 	golabl.Task.Header.TaskCountSuccess = golabl.Task.Footer.TaskCountSuccess.Load()
 	golabl.Task.Header.TaskCountError = golabl.Task.Footer.TaskCountError.Load()
 	golabl.Task.Header.LastIndex = golabl.Logic.LastIndex
-	return server.UpdateTaskHeaderCount()
+	return service.UpdateTaskHeaderCount()
 }

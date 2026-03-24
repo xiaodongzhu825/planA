@@ -200,7 +200,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	}
 
 	// 获取商品提交的商品详情
-	goodsCommitDetail, _, getGoodsCommitDetailErr := GetGoodsCommitDetail(pddDll, golabl.Task.Header.ShopMsg.Token, goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
+	goodsCommitDetail, _, getGoodsCommitDetailErr := getGoodsCommitDetail(pddDll, golabl.Task.Header.ShopMsg.Token, goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
 	if getGoodsCommitDetailErr != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取商品提交的商品详情失败 %w", getGoodsCommitDetailErr))
 	}
@@ -418,14 +418,14 @@ func addGoods(pddDll *pdd.PddDLL, logUuid string, token string, goodsInfo planBT
 	return goodsAdd, goodsAddStr, nil
 }
 
-// GetGoodsCommitDetail 获取商品提交的商品详情
+// 获取商品提交的商品详情
 // @param pddDll pddDLL对象
 // @param token 授权令牌
 // @param goodsCommitId 商品提交ID
 // @param goodsId 商品ID
 // @return GoodsCommitDetailResponse 商品提交详情
 // @return error 错误信息
-func GetGoodsCommitDetail(pddDll *pdd.PddDLL, token string, goodsCommitId int64, goodsId int64) (planBTypePinduoduo.GoodsCommitDetailResponse, string, error) {
+func getGoodsCommitDetail(pddDll *pdd.PddDLL, token string, goodsCommitId int64, goodsId int64) (planBTypePinduoduo.GoodsCommitDetailResponse, string, error) {
 	var goodsCommitDetail planBTypePinduoduo.GoodsCommitDetailResponse
 	goodsCommitDetailStr, pddGoodsCommitDetailGetErr := pddDll.PddGoodsCommitDetailGet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, token, strconv.FormatInt(goodsCommitId, 10), strconv.FormatInt(goodsId, 10))
 	if pddGoodsCommitDetailGetErr != nil {

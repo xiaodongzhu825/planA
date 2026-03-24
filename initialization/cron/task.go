@@ -3,6 +3,7 @@ package cron
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"planA/controlState/serviceAlive"
 	"planA/controller"
 	"planA/initialization/config"
@@ -13,6 +14,7 @@ import (
 	"planA/service/mysql"
 	"planA/tool"
 	"planA/tool/process"
+	"regexp"
 	"time"
 )
 
@@ -198,6 +200,78 @@ func B() {
 				continue
 			}
 			fmt.Println("守护进程成功启动任务B程序的窗口 任务ID：" + v.TaskId)
+		}
+	}
+}
+
+// DeleteOldLog 删除日志3天以上的日志文件
+func DeleteOldLog(dir string) {
+	// 配置参数
+	pattern := `^[^-]+-[a-z]+-(\d{4}-\d{2}-\d{2})-\d{2}\.log$` // 匹配 ERROR-task-2026-03-23-04.log 格式，捕获日期部分
+	retentionDays := 3                                         // 保留天数
+
+	// 计算截止时间
+	cutoffTime := time.Now().AddDate(0, 0, -retentionDays)
+
+	// 编译正则表达式
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("无效的正则表达式模式: %v", err))
+		return
+	}
+
+	// 遍历目录
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("无法读取目录: %v", err))
+		return
+	}
+
+	var cleanedCount int
+	var errors []string
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		filename := entry.Name()
+
+		// 检查文件名是否匹配模式并提取日期
+		matches := regex.FindStringSubmatch(filename)
+		if len(matches) != 2 {
+			continue
+		}
+
+		// 解析文件名中的日期
+		dateStr := matches[1] // 格式: 2026-03-23
+		fileDate, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("解析日期失败 %s: %v", filename, err))
+			continue
+		}
+
+		// 检查文件日期是否早于截止时间
+		if fileDate.Before(cutoffTime) {
+			filePath := filepath.Join(dir, filename)
+			// 删除文件
+			if err := os.Remove(filePath); err != nil {
+				errors = append(errors, fmt.Sprintf("删除失败 %s: %v", filename, err))
+			} else {
+				cleanedCount++
+			}
+		}
+	}
+
+	// 输出清理结果
+	if cleanedCount > 0 || len(errors) > 0 {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("清理完成: 删除了 %d 个文件", cleanedCount))
+	}
+
+	if len(errors) > 0 {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("清理过程中遇到 %d 个错误", len(errors)))
+		for _, errMsg := range errors {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 		}
 	}
 }

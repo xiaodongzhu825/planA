@@ -50,7 +50,10 @@ func Logic() {
 		// 如果连续读出 redisNil 的次数大于10
 		if atomic.LoadInt64(&golabl.Logic.RedisNilCon) > 10 {
 			//Goto = true
-			//暂停 5 秒
+
+			// 等待所有任务完成 暂停 5 秒
+			golabl.Pool.Wg.Wait()
+			fmt.Println("等待当前所有协程完成后 暂停五秒！")
 			time.Sleep(5 * time.Second)
 			atomic.StoreInt64(&golabl.Logic.RedisNilCon, 0)
 		}
@@ -105,11 +108,12 @@ func taskExecute() {
 
 	//初始化 变量
 	status := golabl.BodyStatusSuccess //默认的书籍执行状态·
-	errorStr := "执行成功"             //默认的书籍执行描述
+	errorStr := "执行成功"                 //默认的书籍执行描述
 	// 获取任务信息
 	taskMsg, taskMsgErr := server.GetTaskToPopFromBodyWait()
 	if errors.Is(taskMsgErr, redis.Nil) {
 		//redis 读nil空+1
+		fmt.Printf("第 %v 次读出 Redis Nil", atomic.LoadInt64(&golabl.Logic.RedisNilCon))
 		atomic.AddInt64(&golabl.Logic.RedisNilCon, 1)
 
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
@@ -119,11 +123,12 @@ func taskExecute() {
 		return
 	}
 
-	//价格不能小于0
+	// TODO 换到里层 价格不能小于0
 	if taskMsg.Detail.Price <= 0 {
 		status = golabl.BodyStatusError
 		errorStr = "价格不能小于0"
 	}
+
 	//获取出版社信息并解析
 	if status != golabl.BodyStatusError {
 		if getPublishingErr := server.GetPublishingVid(&taskMsg); getPublishingErr != nil {

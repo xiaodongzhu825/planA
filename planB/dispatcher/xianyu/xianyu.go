@@ -181,7 +181,7 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	goodsAdd.ItemKey = strconv.FormatInt(time.Now().Unix(), 10)
 
 	// 新增商品
-	goodsAddRet, _, err := AddGoods(xianYuDlls, logUuid, goodsAdd)
+	goodsAddRet, _, err := addGoods(xianYuDlls, logUuid, goodsAdd)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品提交 %v", err))
 	}
@@ -196,7 +196,7 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 		SpecifyPublishTime: "",
 		UserName:           []string{token.Username},
 	}
-	_, _, err = LaunchGoods(xianYuDlls, logUuid, launchGoodsInfo)
+	_, _, err = launchGoods(xianYuDlls, logUuid, launchGoodsInfo)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品提交 %v", err))
 	}
@@ -264,7 +264,7 @@ func getProvinceCityDistrict(types int64, id int) (int, int, int, error) {
 	return 0, 0, 0, fmt.Errorf("参数错误")
 }
 
-// AddGoods 商品新增
+// 商品新增
 // @param xianYuDLL xianYuDLL对象
 // @param token 授权令牌
 // @param logUuid 日志ID
@@ -272,7 +272,7 @@ func getProvinceCityDistrict(types int64, id int) (int, int, int, error) {
 // @return XianYuAddGoodsResponse 商品新增结果
 // @return string 添加商品结果json
 // @return error 错误信息
-func AddGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, goodsInfo planBTypeXianyu.GoodsAdd) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
+func addGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, goodsInfo planBTypeXianyu.GoodsAdd) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
 	var goodsAdd planBTypeXianyu.XianYuAddGoodsResponse
 	goodsInfoStr, marshalErr := json.Marshal(goodsInfo)
 	if marshalErr != nil {
@@ -304,8 +304,8 @@ func AddGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, goodsInfo planBTyp
 	return goodsAdd, goodsAddStr, nil
 }
 
-// LaunchGoods 商品上架
-func LaunchGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, launchGoodsInfo planBTypeXianyu.Product) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
+// 商品上架
+func launchGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, launchGoodsInfo planBTypeXianyu.Product) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
 	var launchGoods planBTypeXianyu.XianYuAddGoodsResponse
 	launchGoodsInfoStr, marshalErr := json.Marshal(launchGoodsInfo)
 	if marshalErr != nil {

@@ -41,5 +41,18 @@ func Init() {
 		logs.LoggingMiddleware("error", "定时任务 B 函数 启动失败")
 		return
 	}
+
+	// 每日执行删除过期日志文件
+	_, delLogErr := c.AddFunc("0 0 0 * * ?", func() {
+		DeleteOldLog("logs\\debug")
+		DeleteOldLog("logs\\info")
+		DeleteOldLog("logs\\warning")
+		DeleteOldLog("logs\\error")
+		DeleteOldLog("logs\\success")
+	})
+	if delLogErr != nil {
+		logs.LoggingMiddleware("error", "定时任务 删除过期日志文件 启动失败")
+		return
+	}
 	c.Start() // 启动调度器（非阻塞）
 }

@@ -32,3 +32,10 @@ type GetTaskByUserId struct {
 	TaskType string `form:"task_type"`
 	UserID   string `form:"user_id" validate:"required"` //必填
 }
+
+// GetBodyOver 获取bodyOver 结构体
+type GetBodyOver struct {
+	TaskID string `form:"task_id" validate:"required"` //必填
+	Page   string `form:"page"`
+	Size   string `form:"size"`
+}

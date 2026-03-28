@@ -588,7 +588,7 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 		//获取 body_over 信息
-		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId)
+		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId, 0, 10)
 		if GetTaskBodyOverLimit10Err != nil {
 			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", GetTaskBodyOverLimit10Err)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -675,7 +675,7 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 		//获取 body_over 信息
-		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId)
+		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId, 0, 10)
 		if GetTaskBodyOverLimit10Err != nil {
 			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", getTaskFooterErr)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -723,25 +723,31 @@ func GetTaskHeader(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
+	//判断数据是否为空
+	if header.TaskId == "" {
+		tool.Session(httpMsg, "")
+		return
+	}
 	tool.Session(httpMsg, header)
 }
 
 // GetBodyOver 获取body_over
 func GetBodyOver(httpMsg http.ResponseWriter, data *http.Request) {
 	// 验证表单
-	dataVal, getHeaderValidatorErr := validator.TaskIdValidator(data)
-	if getHeaderValidatorErr != nil {
-		tool.Error(httpMsg, getHeaderValidatorErr.Error(), http.StatusInternalServerError)
+	dataVal, getBodyOverValidatorValidatorErr := validator.GetBodyOverValidator(data)
+	if getBodyOverValidatorValidatorErr != nil {
+		tool.Error(httpMsg, getBodyOverValidatorValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
-	bodyOver, getTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(dataVal.TaskID)
+	// 获取分页参数
+	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
+	bodyOver, getTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(dataVal.TaskID, page, size)
 	if getTaskBodyOverLimit10Err != nil {
 		errMsg := getTaskBodyOverLimit10Err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
 	tool.Session(httpMsg, bodyOver)
-
 }
 
 func B(httpMsg http.ResponseWriter, data *http.Request) {
@@ -968,11 +974,11 @@ func UpdateTaskCount(bodyData []string, taskId string) {
 		return
 	}
 	// 执行 B方法程序
-	_, runTaskWorkerErr := process.RunTaskWorker(taskId)
-	if runTaskWorkerErr != nil {
-		fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
-		return
-	}
+	//_, runTaskWorkerErr := process.RunTaskWorker(taskId)
+	//if runTaskWorkerErr != nil {
+	//	fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
+	//	return
+	//}
 }
 
 func AddTask(taskId string, bodyData []string) int {

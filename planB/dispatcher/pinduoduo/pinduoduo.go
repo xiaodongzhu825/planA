@@ -118,7 +118,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 			taskMsg.BookInfo.ImageObject.CarouselUrlArray[i] = toPdd[i]
 		}
 	}
-	
+
 	goodsAdd.CarouselGallery = tool.BuildCarouselGallery(golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray, oldCarouselUrlArray, taskMsg.BookInfo.ImageObject.CarouselUrlArray, golabl.Task.Header.ShopMsg.WatermarkPosition)
 
 	if len(taskMsg.BookInfo.ImageObject.DetailUrlObject.LiveShootingUrl) == 0 && len(oldCarouselUrlArray) > 0 {
@@ -293,6 +293,8 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 
 	// 在循环外维护一个已处理的商品 ID集合
 	processedGoodsIds := make(map[int64]bool)
+
+	// 查询body_wait中最后一条商品的创建时间
 
 	// 第一阶段：获取第1页到第100页，不传入时间参数
 	for page := 1; page <= maxPage; page++ {

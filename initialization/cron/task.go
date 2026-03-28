@@ -207,8 +207,8 @@ func B() {
 // DeleteOldLog 删除日志3天以上的日志文件
 func DeleteOldLog(dir string) {
 	// 配置参数
-	pattern := `^[^-]+-[a-z]+-(\d{4}-\d{2}-\d{2})-\d{2}\.log$` // 匹配 ERROR-task-2026-03-23-04.log 格式，捕获日期部分
-	retentionDays := 3                                         // 保留天数
+	pattern := `^[^-]+-[a-z]+-(\d{4}-\d{2}-\d{2})(?:-\d{2})?\.log$` // 匹配两种格式：ERROR-task-2026-03-23-04.log 和 ERROR-task-2026-03-23.log
+	retentionDays := 3                                              // 保留天数
 
 	// 计算截止时间
 	cutoffTime := time.Now().AddDate(0, 0, -retentionDays)

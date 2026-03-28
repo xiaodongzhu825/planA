@@ -77,3 +77,21 @@ func GetTaskByUserIdValidator(data *http.Request) (taskValidator.GetTaskByUserId
 	}
 	return form, nil
 }
+
+// GetBodyOverValidator 获取bodyOver 验证
+func GetBodyOverValidator(data *http.Request) (taskValidator.GetBodyOver, error) {
+	vars := mux.Vars(data)
+	taskId := vars["id"]
+
+	form := taskValidator.GetBodyOver{
+		TaskID: taskId,
+		Page:   data.URL.Query().Get("page"),
+		Size:   data.URL.Query().Get("size"),
+	}
+	fieldCN := map[string]string{"Page": "页码", "Size": "每页数量", "TaskID": "任务ID"}
+	if err := golabl.Validator.Struct(form); err != nil {
+		errMsg := ValidatorRule(err, fieldCN)
+		return form, fmt.Errorf("参数错误：%s", errMsg)
+	}
+	return form, nil
+}

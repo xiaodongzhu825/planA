@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"planA/planB/initialization"
+	"planA/planB/initialization/golabl"
 	"planA/planB/logic"
 	"planA/planB/validation"
 	"time"
@@ -30,8 +31,13 @@ func main() {
 		return
 	}
 
-	// 执行任务
-	logic.Logic()
+	// 拉取商品列表
+	if golabl.Task.Header.TaskType == 3 {
+		golabl.Platform.GetGoodsTask()
+	} else {
+		// 执行任务
+		logic.Logic()
+	}
 
 }
 

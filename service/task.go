@@ -107,12 +107,14 @@ func GetListLength(taskKey string) (int64, error) {
 	return golabl.RedisDbA.LLen(golabl.Ctx, bodyWaitKey).Result()
 }
 
-// GetTaskBodyOverLimit10 获取最近10条已完成任务
+// GetTaskBodyOverLimit10 分页获取已完成任务
 // @param taskKey 任务键
+// @param page 页码
+// @param size 每页数量
 // @return []_type.TaskBody 任务体列表
 // @return error 错误信息
-func GetTaskBodyOverLimit10(taskKey string) ([]_type.TaskBody, error) {
-	return GetBodyOverDataByBatch(taskKey, 0, 10)
+func GetTaskBodyOverLimit10(taskKey string, page int, size int) ([]_type.TaskBody, error) {
+	return GetBodyOverDataByBatch(taskKey, page, size)
 }
 
 // GetBodyOverCount 获取已完成任务总数
@@ -126,17 +128,19 @@ func GetBodyOverCount(taskKey string) (int64, error) {
 
 // GetBodyOverDataByBatch 批量获取已完成任务数据
 // @param taskKey 任务键
-// @param offset 起始偏移量
-// @param count 获取数量
+// @param page 页
+// @param size 页数量
 // @return []_type.TaskBody 任务体列表
 // @return error 错误信息
-func GetBodyOverDataByBatch(taskKey string, offset, count int) ([]_type.TaskBody, error) {
+func GetBodyOverDataByBatch(taskKey string, page, size int) ([]_type.TaskBody, error) {
 	var bodyOverArr []_type.TaskBody
 
 	bodyOverKey := getBodyOverKey(taskKey)
-	end := offset + count - 1 // LRange是闭区间 [start, end]
+	// 计算起始索引（从0开始）
+	start := (page - 1) * size
+	end := start + size - 1
 
-	bodyOverStr, err := golabl.RedisDbA.LRange(golabl.Ctx, bodyOverKey, int64(offset), int64(end)).Result()
+	bodyOverStr, err := golabl.RedisDbA.LRange(golabl.Ctx, bodyOverKey, int64(start), int64(end)).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return bodyOverArr, nil

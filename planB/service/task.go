@@ -172,7 +172,7 @@ func GetTaskToPopFromBodyWait() (planAType.TaskBody, error) {
 }
 
 // SetNoImgCount 无图片信息isbn计次
-// @param isbn isbn
+// @param isbn
 // @return error 错误信息
 func SetNoImgCount(isbn string) error {
 	key := "noImgInfo"
@@ -181,8 +181,9 @@ func SetNoImgCount(isbn string) error {
 
 // AddTaskToBodyOver 添加任务到完成任务池
 // @param taskBody _type.TaskBody 任务信息
+// @param addType []string 写入类型 ["body_over","body_data","body_backup"]
 // @return error 错误信息
-func AddTaskToBodyOver(taskBody planAType.TaskBody) error {
+func AddTaskToBodyOver(taskBody planAType.TaskBody, addType []string) error {
 	// 测试 client 是否可用
 	pingErr := golabl.Redis.RedisDbA.Ping(golabl.Ctx).Err()
 	if pingErr != nil {
@@ -195,15 +196,32 @@ func AddTaskToBodyOver(taskBody planAType.TaskBody) error {
 		return fmt.Errorf("任务信息转换失败: %v\n", jsonMarshalErr)
 	}
 
-	// 使用事务确保两个 LPUSH 操作的原子性
+	// 使用事务确保 LPUSH 操作的原子性
 	pipe := golabl.Redis.RedisDbA.TxPipeline()
 
-	// 添加body_over任务
-	pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_over", taskBodyStr)
-	// 添加body_data任务
-	pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_data", taskBodyStr)
-	// 添加body_data任务
-	pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_backup", taskBodyStr)
+	// 判断需要写入哪些类型
+	// 如果 addType 为空数组，则全部写入
+	if len(addType) == 0 {
+		// 全部写入
+		pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_over", taskBodyStr)
+		pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_data", taskBodyStr)
+		pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_backup", taskBodyStr)
+	} else {
+		// 根据传入的类型动态写入
+		for _, t := range addType {
+			switch t {
+			case "body_over":
+				pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_over", taskBodyStr)
+			case "body_data":
+				pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_data", taskBodyStr)
+			case "body_backup":
+				pipe.LPush(golabl.Ctx, golabl.Task.TaskId+":body_backup", taskBodyStr)
+			default:
+				// 忽略未知类型，或者可以根据需要返回错误
+				continue
+			}
+		}
+	}
 
 	// 执行事务
 	_, execErr := pipe.Exec(golabl.Ctx)
@@ -218,6 +236,72 @@ func AddTaskToBodyOver(taskBody planAType.TaskBody) error {
 // GetTaskBodyWaitCount 获取指定body_wait的真实数量
 func GetTaskBodyWaitCount() (int64, error) {
 	return golabl.Redis.RedisDbA.LLen(golabl.Ctx, golabl.Task.TaskId+":body_wait").Result()
+}
+
+// IsTaskBodyWaitExist 查询body_wait是否存在
+func IsTaskBodyWaitExist() (bool, error) {
+	count, err := golabl.Redis.RedisDbA.Exists(golabl.Ctx, golabl.Task.TaskId+":body_wait").Result()
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// GetTaskBodyWaitLast 获取body_wait中最后一条数据
+func GetTaskBodyWaitLast() (string, error) {
+	return golabl.Redis.RedisDbA.LIndex(golabl.Ctx, golabl.Task.TaskId+":body_wait", 1).Result()
+}
+
+// AddTaskToBodyWait 写入到body_wait中
+// @param taskBody _type.TaskBody 任务信息
+// @return error 错误信息
+func AddTaskToBodyWait(bodyWaitJson string) error {
+	return golabl.Redis.RedisDbA.LPush(golabl.Ctx, golabl.Task.TaskId+":body_wait", bodyWaitJson).Err()
+}
+
+// GetTaskBodyWaitList 读取body_wait 数据
+// @param page int 页码
+// @param pageSize int 页大小
+// @return []string body_wait 数据
+// @return error 错误信息
+func GetTaskBodyWaitList(page int, pageSize int) ([]string, error) {
+	// 计算起始索引和结束索引
+	// Redis LRange 使用 0-based 索引
+	// 第1页: 0 到 pageSize-1
+	// 第2页: pageSize 到 2*pageSize-1
+	start := (page - 1) * pageSize
+	end := start + pageSize - 1
+
+	// 如果页码小于1，默认为第1页
+	if page < 1 {
+		page = 1
+		start = 0
+		end = pageSize - 1
+	}
+
+	// 如果页大小小于1，设置默认值
+	if pageSize < 1 {
+		pageSize = 10
+		end = start + pageSize - 1
+	}
+
+	// 获取指定范围的数据
+	return golabl.Redis.RedisDbA.LRange(golabl.Ctx, golabl.Task.TaskId+":body_wait", int64(start), int64(end)).Result()
+}
+
+// DeleteTaskBodyWait 删除body_wait 数据
+func DeleteTaskBodyWait() error {
+	return golabl.Redis.RedisDbA.Del(golabl.Ctx, golabl.Task.TaskId+":body_wait").Err()
+}
+
+// DeleteTaskBodyOver 删除body_over 数据
+func DeleteTaskBodyOver() error {
+	return golabl.Redis.RedisDbA.Del(golabl.Ctx, golabl.Task.TaskId+":body_over").Err()
+}
+
+// DeleteTaskBodyBackup 删除body_backup 数据
+func DeleteTaskBodyBackup() error {
+	return golabl.Redis.RedisDbA.Del(golabl.Ctx, golabl.Task.TaskId+":body_backup").Err()
 }
 
 // =========================== 以下是私有方法 ===========================

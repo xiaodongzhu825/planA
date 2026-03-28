@@ -135,7 +135,7 @@ type TaskDetail struct {
 	GoodsId    int64  `json:"goods_id"`     // 商品 ID
 	ReturnId   int64  `json:"return_id"`    // 拼多多返回 ID
 	SkuCode    string `json:"sku_code"`     // 规格编码（sku维度）
-	SkuId      int64  `json:"sku_id"`       // sku编码
+	SkuId      int64  `json:"sku_id"`       // sku 编码
 	Img        string `json:"img"`          // 图片
 	OutGoodsId string `json:"out_goods_id"` // 商品编码
 	GoodsName  string `json:"goods_name"`   // 商品名称

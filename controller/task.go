@@ -172,6 +172,16 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
+	//如果是拉取任务则直接执行 B方法程序
+	if taskType == 3 {
+		// 执行 B方法程序
+		//_, runTaskWorkerErr := process.RunTaskWorker(taskId)
+		//if runTaskWorkerErr != nil {
+		//	fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
+		//	return
+		//}
+	}
+
 	// 返回成功响应
 	tool.Session(httpMsg, taskId)
 }
@@ -974,11 +984,11 @@ func UpdateTaskCount(bodyData []string, taskId string) {
 		return
 	}
 	// 执行 B方法程序
-	//_, runTaskWorkerErr := process.RunTaskWorker(taskId)
-	//if runTaskWorkerErr != nil {
-	//	fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
-	//	return
-	//}
+	_, runTaskWorkerErr := process.RunTaskWorker(taskId)
+	if runTaskWorkerErr != nil {
+		fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
+		return
+	}
 }
 
 func AddTask(taskId string, bodyData []string) int {

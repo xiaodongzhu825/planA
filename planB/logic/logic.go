@@ -159,7 +159,7 @@ func taskExecute() {
 	//isbn 不为空的添加到body中，比如拉取店铺信息isbn可以返回空的
 	if taskMsg.BookInfo.Isbn != "" {
 		// 添加任务到bodyOver、bodyData、bodyBackup
-		if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg); addTaskToBodyOverErr != nil {
+		if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg, []string{}); addTaskToBodyOverErr != nil {
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))
 		}
 	}

@@ -13,7 +13,7 @@ type GoodsTask interface {
 	SetGoodsTask() string
 
 	// GetGoodsTask 获取商品任务
-	GetGoodsTask() string
+	GetGoodsTask() (string, error)
 
 	// DelGoodsTask 删除商品任务
 	DelGoodsTask() string

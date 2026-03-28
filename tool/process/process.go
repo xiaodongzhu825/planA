@@ -199,9 +199,214 @@ func StopTask(taskId string) error {
 	}
 	return nil
 }
-
-// CallSendPublishing 启动程序
 func CallSendPublishing(taskId string) (*os.Process, error) {
+	// 1. 基础入参校验
+	if taskId == "" {
+		return nil, errors.New("队列名称qName不能为空")
+	}
+
+	// 先在Redis中创建一个占位符，表示进程即将启动
+	placeholderPID := "starting"
+	setProcessIdErr := service.SetProcessId(taskId, placeholderPID)
+	if setProcessIdErr != nil {
+		errMsg := fmt.Sprintf("保存进程占位符到Redis失败: %v, taskId: %s", setProcessIdErr, taskId)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 2. 构建并验证程序路径
+	fileUrlConfig, getFileUrlConfigErr := config.GetFileUrlConfig()
+	if getFileUrlConfigErr != nil {
+		errMsg := fmt.Sprintf("获取文件路径配置失败: %v", getFileUrlConfigErr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+	programPath := fileUrlConfig.BFileName
+
+	// 3. 验证程序路径是否存在
+	absProgramPath, err := filepath.Abs(programPath)
+	if err != nil {
+		errMsg := fmt.Sprintf("转换程序路径为绝对路径失败: %s, 原始路径: %s", err, programPath)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 4. 验证程序路径
+	_, statErr := os.Stat(absProgramPath)
+	if statErr != nil {
+		errMsg := fmt.Sprintf("程序文件不存在或无访问权限: %s, 错误: %v", absProgramPath, statErr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 5. 修复后的PowerShell脚本
+	psScript := fmt.Sprintf(`
+# 设置错误捕获模式
+$ErrorActionPreference = "Stop"
+$programPath = "%s"
+$arguments = "%s"
+
+try {
+    # 再次验证程序存在性
+    if (-not (Test-Path $programPath -PathType Leaf)) {
+        throw "程序文件不存在: $programPath"
+    }
+    
+    # 构建进程启动信息
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $programPath
+    $psi.Arguments = $arguments
+    $psi.UseShellExecute = $true
+    $psi.WindowStyle = 'Normal'
+    $psi.WorkingDirectory = (Split-Path $programPath -Parent)  # 设置工作目录为程序所在目录
+    
+    # 启动进程
+    Write-Host "开始启动程序: $programPath 参数: $arguments"
+    $process = [System.Diagnostics.Process]::Start($psi)
+    Write-Host "程序启动成功，PID: $($process.Id)"
+    
+    # 等待窗口出现，设置超时时间
+    $timeout = 3000
+    $startTime = Get-Date
+    $hwnd = $null
+    
+    # 等待窗口句柄不为空
+    while ($true) {
+        try {
+            $process.Refresh()
+            $hwnd = $process.MainWindowHandle
+            if ($hwnd -and $hwnd -ne [IntPtr]::Zero) {
+                break
+            }
+        } catch {
+            # 忽略刷新错误
+        }
+        
+        if (((Get-Date) - $startTime).TotalMilliseconds -ge $timeout) {
+            Write-Warning "等待窗口句柄超时 (PID: $($process.Id))"
+            break
+        }
+        Start-Sleep -Milliseconds 50
+    }
+    
+    # 尝试将窗口前置（仅在成功获取窗口句柄时）
+    if ($hwnd -and $hwnd -ne [IntPtr]::Zero) {
+        try {
+            Add-Type @"
+                using System;
+                using System.Runtime.InteropServices;
+                public class WindowHelper {
+                    [DllImport("user32.dll")]
+                    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+                    [DllImport("user32.dll")]
+                    public static extern bool SetForegroundWindow(IntPtr hWnd);
+                    [DllImport("user32.dll")]
+                    public static extern bool AllowSetForegroundWindow(uint dwProcessId);
+                }
+"@
+            
+            [WindowHelper]::AllowSetForegroundWindow($process.Id)
+            [WindowHelper]::ShowWindow($hwnd, 9)  # 9 = SW_RESTORE
+            [WindowHelper]::SetForegroundWindow($hwnd)
+            Write-Host "成功将窗口前置，句柄: $hwnd"
+        } catch {
+            Write-Warning "窗口前置操作失败: $_"
+            # 不抛出异常，继续执行
+        }
+    } else {
+        Write-Warning "未能获取窗口句柄，程序可能没有窗口界面 (PID: $($process.Id))"
+    }
+    
+    # 输出PID供Go解析
+    Write-Output $process.Id
+} catch {
+    # 捕获所有异常并输出
+    Write-Error "启动程序失败: $_"
+    exit 1  # 返回非0退出码
+}
+`, absProgramPath, taskId)
+
+	// 6. 执行PowerShell命令，同时捕获stdout和stderr
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psScript)
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE - 创建新控制台
+		}
+	}
+
+	// 7. 同时捕获标准输出和标准错误
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// 8. 执行命令
+	runErr := cmd.Run()
+
+	// 9. 输出所有PowerShell的输出
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+
+	// 记录标准输出（调试用）
+	if stdoutStr != "" {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("PowerShell标准输出: %s", stdoutStr))
+	}
+
+	// 记录标准错误（警告信息不算错误）
+	if stderrStr != "" {
+		// 检查是否为警告信息
+		if strings.Contains(stderrStr, "WARNING:") {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_WARNING, fmt.Sprintf("PowerShell警告: %s", stderrStr))
+		} else {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("PowerShell错误: %s", stderrStr))
+		}
+	}
+
+	// 10. 检查命令执行是否失败
+	if runErr != nil {
+		errMsg := fmt.Sprintf("PowerShell执行失败: %v, 错误输出: %s", runErr, stderrStr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 11. 解析PID（增加校验）
+	var pid uint32
+	lines := strings.Split(stdoutStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// 跳过非纯数字行（如 Write-Host 的输出）
+		pidInt, err := strconv.Atoi(line)
+		if err == nil && pidInt > 0 {
+			pid = uint32(pidInt)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("成功解析PID: %d", pid))
+			break // 找到有效PID立即退出
+		}
+	}
+
+	if pid == 0 {
+		errMsg := fmt.Sprintf("未解析到有效PID，PowerShell输出: %s, 错误输出: %s", stdoutStr, stderrStr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 12. 更新Redis中的PID
+	processID := fmt.Sprintf("%d", pid)
+	setProcessIdErr = service.SetProcessId(taskId, processID)
+	if setProcessIdErr != nil {
+		errMsg := fmt.Sprintf("更新进程PID到Redis失败: %v, taskId: %s, PID: %d", setProcessIdErr, taskId, pid)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	// 13. 返回进程句柄
+	process := &os.Process{Pid: int(pid)}
+	return process, nil
+}
+
+// CallSendPublishing1 启动程序
+func CallSendPublishing1(taskId string) (*os.Process, error) {
 	// 1. 基础入参校验
 	if taskId == "" {
 		return nil, errors.New("队列名称qName不能为空")

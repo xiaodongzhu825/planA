@@ -215,6 +215,11 @@ func AddTaskToBodyOver(taskBody planAType.TaskBody) error {
 	return nil
 }
 
+// GetTaskBodyWaitCount 获取指定body_wait的真实数量
+func GetTaskBodyWaitCount() (int64, error) {
+	return golabl.Redis.RedisDbA.LLen(golabl.Ctx, golabl.Task.TaskId+":body_wait").Result()
+}
+
 // =========================== 以下是私有方法 ===========================
 
 // 解析任务头
@@ -299,6 +304,10 @@ func parseTaskHeader(taskHeader map[string]string) error {
 	}
 	// 解析 header last_index
 	if golabl.Task.Header.LastIndex, _ = strconv.ParseInt(taskHeader["last_index"], 10, 64); golabl.Task.Header.LastIndex == 0 {
+		//return fmt.Errorf("参数错误: %s", "last_index 为 空")
+	}
+	// 解析 header img_type
+	if golabl.Task.Header.ImgType, _ = strconv.ParseInt(taskHeader["img_type"], 10, 64); golabl.Task.Header.ImgType == 0 {
 		//return fmt.Errorf("参数错误: %s", "last_index 为 空")
 	}
 	// 解析 header pool

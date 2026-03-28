@@ -17,7 +17,7 @@ func Go(bodyWait planAType.TaskBody) (string, error) {
 
 	case "GetGoodsTask":
 
-		return golabl.Platform.GetGoodsTask(), nil // 获取商品
+		return golabl.Platform.GetGoodsTask() // 获取商品
 
 	case "SetGoodsTask":
 

@@ -7,6 +7,8 @@ import "time"
 // Config 配置结构
 type Config struct {
 	Server      Server        `json:"server"`
+	Speed       Speed         `json:"speed"`
+	Minio       Minio         `json:"minio"`
 	Alive       Alive         `json:"alive"`
 	MysqlConfig MysqlConfig   `json:"mysql_config"`
 	PoolConfig  PoolConfig    `json:"pool_config"`
@@ -25,6 +27,22 @@ type Server struct {
 	RedisExp     int    `json:"redis_exp"`
 	ReadDb       string `json:"read_db"`
 	ErrPauseTime int    `json:"err_pause_time"`
+}
+
+// Speed 限速器结构
+type Speed struct {
+	PddSpeed    int `json:"pdd_speed"`
+	XianyuSpeed int `json:"xianyu_speed"`
+	Watermark   int `json:"watermark"`
+}
+
+// Minio 图片空间结构域
+type Minio struct {
+	Url             string `json:"url"`
+	AccessKeyID     string `json:"access_key_id"`
+	SecretAccessKey string `json:"secret_access_key"`
+	BucketName      string `json:"bucket_name"`
+	UseSSL          bool   `json:"use_ssl"`
 }
 
 // Alive 存活状态结构
@@ -105,4 +123,5 @@ type FileUrl struct {
 	CreateTaskNoticeUrl       string `json:"create_task_notice_url"`
 	PddTokenUrl               string `json:"pdd_token_url"`
 	DeductionUrl              string `json:"deduction_url"`
+	PddGetGoodsUrl            string `json:"pdd_get_goods_url"`
 }

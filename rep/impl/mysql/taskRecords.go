@@ -76,8 +76,10 @@ func (g *GormAdapter) UpdateTaskRecords(user _type.TaskRecordsDTO) error {
 // GetTaskRecordsOldList 获取任务记录旧数据列表
 // @return *mysqlType.TaskExport 任务记录列表
 // @return error 错误信息
-func (g *GormAdapter) GetTaskRecordsOldList() ([]_type.TaskRecordsDTO, error) {
-	return nil, nil
+func (g *GormAdapter) GetTaskRecordsOldList() ([]*_type.TaskRecordsDTO, error) {
+	list, err := mysqlServer.GetTaskRecordsOldList()
+	listDTO := convertMysqlTaskRecordsToDTO(list)
+	return listDTO, err
 }
 
 // DeleteTaskRecordsOldData 删除任务记录旧数据

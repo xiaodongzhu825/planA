@@ -11,15 +11,16 @@ import (
 )
 
 var (
-	Ctx      context.Context      // 全局上下文
-	Speed    *rate.Limiter        // 全局令牌桶限速器
-	Config   planAType.Config     // 全局配置
-	Redis    planBType.Redis      // 全局 Redis
-	Task     *planBType.Task      // 全局任务
-	Pool     planBType.Pool       // 全局线程池
-	Logic    planBType.Logic      // 全局逻辑控制
-	Platform interfaces.GoodsTask // 全局平台对象
-	TaskType string               // 全局任务类型
+	Ctx      context.Context        // 全局上下文
+	Speed    *rate.Limiter          // 全局令牌桶限速器
+	Config   planAType.Config       // 全局配置
+	Redis    planBType.Redis        // 全局 Redis
+	Task     *planBType.Task        // 全局任务
+	Pool     planBType.Pool         // 全局线程池
+	Logic    planBType.Logic        // 全局逻辑控制
+	Platform interfaces.GoodsTask   // 全局平台对象
+	TaskType string                 // 全局任务类型
+	MinIo    *planBType.MinIOClient // 全局 MinIO
 )
 
 // 任务 body 状态

@@ -5,9 +5,7 @@ import (
 	"planA/planB/initialization"
 	"planA/planB/logic"
 	"planA/planB/validation"
-	"syscall"
 	"time"
-	"unsafe"
 )
 
 func main() {
@@ -24,9 +22,6 @@ func main() {
 		test()
 		return
 	}
-
-	//设置窗口标题
-	setConsoleTitle(taskId)
 
 	// 初始化配置
 	err := initialization.Init(taskId)
@@ -48,13 +43,4 @@ func test() {
 		fmt.Printf("i:%v\n", i)
 		time.Sleep(time.Second)
 	}
-}
-
-// 设置窗口标题
-func setConsoleTitle(title string) {
-	kernel32 := syscall.NewLazyDLL("kernel32.dll")
-	procSetConsoleTitle := kernel32.NewProc("SetConsoleTitleW")
-	// 将字符串转换为UTF-16指针
-	titlePtr, _ := syscall.UTF16PtrFromString(title)
-	procSetConsoleTitle.Call(uintptr(unsafe.Pointer(titlePtr)))
 }

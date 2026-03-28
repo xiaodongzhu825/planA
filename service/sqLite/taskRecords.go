@@ -214,7 +214,7 @@ func GetTaskRecords24Hour() ([]sqLiteType.TaskRecords, error) {
 	querySQL := `
     SELECT id, user_id, shop_id, task_id, shop_name, is_export, task_type, create_at 
     FROM task_records 
-    WHERE create_at >= datetime('now', 'localtime', '-4 hours')
+    WHERE create_at >= datetime('now', 'localtime', '-24 hours')
     AND create_at <= datetime('now', 'localtime', '-10 minutes')
     ORDER BY create_at DESC`
 
@@ -225,6 +225,50 @@ func GetTaskRecords24Hour() ([]sqLiteType.TaskRecords, error) {
 	}
 	defer rows.Close() // 确保结果集最终被关闭
 
+	// 初始化结果切片
+	var records []sqLiteType.TaskRecords
+
+	// 遍历查询结果
+	for rows.Next() {
+		var record sqLiteType.TaskRecords
+		// 扫描每一行数据到结构体中
+		err = rows.Scan(
+			&record.ID,
+			&record.UserID,
+			&record.ShopID,
+			&record.TaskID,
+			&record.ShopName,
+			&record.IsExport,
+			&record.TaskType,
+			&record.CreateAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描任务记录数据失败: %v", err)
+		}
+		records = append(records, record)
+	}
+
+	// 检查遍历过程中是否有错误
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历任务记录结果集错误: %v", err)
+	}
+
+	// 返回查询结果
+	return records, nil
+}
+
+// GetTaskRecordsOldList 获取task_records表中3天前的记录
+func GetTaskRecordsOldList() ([]sqLiteType.TaskRecords, error) {
+	querySQL := `SELECT id, user_id, shop_id, task_id, shop_name, is_export, task_type, create_at
+        FROM task_records 
+        WHERE create_at < datetime('now', 'localtime', '-3 days')
+    `
+	// 执行查询
+	rows, err := golabl.SqliteDb.Query(querySQL)
+	if err != nil {
+		return nil, fmt.Errorf("查询24小时内任务记录失败: %v", err)
+	}
+	defer rows.Close() // 确保结果集最终被关闭
 	// 初始化结果切片
 	var records []sqLiteType.TaskRecords
 

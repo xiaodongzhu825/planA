@@ -35,30 +35,33 @@ type Shop struct {
 
 // ShopDetail 店铺详情
 type ShopDetail struct {
-	ID                  int64  `json:"id"`
-	ShopID              int64  `json:"shop_id"`               //店铺 ID
-	SaleTemplateID      int64  `json:"sale_template_id"`      //运费模版 ID
-	LowPrice            int    `json:"low_price"`             //最低价格
-	HighPrice           int    `json:"high_price"`            //最高价格
-	StockDeff           int    `json:"stock_deff"`            //库存
-	TemplateId          int    `json:"template_id"`           //物流运费模版 ID
-	TitlePrefix         string `json:"title_prefix"`          //标题前缀
-	TitleSuffix         string `json:"title_suffix"`          //标题后缀
-	TitleConsistOf      string `json:"title_consist_of"`      //标题包含信息
-	SpaceCharacter      string `json:"space_character"`       //是否使用空格
-	SevenDays           string `json:"seven_days"`            //是否支持7天无理由退换货
-	Presale             string `json:"presale"`               //是否预售
-	Fake                string `json:"fake"`                  //是否支持假一赔十，false-不支持，true-支持
-	IsPreSale           bool   `json:"is_pre_sale"`           //是否预售,true-预售商品，false-非预售商品
-	IsRefundable        bool   `json:"is_refundable"`         //是否7天无理由退换货，true-支持，false-不支持
-	IsSecondHand        string `json:"is_second_hand"`        //是否二手 1 -二手商品 ，0-全新商品
-	ShipmentLimitSecond string `json:"shipment_limit_second"` //承诺发货时间（秒）
-	CostTemplateId      int64  `json:"cost_template_id"`      //物流运费模板 ID
-	TowDiscount         int64  `json:"two_discount"`          //两件折扣
-	WatermarkImgUrl     string `json:"watermark_img_url"`     //水印图片链接
-	WatermarkPosition   string `json:"watermark_position"`    //水印位置 0全部  1第一张
-	DistrictId          int64  `json:"district_id"`           //地区类型 0 指定区县 1 指定省 2 全国
-	DistrictType        string `json:"district_type"`         //地区 ID 【district_type=0 区县ID district_type=1 省ID district_type=2 全国（空值）】
+	ID                          int64    `json:"id"`
+	ShopID                      int64    `json:"shop_id"`                          //店铺 ID
+	SaleTemplateID              int64    `json:"sale_template_id"`                 //运费模版 ID
+	LowPrice                    int      `json:"low_price"`                        //最低价格
+	HighPrice                   int      `json:"high_price"`                       //最高价格
+	StockDeff                   int      `json:"stock_deff"`                       //库存
+	TemplateId                  int      `json:"template_id"`                      //物流运费模版 ID
+	TitlePrefix                 string   `json:"title_prefix"`                     //标题前缀
+	TitleSuffix                 string   `json:"title_suffix"`                     //标题后缀
+	TitleConsistOf              string   `json:"title_consist_of"`                 //标题包含信息
+	SpaceCharacter              string   `json:"space_character"`                  //是否使用空格
+	SevenDays                   string   `json:"seven_days"`                       //是否支持7天无理由退换货
+	Presale                     string   `json:"presale"`                          //是否预售
+	Fake                        string   `json:"fake"`                             //是否支持假一赔十，false-不支持，true-支持
+	IsPreSale                   bool     `json:"is_pre_sale"`                      //是否预售,true-预售商品，false-非预售商品
+	IsRefundable                bool     `json:"is_refundable"`                    //是否7天无理由退换货，true-支持，false-不支持
+	IsSecondHand                string   `json:"is_second_hand"`                   //是否二手 1 -二手商品 ，0-全新商品
+	ShipmentLimitSecond         string   `json:"shipment_limit_second"`            //承诺发货时间（秒）
+	CostTemplateId              int64    `json:"cost_template_id"`                 //物流运费模板 ID
+	TowDiscount                 int64    `json:"two_discount"`                     //两件折扣
+	WatermarkImgUrl             string   `json:"watermark_img_url"`                //水印图片链接
+	WatermarkPosition           string   `json:"watermark_position"`               //水印位置 0全部  1第一张
+	DistrictId                  int64    `json:"district_id"`                      //地区类型 0 指定区县 1 指定省 2 全国
+	DistrictType                string   `json:"district_type"`                    //地区 ID 【district_type=0 区县ID district_type=1 省ID district_type=2 全国（空值）】
+	CarouseLastImgUrlArray      []string `json:"carouse_last_img_url_array"`       //轮播图最后图片
+	GoodsDetailFirstImgUrlArray []string `json:"goods_detail_first_img_url_array"` //商品详情首图 URL 数组
+	GoodsDetailLastImgUrlArray  []string `json:"goods_detail_last_img_url_array"`  //商品详情最后图片 URL 数组
 }
 
 // ShopContext 店铺上下文

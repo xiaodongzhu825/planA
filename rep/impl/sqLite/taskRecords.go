@@ -75,8 +75,10 @@ func (s *SqlAdapter) UpdateTaskRecords(user _type.TaskRecordsDTO) error {
 // GetTaskRecordsOldList 获取任务记录旧数据列表
 // @return *mysqlType.TaskExport 任务记录列表
 // @return error 错误信息
-func (s *SqlAdapter) GetTaskRecordsOldList() ([]_type.TaskRecordsDTO, error) {
-	return nil, nil
+func (s *SqlAdapter) GetTaskRecordsOldList() ([]*_type.TaskRecordsDTO, error) {
+	list, err := sqLiteServer.GetTaskRecordsOldList()
+	listDTO := convertSqliteTaskRecordsToDTO(list)
+	return listDTO, err
 }
 
 // DeleteTaskRecordsOldData 删除任务记录旧数据

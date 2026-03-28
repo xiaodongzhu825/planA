@@ -201,15 +201,15 @@ func (m *PddDLL) PddTimeGet(clientId, clientSecret, accessToken string) (string,
 }
 
 // PddGoodsImageUpload 上传图片
-func (m *PddDLL) PddGoodsImageUpload(imgBase64 string) (string, error) {
+func (m *PddDLL) PddGoodsImageUpload(clientId, clientSecret, accessToken, imgBase64 string) (string, error) {
 	proc, err := m.Dll.FindProc("PddGoodsImageUpload")
 	if err != nil {
 		return "", fmt.Errorf("找不到函数 PddGoodsImageUpload: %v", err)
 	}
 
-	clientIdPtr, _ := syscall.BytePtrFromString("203c5a7ba8bd4b8488d5e26f93052642")
-	clientSecretPtr, _ := syscall.BytePtrFromString("892ffaa86e12b7a3d8d2942b669d9aa520ad8179")
-	accessTokenPtr, _ := syscall.BytePtrFromString("973fd15135d342dcb433b90e264424a298ba33d3")
+	clientIdPtr, _ := syscall.BytePtrFromString(clientId)
+	clientSecretPtr, _ := syscall.BytePtrFromString(clientSecret)
+	accessTokenPtr, _ := syscall.BytePtrFromString(accessToken)
 	imgBase64Ptr, _ := syscall.BytePtrFromString(imgBase64)
 
 	resultPtr, _, _ := proc.Call(
@@ -218,6 +218,30 @@ func (m *PddDLL) PddGoodsImageUpload(imgBase64 string) (string, error) {
 		uintptr(unsafe.Pointer(accessTokenPtr)),
 		uintptr(unsafe.Pointer(imgBase64Ptr)),
 	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// PddGoodsListGet 获取店铺商品
+func (m *PddDLL) PddGoodsListGet(clientId, clientSecret, accessToken string, params string) (string, error) {
+
+	proc, err := m.Dll.FindProc("PddGoodsListGet")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 PddGoodsListGet: %v", err)
+	}
+
+	clientIdPtr, _ := syscall.BytePtrFromString(clientId)
+	clientSecretPtr, _ := syscall.BytePtrFromString(clientSecret)
+	accessTokenPtr, _ := syscall.BytePtrFromString(accessToken)
+	paramsPtr, _ := syscall.BytePtrFromString(params)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(clientIdPtr)),
+		uintptr(unsafe.Pointer(clientSecretPtr)),
+		uintptr(unsafe.Pointer(accessTokenPtr)),
+		uintptr(unsafe.Pointer(paramsPtr)),
+	)
+
 	result := cStr(resultPtr)
 	return result, nil
 }

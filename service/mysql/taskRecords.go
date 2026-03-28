@@ -111,3 +111,16 @@ func GetTaskRecords24Hour() ([]*mysqlType.TaskRecords, error) {
 
 	return tasks, err
 }
+
+// GetTaskRecordsOldList 获取task_records表中3天前的记录
+func GetTaskRecordsOldList() ([]*mysqlType.TaskRecords, error) {
+	var tasks []*mysqlType.TaskRecords
+	threeDaysAgo := time.Now().AddDate(0, 0, -3)
+
+	err := golabl.MysqlDb.Where("create_at < ?",
+		threeDaysAgo).
+		Order("create_at DESC").
+		Find(&tasks).Error
+
+	return tasks, err
+}

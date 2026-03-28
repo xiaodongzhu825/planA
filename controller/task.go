@@ -856,9 +856,6 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 		}
 		priceModArr = append(priceModArr, priceMod)
 	}
-	var goodsDetailFirstImgUrlArrayToDo []string
-	var carouseLastImgUrlArrayToDo []string
-	var goodsDetailLastImgUrlArrayToDo []string
 	var token string
 	var districtId int64
 	var districtType string
@@ -893,30 +890,30 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 			ShopName: shop.ShopName,
 			ShopType: shop.ShopType,
 			ShopMsg: _type.ShopMsg{
-				ID:                          detail.ID,                                           //店铺详情 ID
-				ShopAliasName:               shop.ShopName,                                       //店铺别名
-				ShopName:                    shop.ShopName,                                       //店铺名称
-				Token:                       token,                                               //店铺 token【如果是咸鱼店铺，此token则是应用密钥】
-				GoodsNamePrefix:             detail.TitlePrefix,                                  //商品名称前缀
-				GoodsNameSuffix:             detail.TitleSuffix,                                  //商品名称后缀
-				TitleConsistOf:              detail.TitleConsistOf,                               //商品名称组成
-				SpaceCharacter:              detail.SpaceCharacter,                               //间隔字符  0无间隔 1空格
-				WatermarkImgUrl:             detail.WatermarkImgUrl,                              //水印图片
-				WatermarkPosition:           detail.WatermarkPosition,                            //水印位置 0全部  1第一张
-				CarouseLastImgUrlArray:      tool.FilterStrings(carouseLastImgUrlArrayToDo),      //轮播图最后图片[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
-				GoodsDetailFirstImgUrlArray: tool.FilterStrings(goodsDetailFirstImgUrlArrayToDo), //商品详情首图URL数组[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
-				GoodsDetailLastImgUrlArray:  tool.FilterStrings(goodsDetailLastImgUrlArrayToDo),  //商品详情最后图片URL数组（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
-				IsFolt:                      detail.Fake == "1",                                  //是否支持假一赔十，false-不支持，true-支持
-				IsPreSale:                   detail.Presale == "1" || detail.Presale == "2",      //是否预售,true-预售商品，false-非预售商品
-				IsRefundable:                detail.SevenDays == "1",                             //是否7天无理由退换货，true-支持，false-不支持
-				ShipmentLimitSecond:         shipmentLimitSecond,                                 //承诺发货时间（秒）
-				CostTemplateId:              int64(detail.TemplateId),                            //物流运费模板 ID
-				SpecName:                    spec.SpecTypeName,                                   //规格名称
-				SpecId:                      specTypeID,                                          //规格 ID
-				SpecChildName:               spec.SpecName,                                       //规格子名称
-				DefStock:                    int64(detail.StockDeff),                             //默认库存
-				TwoDiscount:                 detail.TowDiscount,                                  //2折
-				IsSecondHand:                detail.IsSecondHand == "1",                          //是否二手 1 -二手商品 ，0-全新商品
+				ID:                          detail.ID,                                              //店铺详情 ID
+				ShopAliasName:               shop.ShopName,                                          //店铺别名
+				ShopName:                    shop.ShopName,                                          //店铺名称
+				Token:                       token,                                                  //店铺 token【如果是咸鱼店铺，此token则是应用密钥】
+				GoodsNamePrefix:             detail.TitlePrefix,                                     //商品名称前缀
+				GoodsNameSuffix:             detail.TitleSuffix,                                     //商品名称后缀
+				TitleConsistOf:              detail.TitleConsistOf,                                  //商品名称组成
+				SpaceCharacter:              detail.SpaceCharacter,                                  //间隔字符  0无间隔 1空格
+				WatermarkImgUrl:             detail.WatermarkImgUrl,                                 //水印图片
+				WatermarkPosition:           detail.WatermarkPosition,                               //水印位置 0全部  1第一张
+				CarouseLastImgUrlArray:      tool.FilterStrings(detail.CarouseLastImgUrlArray),      //轮播图最后图片[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
+				GoodsDetailFirstImgUrlArray: tool.FilterStrings(detail.GoodsDetailFirstImgUrlArray), //商品详情首图URL数组[]string（tool.FilterStrings 函数为去掉数组中的空、图片不合法字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
+				GoodsDetailLastImgUrlArray:  tool.FilterStrings(detail.GoodsDetailLastImgUrlArray),  //商品详情最后图片URL数组（tool.FilterStrings 函数为去掉数组中的空、图片不合法等字符串，因为原始数据中可能会出现空字符串导致商品发布报图片信息错误）
+				IsFolt:                      detail.Fake == "1",                                     //是否支持假一赔十，false-不支持，true-支持
+				IsPreSale:                   detail.Presale == "1" || detail.Presale == "2",         //是否预售,true-预售商品，false-非预售商品
+				IsRefundable:                detail.SevenDays == "1",                                //是否7天无理由退换货，true-支持，false-不支持
+				ShipmentLimitSecond:         shipmentLimitSecond,                                    //承诺发货时间（秒）
+				CostTemplateId:              int64(detail.TemplateId),                               //物流运费模板 ID
+				SpecName:                    spec.SpecTypeName,                                      //规格名称
+				SpecId:                      specTypeID,                                             //规格 ID
+				SpecChildName:               spec.SpecName,                                          //规格子名称
+				DefStock:                    int64(detail.StockDeff),                                //默认库存
+				TwoDiscount:                 detail.TowDiscount,                                     //2折
+				IsSecondHand:                detail.IsSecondHand == "1",                             //是否二手 1 -二手商品 ，0-全新商品
 				DistrictMsg: _type.DistrictMsg{
 					DistrictId:   districtId,
 					DistrictType: districtType,
@@ -937,12 +934,12 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 			TaskOverAt:       0,                       //任务完成时间
 			LastIndex:        0,                       //最后索引
 			ImgType:          imgType,                 //图片类型 0=无图片 1=轮播图 2=商品详情首图 3=商品详情最后图片
-			Pool: _type.PoolConfig{
-				Size:                 1,
-				WithExpiryDuration:   10,
-				WithPreAlloc:         true,
-				WithMaxBlockingTasks: 2000,
-				WithNonblocking:      true,
+			Pool: _type.PoolConfig{ //协程池配置
+				Size:                 500,  //协程数量
+				WithExpiryDuration:   10,   //过期时间
+				WithPreAlloc:         true, //预分配
+				WithMaxBlockingTasks: 2000, //阻塞任务数
+				WithNonblocking:      true, //非阻塞
 			},
 		},
 		BodyOver: _type.TaskBody{},
@@ -967,7 +964,7 @@ func UpdateTaskCount(bodyData []string, taskId string) {
 	// 1. 先执行AddTask，统一判断是否需要后续操作
 	count := AddTask(taskId, bodyData)
 	if count <= 0 {
-		fmt.Println("找到的书品为0，所以不提交到redis")
+		fmt.Printf("找到的书品为0，所以不提交到redis %v", bodyData)
 		return
 	}
 	// 执行 B方法程序
@@ -1000,20 +997,25 @@ func AddTask(taskId string, bodyData []string) int {
 		// 清理JSON字符串（去除可能的空格和换行）
 		jsonStr := strings.TrimSpace(v)
 		if err := json.Unmarshal([]byte(jsonStr), &taskBody); err != nil {
-			fmt.Printf("解析失败: %v\n", err)
+			fmt.Printf("解析失败: %v %v\n", err, jsonStr)
 			continue
 		}
-		// 连接DB[b] 获取书品信息
-		bookInfo, GetTaskBookErr := service.GetTaskBook(taskBody.BookInfo.Isbn)
-		if GetTaskBookErr != nil {
-			if errors.Is(GetTaskBookErr, _redis.Nil) {
-				setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
-				if setNoBookCountErr != nil {
-					fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+		var bookInfo _type.BookInfo
+		var GetTaskBookErr error
+		//只有不是获取店铺商品时才去查询书籍信息
+		if header.TaskType != 3 {
+			// 连接DB[b] 获取书品信息
+			bookInfo, GetTaskBookErr = service.GetTaskBook(taskBody.BookInfo.Isbn)
+			if GetTaskBookErr != nil {
+				if errors.Is(GetTaskBookErr, _redis.Nil) {
+					setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
+					if setNoBookCountErr != nil {
+						fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+					}
 				}
+				fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
+				continue
 			}
-			fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
-			continue
 		}
 		var catId string
 		pinDuoDuoCatIdArr := tool.StringToArray(bookInfo.CatIdObject.PinDuoDuoCatId.String())

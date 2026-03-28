@@ -47,14 +47,26 @@ func Logic() {
 			continue
 		}
 
-		// 如果连续读出 redisNil 的次数大于10
-		if atomic.LoadInt64(&golabl.Logic.RedisNilCon) > 10 {
+		// 如果连续读出 redisNil 的次数大于100
+		if atomic.LoadInt64(&golabl.Logic.RedisNilCon) > 100 {
 			//Goto = true
 
 			// 等待所有任务完成 暂停 5 秒
 			golabl.Pool.Wg.Wait()
-			fmt.Println("等待当前所有协程完成后 暂停五秒！")
+			fmt.Println("等待当前所有协程完成后 暂停5秒，如果等待的任务真的是0的话，则通知A完成任务！")
 			time.Sleep(5 * time.Second)
+
+			//获取任务真实的 wait数量
+			count, getTaskBodyWaitCountErr := service.GetTaskBodyWaitCount()
+			if getTaskBodyWaitCountErr != nil {
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务任务真实的 wait数量失败-原因来自:%v", getTaskBodyWaitCountErr))
+				return
+			}
+			// 如果数量真的是0，则完成任务
+			if count == 0 {
+				break
+			}
+
 			atomic.StoreInt64(&golabl.Logic.RedisNilCon, 0)
 		}
 
@@ -115,7 +127,6 @@ func taskExecute() {
 		//redis 读nil空+1
 		fmt.Printf("第 %v 次读出 Redis Nil", atomic.LoadInt64(&golabl.Logic.RedisNilCon))
 		atomic.AddInt64(&golabl.Logic.RedisNilCon, 1)
-
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
 		return
 	} else if taskMsgErr != nil {
@@ -123,58 +134,41 @@ func taskExecute() {
 		return
 	}
 
-	// TODO 换到里层 价格不能小于0
-	if taskMsg.Detail.Price <= 0 {
-		status = golabl.BodyStatusError
-		errorStr = "价格不能小于0"
-	}
-
-	//获取出版社信息并解析
-	if status != golabl.BodyStatusError {
-		if getPublishingErr := service.GetPublishingVid(&taskMsg); getPublishingErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取出版社信息失败-原因来自:%v", getPublishingErr))
-			return
-		}
-	}
-
-	//违规词处理
-	if status != golabl.BodyStatusError {
-		if golabl.Config.Server.Filter == 1 {
-			//开启违规词处理
-			filterWord(&taskMsg, &status, &errorStr)
-		}
-	}
 	// 任务调度
-	if status != golabl.BodyStatusError {
-		bodyOverJson, err := dispatcher.Go(taskMsg)
-		if err != nil {
-			//任务调度失败
-			status = golabl.BodyStatusError
-			errorStr = fmt.Sprintf("任务调度失败-原因来自:%v", err)
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务调度失败-原因来自:%v", err))
-		} else {
-			//任务调度成功
-			var bodyOver planAType.TaskBody
-			unmarshalErr := json.Unmarshal([]byte(bodyOverJson), &bodyOver)
-			if unmarshalErr != nil {
-				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("bodyOver json.Unmarshal错误-原因:%v", unmarshalErr))
-			}
-			//更新 taskMsg
-			taskMsg = bodyOver
+	bodyOverJson, err := dispatcher.Go(taskMsg)
+	if err != nil {
+		//任务调度失败
+		status = golabl.BodyStatusError
+		errorStr = fmt.Sprintf("任务调度失败-原因来自:%v", err)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务调度失败-原因来自:%v", err))
+	} else {
+		//任务调度成功
+		var bodyOver planAType.TaskBody
+		unmarshalErr := json.Unmarshal([]byte(bodyOverJson), &bodyOver)
+		if unmarshalErr != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("bodyOver json.Unmarshal错误-原因:%v", unmarshalErr))
 		}
+		//更新 taskMsg
+		taskMsg = bodyOver
 	}
+
 	// 更新任务信息
 	taskMsg.Detail.Status = status
 	taskMsg.Detail.Error = errorStr
 
-	// 添加任务到bodyOver、bodyData、bodyBackup
-	if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg); addTaskToBodyOverErr != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))
+	//isbn 不为空的添加到body中，比如拉取店铺信息isbn可以返回空的
+	if taskMsg.BookInfo.Isbn != "" {
+		// 添加任务到bodyOver、bodyData、bodyBackup
+		if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg); addTaskToBodyOverErr != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))
+		}
 	}
+
 	// 更新 footer信息
 	if updateTaskFooterErr := service.UpdateTaskFooter(status); updateTaskFooterErr != nil {
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", updateTaskFooterErr))
 	}
+
 	// 如果错误是 店铺商品发布达到上限则暂停程序
 	if strings.Contains(errorStr, "店铺内发布商品总数已达到上限") {
 		golabl.Task.Header.LastIndex = golabl.LastIndexGoodsMaxRestriction
@@ -188,42 +182,6 @@ func taskExecute() {
 
 	fmt.Println(errorStr)
 
-}
-
-// 违规词处理
-// @param taskMsg 任务信息
-// @param status 状态
-// @param errorStr 错误信息
-func filterWord(taskMsg *planAType.TaskBody, status *int64, errorStr *string) {
-	substitution, httpBannedWordSubstitutionErr := tool.HttpFilterWord(taskMsg.BookInfo.Isbn, taskMsg.BookInfo.BookName, taskMsg.BookInfo.Author, taskMsg.BookInfo.Publishing)
-	if httpBannedWordSubstitutionErr != nil {
-		errorStr = tool.ToPtr(fmt.Sprintf("HttpFilterWord 违禁词处理失败-原因来自:%v", httpBannedWordSubstitutionErr))
-		status = tool.ToPtr(golabl.BodyStatusError)
-	}
-	if golabl.Config.Server.ReplaceMark == "0" && len(substitution.Data) > 0 {
-		golabl.Logic.ReplaceMarkCon++
-		errMsg := "违规词命中 "
-		for _, v := range substitution.Data {
-			errMsg = errMsg + " " + v.AddTxt + "(" + v.MatchType + ") "
-		}
-		if golabl.Logic.ReplaceMarkCon > 10 {
-			golabl.Logic.LastIndex = 10003
-			//暂停 B程序运行
-			pauseTaskErr := tool.PauseTask()
-			if pauseTaskErr != nil {
-				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("十次 违规词命中 暂停B程序 运行失败-原因来自:%v", pauseTaskErr))
-			}
-			golabl.Logic.ReplaceMarkCon = 0
-		}
-	}
-	if golabl.Logic.ReplaceMarkCon == 1 {
-		//替换违禁词
-		taskMsg.BookInfo.BookName = substitution.BookName
-		taskMsg.BookInfo.Author = substitution.Author
-		taskMsg.BookInfo.Publishing = substitution.Publisher
-		taskMsg.BookInfo.Isbn = substitution.Isbn
-	}
-	golabl.Logic.ReplaceMarkCon = 0
 }
 
 // 更新头部信息

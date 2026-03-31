@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"planA/planB/initialization/config"
 	"planA/planB/initialization/golabl"
+	"planA/planB/initialization/minIo"
 	"planA/planB/initialization/platform"
 	"planA/planB/initialization/pool"
 	"planA/planB/initialization/redis"
@@ -64,10 +65,10 @@ func Init(taskId string) error {
 		return fmt.Errorf("初始化任务类型失败: %v", taskTypeErr)
 	}
 
-	////  初始化图片空间
-	//if newMinIOClientErr := minIo.NewMinIOClient(); newMinIOClientErr != nil {
-	//	return fmt.Errorf("初始化图片空间失败: %v", newMinIOClientErr)
-	//}
+	// 初始化图片空间
+	if newMinIOClientErr := minIo.NewMinIOClient(); newMinIOClientErr != nil {
+		return fmt.Errorf("初始化图片空间失败: %v", newMinIOClientErr)
+	}
 
 	//设置窗口标题
 	title.SetWinTitle()

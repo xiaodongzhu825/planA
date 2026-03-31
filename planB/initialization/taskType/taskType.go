@@ -2,6 +2,7 @@ package taskType
 
 import (
 	"errors"
+	"fmt"
 	"planA/planB/initialization/golabl"
 )
 
@@ -18,7 +19,11 @@ func GetTaskTypeSetToG() error {
 	case 3: //获取商品
 		golabl.TaskType = golabl.TaskTypeGetGoodsTask
 		return nil
+	case 4: //获取拼多多详情商品
+		golabl.TaskType = golabl.TaskTypeGetGoodsTask
+		return nil
 	default:
+		fmt.Println(golabl.Task.Header.TaskType)
 		return errors.New("错误！")
 	}
 }

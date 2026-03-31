@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-
 	//校验参数
 	taskId, validationErr := validation.Validation()
 	if validationErr != nil {
@@ -33,8 +32,8 @@ func main() {
 		return
 	}
 
-	// 拉取商品列表
-	if golabl.Task.Header.TaskType == 3 {
+	// 拉取商品列表与拼多多商品详情列表
+	if golabl.Task.Header.TaskType == 3 || (golabl.Task.Header.TaskType == 4 && golabl.Task.Header.ShopType == "1") {
 		golabl.Platform.GetGoodsTask()
 		// 通知 A程序任务完成
 		httpTaskStatusOverErr := tool.NotifyA()
@@ -55,7 +54,6 @@ func main() {
 		// 执行任务
 		logic.Logic()
 	}
-
 }
 
 // 测试模式

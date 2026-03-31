@@ -15,11 +15,6 @@ import (
 	"unsafe"
 )
 
-// ToPtr 使用泛型将任何类型的值转换为指针
-func ToPtr[T any](v T) *T {
-	return &v
-}
-
 // BuildPrice 价格处理
 // @param priceMods 价格处理列表
 // @param price 价格
@@ -333,4 +328,34 @@ func SetConsoleTitle(title string) {
 	// 将字符串转换为UTF-16指针
 	titlePtr, _ := syscall.UTF16PtrFromString(title)
 	procSetConsoleTitle.Call(uintptr(unsafe.Pointer(titlePtr)))
+}
+
+// GetPlatformName 获取平台名称
+func GetPlatformName() string {
+	title := ""
+	switch golabl.Task.Header.ShopType {
+	//case 2:
+	//	return kongFuZi.NewKongfuzi(), nil
+	case "1":
+		title = title + "拼多多"
+	case "5":
+		title = title + "闲鱼"
+	default:
+		title = title + "其他平台 " + golabl.Task.Header.ShopType
+	}
+	return title
+}
+
+// GetTaskType 获取店铺类型
+func GetTaskType() string {
+	switch golabl.Task.Header.TaskType {
+	case 1: //核价发布
+		return "核价发布"
+	case 2: //表格发布
+		return "表格发布"
+	case 3: //获取商品
+		return "获取商品"
+	default:
+		return "错误！"
+	}
 }

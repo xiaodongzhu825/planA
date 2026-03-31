@@ -120,7 +120,7 @@ func InitializeLogger(logDir string) error {
 	// 创建logger配置
 	config := LoggerConfig{
 		LogDir:          logDir,
-		SplitType:       1,                 // SplitByDay
+		SplitType:       2,                 // SplitByDay
 		RotateType:      0,                 // RotateBySize
 		MaxSize:         100 * 1024 * 1024, // 100MB
 		MaxCount:        10,

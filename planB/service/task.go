@@ -249,7 +249,7 @@ func IsTaskBodyWaitExist() (bool, error) {
 
 // GetTaskBodyWaitLast 获取body_wait中最后一条数据
 func GetTaskBodyWaitLast() (string, error) {
-	return golabl.Redis.RedisDbA.LIndex(golabl.Ctx, golabl.Task.TaskId+":body_wait", 1).Result()
+	return golabl.Redis.RedisDbA.LIndex(golabl.Ctx, golabl.Task.TaskId+":body_wait", 0).Result()
 }
 
 // AddTaskToBodyWait 写入到body_wait中

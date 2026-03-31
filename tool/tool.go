@@ -310,3 +310,18 @@ func StringToArray(str string) []string {
 	}
 	return result
 }
+
+// GetTaskTypeName 获取任务类型名称
+// @param taskType 任务类型
+// @return string 任务类型名称
+func GetTaskTypeName(taskType string) string {
+	switch taskType {
+	case "1":
+		return "新发布商品任务"
+	case "2":
+		return "新发布商品任务"
+	case "3":
+		return "新拉取商品任务"
+	}
+	return "未知任务类型"
+}

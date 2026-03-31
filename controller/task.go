@@ -111,7 +111,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	//}
 
 	//请求创建任务接口并获取任务 id
-	taskId, err := CreateTaskRequest(dataVal.ShopID)
+	taskId, err := CreateTaskRequest(dataVal.ShopID, dataVal.TaskType)
 	if err != nil {
 		errMsg := "请求创建任务接口失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -173,13 +173,13 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	//如果是拉取任务则直接执行 B方法程序
-	if taskType == 3 {
+	if taskType == 3 || (taskType == 4 && dataVal.ShopType == "1") {
 		// 执行 B方法程序
-		//_, runTaskWorkerErr := process.RunTaskWorker(taskId)
-		//if runTaskWorkerErr != nil {
-		//	fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
-		//	return
-		//}
+		_, runTaskWorkerErr := process.RunTaskWorker(taskId)
+		if runTaskWorkerErr != nil {
+			fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
+			return
+		}
 	}
 
 	// 返回成功响应
@@ -760,6 +760,90 @@ func GetBodyOver(httpMsg http.ResponseWriter, data *http.Request) {
 	tool.Session(httpMsg, bodyOver)
 }
 
+// GetTaskList 获取任务列表
+func GetTaskList(httpMsg http.ResponseWriter, data *http.Request) {
+
+	// 验证表单
+	dataVal, getTaskValidatorErr := validator.GetTaskValidator(data)
+	if getTaskValidatorErr != nil {
+		tool.Error(httpMsg, getTaskValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
+
+	taskTypeInt64 := int64(0)
+	var taskTypeAtoiErr error
+	if dataVal.TaskType != "" {
+		//将 taskTypeStr 转为 int
+		var temp int
+		temp, taskTypeAtoiErr = strconv.Atoi(dataVal.TaskType)
+		if taskTypeAtoiErr != nil {
+			errMsg := "任务类型转换失败"
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		taskTypeInt64 = int64(temp)
+	}
+
+	read := rep.CreateDbFactoryRead()
+	records, total, getTaskRecordsListErr := read.GetTaskRecordsList(_type.GetTaskRecordsListReq{
+		UserId:   "",
+		TaskId:   dataVal.TaskID,
+		TaskType: taskTypeInt64,
+		ShopName: dataVal.ShopName,
+		Page:     page,
+		Size:     size,
+	})
+	if getTaskRecordsListErr != nil {
+		errMsg := getTaskRecordsListErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+
+	dataTaskAll := []map[string]interface{}{}
+	for _, v := range records {
+		//查询 header 信息
+		header, getTaskHeaderErr := service.GetTaskHeader(v.TaskId)
+		if getTaskHeaderErr != nil {
+			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskHeaderErr)
+			fmt.Println(errMsg)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		//获取 footer 信息
+		footer, getTaskFooterErr := service.GetTaskFooter(v.TaskId)
+		if getTaskFooterErr != nil {
+			errMsg := fmt.Sprintf("获取footer 信息失败 %v", getTaskFooterErr)
+			fmt.Println(errMsg)
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		footerData := map[string]interface{}{
+			"task_count_true":    footer.TaskCountTrue,
+			"task_count_success": footer.TaskCountSuccess.Load(),
+			"task_count_error":   footer.TaskCountError.Load(),
+			"task_count_wait":    footer.TaskCountWait.Load(),
+			"task_count_over":    footer.TaskCountOver.Load(),
+			"task_qpm":           footer.TaskQpm,
+			"last_index":         footer.LastIndex,
+			"task_count":         footer.TaskCount,
+		}
+		dataTask := map[string]interface{}{
+			"header":    header,
+			"footer":    footerData,
+			"is_export": v.IsExport,
+		}
+		dataTaskAll = append(dataTaskAll, dataTask)
+	}
+	dataRet := map[string]interface{}{
+		"page":  page,
+		"size":  size,
+		"total": total,
+		"list":  dataTaskAll,
+	}
+	tool.Session(httpMsg, dataRet)
+}
+
 func B(httpMsg http.ResponseWriter, data *http.Request) {
 	taskID := "111"
 	_, callSendPublishingErr := process.RunTaskWorker(taskID)
@@ -859,7 +943,6 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 	//处理价格模版
 	var priceModArr []_type.PriceMod
 	for _, v := range priceRange {
-
 		adjustPercentInt64, err := parseAdjustPercent(v.AdjustPercent)
 		if err != nil {
 			return &task, fmt.Errorf("价格模版 adjustPercent 转换失败: %v", err)
@@ -1090,17 +1173,18 @@ func parseAdjustPercent(adjustPercent interface{}) (int64, error) {
 }
 
 // CreateTaskRequest 请求接口创建任务
-func CreateTaskRequest(shopId string) (string, error) {
+func CreateTaskRequest(shopId string, taskType string) (string, error) {
 
 	fileUrlConfig, getFileUrlConfigErr := config.GetFileUrlConfig()
 	if getFileUrlConfigErr != nil {
 		errMsg := "获取文件路径配置失败: " + getFileUrlConfigErr.Error()
 		return "", fmt.Errorf(errMsg)
 	}
+	taskTypeName := tool.GetTaskTypeName(taskType)
 	dataMap := map[string]string{
 		"shopId":   shopId,
 		"taskType": "NEW_ADD_TASK",
-		"fileName": "新发布商品任务",
+		"fileName": taskTypeName,
 	}
 	taskDataStr, submitFormDataErr := tool.SubmitFormData(fileUrlConfig.CreateTaskUrl, dataMap)
 	if submitFormDataErr != nil {

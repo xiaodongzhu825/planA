@@ -1,7 +1,6 @@
 package speed
 
 import (
-	"fmt"
 	"planA/planB/initialization/golabl"
 
 	"golang.org/x/time/rate"
@@ -14,11 +13,9 @@ func Init() {
 	//根据平台设置速率
 	switch golabl.Task.Header.ShopType {
 	case "1":
-		fmt.Println("拼多多")
 		speed = golabl.Config.Speed.PddSpeed
 	//case 2:
 	case "5":
-		fmt.Println("闲鱼")
 		speed = golabl.Config.Speed.XianyuSpeed
 	default:
 		speed = 18

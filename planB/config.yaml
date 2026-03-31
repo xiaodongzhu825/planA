@@ -1,21 +1,23 @@
 server:
-  port: "8284"  #服务器端口
+  port: "8080"  #服务器端口
   filter: 1 #是否开启违禁词过滤器  0=关闭 1=开启
   replace_mark: "0" #标题违规词是否替换*  0 不替换  1 替换（替换会继续发布，不替换则不发布）
   redis_exp: 192 #redis过期时间 192小时（8天）
-  read_db : "mysql" #读数据库 mysql sqlite
-  err_pause_time: 200 #错误暂停时间（毫秒）
+  read_db: "sqlite" #读数据库 mysql sqlite
+  err_pause_time: 3000 #错误暂停时间（毫秒）
 speed: #限速器
   pdd_speed: 18 #拼多多 每秒多少个任务
   xianyu_speed: 5 #闲鱼 每秒多少个任务
-minio: #图片空间
-  url: "103.236.68.64:19000" #minio 地址
-  access_key_id: "minio" #minio 用户名
-  secret_access_key: "bhkXyaD2WdAF7C6z" #minio 密码
+  watermark: 5 #打水印速率的个数
+minio: #minio 图片空间
+  url: "103.236.68.64:19000" #minio地址
+  access_key_id: "minio" #minio keyId
+  secret_access_key: "bhkXyaD2WdAF7C6z" #minio key
+  bucket_name: "my-pics" #存储桶
+  target_dir: "test/2025" #目标目录
   use_ssl: false #是否使用 SSL
-  bucket_name: "planB/xianyu" #上传图片空间的存储目录
 alive:
-  fluent: 50 #存活状态-流程时间（毫秒）
+  fluent: 50 #存活状态-流畅时间（毫秒）
   slow: 200 #存活状态-缓慢时间（毫秒）
 pool_config:
   size: 500 #协程数量
@@ -70,7 +72,7 @@ pdd_config:
   client_id: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
   client_secret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret
 http_url:
-  task_url: "http://127.0.0.1:8080"  #A程序接口地址
+  task_url: "http://127.0.0.1:8080"  #A 程序接口地址
 file_url:
   xian_yu_dll: "D:\\www\\wwwroot\\planA\\planB\\modules\\xianYu"  #闲鱼 DLL库路径
   pdd_dll: "D:\\www\\wwwroot\\planA\\planB\\modules\\pdd"  #拼多多 DLL库路径
@@ -83,3 +85,5 @@ file_url:
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deduction_url: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
+  pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsDetailList" #查询拼多多商品详情列表接口
+  pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口

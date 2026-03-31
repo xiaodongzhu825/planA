@@ -42,6 +42,7 @@ type Minio struct {
 	AccessKeyID     string `json:"access_key_id"`
 	SecretAccessKey string `json:"secret_access_key"`
 	BucketName      string `json:"bucket_name"`
+	TargetDir       string `json:"target_dir"`
 	UseSSL          bool   `json:"use_ssl"`
 }
 
@@ -124,4 +125,6 @@ type FileUrl struct {
 	PddTokenUrl               string `json:"pdd_token_url"`
 	DeductionUrl              string `json:"deduction_url"`
 	PddGetGoodsUrl            string `json:"pdd_get_goods_url"`
+	PddGetGoodsDetailUrl      string `json:"pdd_get_goods_detail_url"`
+	PddAddGoodsUrl            string `json:"pdd_add_goods_url"`
 }

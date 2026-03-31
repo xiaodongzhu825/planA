@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"planA/planB/initialization/golabl"
+	"planA/planB/tool"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -120,7 +121,7 @@ func InitializeLogger(logDir string) error {
 	// 创建logger配置
 	config := LoggerConfig{
 		LogDir:          logDir,
-		SplitType:       1,                 // SplitByDay
+		SplitType:       2,                 // SplitByDay
 		RotateType:      0,                 // RotateBySize
 		MaxSize:         100 * 1024 * 1024, // 100MB
 		MaxCount:        10,
@@ -364,7 +365,7 @@ func LoggingMiddleware(level string, str string) {
 		fmt.Println("设置日志任务类型失败:", setLogTaskTypeErr)
 		return
 	}
-
+	str = tool.SteLog(str)
 	switch {
 	case level == LOG_LEVEL_ERROR:
 		fmt.Println(str)

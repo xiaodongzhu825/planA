@@ -30,7 +30,7 @@ func SetWinTitle() {
 	case 2:
 		title = title + "【表格发布】"
 	case 3:
-		title = title + "【商品发布】"
+		title = title + "【拉取商品】"
 	default:
 		title = title + "【其他任务类型 " + fmt.Sprint(golabl.Task.Header.TaskType) + "】"
 	}

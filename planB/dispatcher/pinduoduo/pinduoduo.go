@@ -127,7 +127,6 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	if len(goodsAdd.CarouselGallery) == 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("缺少构造轮播图图片-未提交 isbn %v", taskMsg.BookInfo.Isbn))
 	}
-
 	// 构建详情图
 	goodsAdd.DetailGallery = tool.BuildDetailGallery(golabl.Task.Header.ShopMsg.GoodsDetailFirstImgUrlArray, golabl.Task.Header.ShopMsg.GoodsDetailLastImgUrlArray, taskMsg.BookInfo.ImageObject.DetailUrlObject)
 
@@ -283,7 +282,7 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 	const maxPage = 100
 	const maxRecordsPerRange = 10000 // 每个时间范围最多获取10000条
 
-	var lastCreatedAt int64 = 0
+	//var lastCreatedAt int64 = 0
 
 	// 统计变量
 	totalFetched := 0   // 总共获取到的商品数（包括重复）
@@ -296,35 +295,35 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, isTaskBodyWaitExistErr)
 	}
 	if exist {
-		// 获取最后一条数据的创建时间
-		lastBodyWaitDataJson, getLastGoodsCreateTimeErr := service.GetTaskBodyWaitLast()
-		if getLastGoodsCreateTimeErr != nil {
-			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, getLastGoodsCreateTimeErr)
-		}
-		// 解析 lastBodyWaitData 到结构体
-		var lastBodyWaitData planAType.TaskBody
-		unmarshalErr := json.Unmarshal([]byte(lastBodyWaitDataJson), &lastBodyWaitData)
-		if unmarshalErr != nil {
-			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, unmarshalErr)
-		}
-		//将数据的创建时间给到 lastCreatedAt
-		lastCreatedAt = lastBodyWaitData.BookInfo.Price
-		//第二阶段 获取商品
-		phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
-		if phaseTwoGoodsErr != nil {
-			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
-		}
+		//// 获取最后一条数据的创建时间
+		//lastBodyWaitDataJson, getLastGoodsCreateTimeErr := service.GetTaskBodyWaitLast()
+		//if getLastGoodsCreateTimeErr != nil {
+		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, getLastGoodsCreateTimeErr)
+		//}
+		//// 解析 lastBodyWaitData 到结构体
+		//var lastBodyWaitData planAType.TaskBody
+		//unmarshalErr := json.Unmarshal([]byte(lastBodyWaitDataJson), &lastBodyWaitData)
+		//if unmarshalErr != nil {
+		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, unmarshalErr)
+		//}
+		////将数据的创建时间给到 lastCreatedAt
+		//lastCreatedAt = lastBodyWaitData.BookInfo.Price
+		////第二阶段 获取商品
+		//phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
+		//if phaseTwoGoodsErr != nil {
+		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
+		//}
 	} else {
-		//第一阶段 拉取任务数据
-		firstTimeGoodsErr := phaseOneGoods(pageSize, maxPage, &totalFetched, &lastCreatedAt)
-		if firstTimeGoodsErr != nil {
-			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, firstTimeGoodsErr)
-		}
-		//第二阶段 获取商品
-		phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
-		if phaseTwoGoodsErr != nil {
-			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
-		}
+		////第一阶段 拉取任务数据
+		//firstTimeGoodsErr := phaseOneGoods(pageSize, maxPage, &totalFetched, &lastCreatedAt)
+		//if firstTimeGoodsErr != nil {
+		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, firstTimeGoodsErr)
+		//}
+		////第二阶段 获取商品
+		//phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
+		//if phaseTwoGoodsErr != nil {
+		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
+		//}
 	}
 
 	//去重复与保存
@@ -396,6 +395,7 @@ func buildGoodsPropertiesList(isbn, bookName string, pageCount, price int64, pub
 	if pageCount == 0 {
 		pageCount = 200
 	}
+
 	goodsPropertiesPageNum := planBTypePinduoduo.GoodsProperties{
 		RefPid:    692,
 		Value:     strconv.FormatInt(pageCount, 10),
@@ -589,7 +589,7 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 			"pageSize":    strconv.Itoa(pageSize),
 		}
 
-		goodsList, getGoodsListErr := tool.GetGoodsList(params)
+		goodsList, getGoodsListErr := tool.GetPddGoodsList(params)
 		if getGoodsListErr != nil {
 			return fmt.Errorf("获取商品列表失败，页码: %d, 错误: %v", page, getGoodsListErr)
 		}
@@ -642,6 +642,7 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 		// 记录最后一页的最后一条数据的创建时间
 		if page == maxPage && len(goodsList.GoodsList) > 0 {
 			*lastCreatedAt = goodsList.GoodsList[len(goodsList.GoodsList)-1].CreatedAt
+			fmt.Printf("最后一页，最后一条数据的创建时间: %v", *lastCreatedAt)
 		}
 
 		// 如果没有更多数据，提前退出
@@ -664,12 +665,12 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 // @return error 错误信息
 func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRecordsPerRange int) error {
 	// 第二阶段：使用时间范围分批次获取数据，每批最多获取10000条
-	// 设置结束时间为当前时间+24小时
-	endTime := time.Now().Add(24 * time.Hour).Unix()
+	// 设置结束时间为开始时间+30天
+	endTime := *lastCreatedAt + 30*24*60*60
 	fmt.Printf("第二阶段开始，结束时间设置为: %d (%s)\n", endTime, time.Unix(endTime, 0).Format("2006-01-02 15:04:05"))
 
 	if *lastCreatedAt > 0 {
-		currentCreatedAtFrom := lastCreatedAt
+		currentCreatedAtFrom := *lastCreatedAt
 		maxLoopCount := 100 // 最大循环次数保护
 		loopCount := 0
 		var lastPageGoodsList []planBTypePinduoduo.GoodsItem // 记录上一页的商品列表
@@ -677,21 +678,20 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 		for loopCount < maxLoopCount {
 			loopCount++
 
-			// 每次循环都重新设置结束时间为当前时间+24小时
-			currentCreatedAtEnd := time.Now().Add(24 * time.Hour).Unix()
-
-			// 检查起始时间是否已超过结束时间
-			if *currentCreatedAtFrom >= currentCreatedAtEnd {
-				fmt.Printf("起始时间 %d 已大于等于结束时间 %d，停止获取\n", currentCreatedAtFrom, currentCreatedAtEnd)
+			// 检查开始时间是否已超过当前时间
+			if currentCreatedAtFrom > time.Now().Unix() {
+				fmt.Printf("开始时间 %d 已超过当前时间，停止获取\n", currentCreatedAtFrom)
 				break
 			}
+
+			// 每次循环都重新设置结束时间为开始时间+30天
+			currentCreatedAtEnd := currentCreatedAtFrom + 30*24*60*60
 
 			fmt.Printf("开始获取时间范围: %d 到 %d\n", currentCreatedAtFrom, currentCreatedAtEnd)
 
 			currentPage := 1
 			batchGoodsCount := 0
 			lastItemCreatedAt := int64(0)
-			lastItemGoodsId := int64(0) // 记录最后一条商品的 GoodsId
 			hasDataInRange := false
 			lastPageGoodsList = nil // 重置上一页商品列表
 
@@ -701,11 +701,11 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 					"accessToken":   golabl.Task.Header.ShopMsg.Token,
 					"page":          strconv.Itoa(currentPage),
 					"pageSize":      strconv.Itoa(pageSize),
-					"createdAtFrom": strconv.FormatInt(*currentCreatedAtFrom, 10),
+					"createdAtFrom": strconv.FormatInt(currentCreatedAtFrom, 10),
 					"createdAtEnd":  strconv.FormatInt(currentCreatedAtEnd, 10),
 				}
 
-				goodsList, getGoodsListErr := tool.GetGoodsList(params)
+				goodsList, getGoodsListErr := tool.GetPddGoodsList(params)
 				if getGoodsListErr != nil {
 					return fmt.Errorf("获取商品列表失败（时间范围），页码: %d, 错误: %v", currentPage, getGoodsListErr)
 				}
@@ -714,7 +714,9 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 				if len(goodsList.GoodsList) == 0 {
 					// 如果当前页是第一页且没有数据
 					if currentPage == 1 {
-						fmt.Printf("时间范围 %d - %d 内无数据\n", currentCreatedAtFrom, currentCreatedAtEnd)
+						// 整个时间范围都没有数据，直接推进到结束时间
+						currentCreatedAtFrom = currentCreatedAtEnd
+						fmt.Printf("时间范围 %d - %d 内无数据，推进开始时间到: %d\n", currentCreatedAtFrom-30*24*60*60, currentCreatedAtEnd, currentCreatedAtFrom)
 						break
 					}
 
@@ -726,23 +728,20 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 						lastGoodsId := lastItemOfLastPage.GoodsId
 
 						// 使用基于 GoodsId的定位策略
-						if newStartTime > *currentCreatedAtFrom {
-							*currentCreatedAtFrom = newStartTime
-							// 记录这个开始时间对应的最后一个GoodsId，用于下一轮去重
+						if newStartTime > currentCreatedAtFrom {
+							currentCreatedAtFrom = newStartTime
 							fmt.Printf("当前页无数据，使用上一页最后一条商品时间作为新开始时间: %d, 最后商品ID: %d\n", currentCreatedAtFrom, lastGoodsId)
 						} else {
-							// 如果时间相同，需要基于GoodsId来推进
-							fmt.Printf("当前页无数据，但时间相同，需要基于GoodsId推进\n")
-							// 设置一个标志，表示下一轮需要基于GoodsId定位
-							// 这里不直接修改currentCreatedAtFrom，而是在下一轮开始时通过查询来定位
+							// 如果时间相同，需要基于GoodsId来推进，这里简单地将时间加1秒
+							currentCreatedAtFrom = newStartTime + 1
+							fmt.Printf("当前页无数据，时间相同，将时间加1秒推进: %d\n", currentCreatedAtFrom)
 						}
 					} else {
 						// 理论上不会走到这里，但为了安全，将开始时间推进到结束时间
-						*currentCreatedAtFrom = currentCreatedAtEnd
+						currentCreatedAtFrom = currentCreatedAtEnd
 						fmt.Printf("当前页无数据且无上一页数据，将开始时间推进到结束时间: %d\n", currentCreatedAtFrom)
 					}
 
-					// 标记无数据，跳出当前时间范围的循环
 					hasDataInRange = false
 					break
 				}
@@ -754,13 +753,13 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 				// 收集商品数据并统计
 				for _, goods := range goodsList.GoodsList {
 					*totalFetched++
-					//写入到数据库中
-					//将goods转为json
+					// 写入到数据库中
+					// 将goods转为json
 					jsonData, jsonMarshalErr := json.Marshal(goods)
 					if jsonMarshalErr != nil {
 						return fmt.Errorf("将商品转为json失败: %v\n", jsonMarshalErr)
 					}
-					//写入到数据库中
+					// 写入到数据库中
 					if len(goods.SkuList) <= 0 {
 						return fmt.Errorf("商品sku列表为空 goodsId %v", goods.GoodsId)
 					}
@@ -797,29 +796,26 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 
 				batchGoodsCount += len(goodsList.GoodsList)
 
-				// 记录最后一条商品的创建时间和 GoodsId
-				lastItemCreatedAt = goodsList.GoodsList[len(goodsList.GoodsList)-1].CreatedAt
-				lastItemGoodsId = goodsList.GoodsList[len(goodsList.GoodsList)-1].GoodsId
+				// 记录最后一条商品的创建时间
+				lastItem := goodsList.GoodsList[len(goodsList.GoodsList)-1]
+				lastItemCreatedAt = lastItem.CreatedAt
 
-				fmt.Printf("第二阶段 - 当前时间范围已获取: %d 条，累计总数: %d，当前页码: %d\n",
-					batchGoodsCount, *totalFetched, currentPage)
+				fmt.Printf("第二阶段 - 当前时间范围已获取: %d 条，累计总数: %d，当前页码: %d，最后商品时间: %d\n",
+					batchGoodsCount, *totalFetched, currentPage, lastItemCreatedAt)
 
 				// 判断是否需要结束当前时间范围
 				// 1. 如果当前批次已经达到或超过 maxRecordsPerRange
 				// 2. 或者返回的数据少于 pageSize（说明没有下一页了）
 				if batchGoodsCount >= maxRecordsPerRange || len(goodsList.GoodsList) < pageSize {
-					fmt.Printf("当前时间范围已获取 %d 条数据，准备进入下一时间范围\n", batchGoodsCount)
-
-					// 如果是因为数据量达到上限而结束，更新开始位置
-					if batchGoodsCount >= maxRecordsPerRange && lastItemCreatedAt > 0 {
-						if lastItemCreatedAt > *currentCreatedAtFrom {
-							*currentCreatedAtFrom = lastItemCreatedAt
-							fmt.Printf("达到批次上限，更新开始时间为: %d, 最后商品ID: %d\n", currentCreatedAtFrom, lastItemGoodsId)
-						} else {
-							// 时间相同，需要通过查询来定位下一个商品
-							fmt.Printf("达到批次上限但时间相同，需要通过查询定位下一个商品\n")
-						}
+					// 关键修复：使用最后一条商品的时间作为新的开始时间
+					// 如果最后一条商品时间等于当前开始时间，则加1秒避免死循环
+					if lastItemCreatedAt == currentCreatedAtFrom {
+						currentCreatedAtFrom = lastItemCreatedAt + 1
+						fmt.Printf("最后商品时间与开始时间相同，推进1秒: %d -> %d\n", lastItemCreatedAt, currentCreatedAtFrom)
+					} else {
+						currentCreatedAtFrom = lastItemCreatedAt
 					}
+					fmt.Printf("当前时间范围已获取 %d 条数据，准备进入下一时间范围 更新开始时间为: %d \n", batchGoodsCount, currentCreatedAtFrom)
 					break
 				}
 
@@ -832,9 +828,9 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 			// 判断是否需要继续循环
 			// 情况1：当前时间范围内没有获取到任何数据
 			if !hasDataInRange {
-				// 如果起始时间已经 >= 结束时间，退出循环
-				if *currentCreatedAtFrom >= currentCreatedAtEnd {
-					fmt.Printf("起始时间 %d 已大于等于结束时间 %d，且无数据，停止获取\n", currentCreatedAtFrom, currentCreatedAtEnd)
+				// 检查新的开始时间是否已超过当前时间
+				if currentCreatedAtFrom > time.Now().Unix() {
+					fmt.Printf("开始时间 %d 已超过当前时间，停止获取\n", currentCreatedAtFrom)
 					break
 				}
 				// 否则继续下一轮循环
@@ -842,9 +838,9 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 				continue
 			}
 
-			// 情况2：当前批次获取的数据少于 maxRecordsPerRange，说明已经没有更多数据了
-			if batchGoodsCount < maxRecordsPerRange {
-				fmt.Printf("当前批次获取 %d 条数据，少于 %d，已完成所有数据获取\n", batchGoodsCount, maxRecordsPerRange)
+			// 情况2：当前批次获取的数据少于 maxRecordsPerRange 并且开始时间大于当前时间，说明已经没有更多数据了
+			if batchGoodsCount < maxRecordsPerRange && currentCreatedAtFrom > time.Now().Unix() {
+				fmt.Printf("当前批次获取 %d 条数据，少于 %d，且开始时间已超过当前时间，已完成所有数据获取\n", batchGoodsCount, maxRecordsPerRange)
 				break
 			}
 
@@ -867,6 +863,7 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int, totalFetched *int) error {
 	page := 1
 	pageSize := 1000
+	var dataList []planBTypePinduoduo.GoodsItem
 	// 在循环外维护一个已处理的商品 ID集合
 	processedGoodsIds := make(map[int64]bool)
 	//在循环前删除 body_over与body_backup，避免重复写入
@@ -878,6 +875,13 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int, totalFetched *
 	if deleteTaskBodyBackupErr != nil {
 		return deleteTaskBodyBackupErr
 	}
+	num := 0
+	//获取body_wait总数量
+	bodyWaitCount, getTaskBodyWaitCountErr := service.GetTaskBodyWaitCount()
+	if getTaskBodyWaitCountErr != nil {
+		return getTaskBodyWaitCountErr
+	}
+	pageTotal := (bodyWaitCount + int64(pageSize) - 1) / int64(pageSize)
 	for {
 		list, getTaskBodyOverListErr := service.GetTaskBodyWaitList(page, pageSize)
 		if getTaskBodyOverListErr != nil {
@@ -900,6 +904,14 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int, totalFetched *
 				processedGoodsIds[goods.Detail.GoodsId] = true
 				//不重复数据 计次
 				*uniqueCount++
+				// goods.Detail.Error(原始json到结构体)
+				var GoodsItem planBTypePinduoduo.GoodsItem
+				jsonUnmarshalErr = json.Unmarshal([]byte(goods.Detail.Error), &GoodsItem)
+				if jsonUnmarshalErr != nil {
+					return fmt.Errorf("将json转为结构体失败: %v\n", jsonUnmarshalErr)
+				}
+				//记录到data数组中，之后推送到写入店铺商品数据接口
+				dataList = append(dataList, GoodsItem)
 				//写入到body_over
 				addTaskToBodyOverErr := service.AddTaskToBodyOver(goods, []string{"body_over", "body_backup"})
 				if addTaskToBodyOverErr != nil {
@@ -910,12 +922,28 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int, totalFetched *
 				*duplicateCount++
 			}
 		}
+		start := time.Now()
+		fmt.Println("开始请求111")
+		// 将获取的数据推送写入店铺商品数据接口
+		_, writePddGoodsDataErr := tool.WritePddGoodsData(dataList, page, pageTotal)
+		if writePddGoodsDataErr != nil {
+			return writePddGoodsDataErr
+		}
+		elapsed := time.Since(start)
+		fmt.Println("请求结束111")
+		num = num + len(dataList)
+		fmt.Printf("当前页 %v 总页数 %v 当前数据量 %v 总数据量 %v", page, pageTotal, len(dataList), num)
+		fmt.Printf("执行耗时: %v\n", elapsed)
 		page++
+		//清空 dataStr
+		dataList = []planBTypePinduoduo.GoodsItem{}
+		// 暂停1秒
+		time.Sleep(10 * time.Second)
 	}
 	// 删除body_wait
-	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
-	if deleteTaskBodyWaitErr != nil {
-		return deleteTaskBodyWaitErr
-	}
+	//deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
+	//if deleteTaskBodyWaitErr != nil {
+	//	return deleteTaskBodyWaitErr
+	//}
 	return nil
 }

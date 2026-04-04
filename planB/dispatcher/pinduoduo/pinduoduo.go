@@ -592,14 +592,10 @@ func addGoods(pddDll *pdd.PddDLL, logUuid string, goodsInfo planBTypePinduoduo.G
 ════════════════════════════════════════════════════════════════
 【拼多多商品添加请求】
 请求ID: %s
-店铺ID：%v
-店铺名称：%v
 时间: %s
 参数: %s
 ════════════════════════════════════════════════════════════════`,
 			logUuid,
-			golabl.Task.TaskId,
-			golabl.Task.Header.ShopName,
 			time.Now().Format("2006-01-02 15:04:05.000"),
 			string(goodsInfoStr))
 

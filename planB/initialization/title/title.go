@@ -23,6 +23,9 @@ func SetWinTitle() {
 		title = title + "【其他平台 " + golabl.Task.Header.ShopType + "】"
 	}
 
+	//店铺名称
+	title = title + "【" + golabl.Task.Header.ShopName + "】"
+
 	//任务类型
 	switch golabl.Task.Header.TaskType {
 	case 1:
@@ -31,6 +34,8 @@ func SetWinTitle() {
 		title = title + "【表格发布】"
 	case 3:
 		title = title + "【拉取商品】"
+	case 4:
+		title = title + "【拉取商品详情】"
 	default:
 		title = title + "【其他任务类型 " + fmt.Sprint(golabl.Task.Header.TaskType) + "】"
 	}
@@ -53,9 +58,6 @@ func SetWinTitle() {
 	createTime := time.Unix(golabl.Task.Header.TaskCreateAt, 0)
 	timeStr := createTime.Format("2006-01-02 15:04:05")
 	title = title + "【创建时间 " + timeStr + "】"
-
-	//店铺名称
-	title = title + "【" + golabl.Task.Header.ShopName + "】"
 
 	//任务 id
 	title = title + golabl.Task.Header.TaskId

@@ -1,8 +1,14 @@
 package tool
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
 	"planA/planB/initialization/golabl"
 	"planA/planB/modules/image"
 	"planA/planB/modules/pdd"
@@ -159,17 +165,20 @@ func BuildCarouselGalleryOld(carouseLastImgUrlArray []string, carouselUrlArray [
 // @param goodsDetailFirstImgUrlArray 商详头图
 // @param goodsDetailLastImgUrlArray 商详尾图
 // @param detailUrlObject 商详图片
+// @param mainImage 主图
 // @return []string 详情图组
-func BuildDetailGallery(goodsDetailFirstImgUrlArray []string, goodsDetailLastImgUrlArray []string, detailUrlObject planAType.DetailImageObject) []string {
+func BuildDetailGallery(goodsDetailFirstImgUrlArray []string, goodsDetailLastImgUrlArray []string, detailUrlObject planAType.DetailImageObject, mainImage string) []string {
 	// 合并数组 简介图+目录图
 	imgArr := append(detailUrlObject.IntroductionUrl, detailUrlObject.CatalogueUrl...)
 	// 合并数组 简介图+目录图+实拍图
-	imgArr = append(imgArr, detailUrlObject.LiveShootingUrl...)
-	// 合并数组 简介图+目录图+实拍图+其他图
+	//imgArr = append(imgArr, detailUrlObject.LiveShootingUrl...)
+	// 合并数组 简介图+目录图+实拍图+主图
+	imgArr = append(imgArr, mainImage)
+	// 合并数组 简介图+目录图+实拍图+主图+其他图
 	imgArr = append(imgArr, detailUrlObject.OtherUrl...)
-	// 合并数组 商详头图+简介图+目录图+实拍图+其他图
+	// 合并数组 商详头图+简介图+目录图+实拍图+主图+其他图
 	imgArr = append(goodsDetailFirstImgUrlArray, imgArr...)
-	// 合并数组 商详头图+简介图+目录图+实拍图+其他图+商详尾图
+	// 合并数组 商详头图+简介图+目录图+实拍图+主图+其他图+商详尾图
 	imgArr = append(imgArr, goodsDetailLastImgUrlArray...)
 	return imgArr
 }
@@ -249,7 +258,7 @@ func FilterWord(taskMsg *planAType.TaskBody) error {
 
 // AddWatermarkFromURLExs 打水印
 // @param imageDll 图片处理DLL
-// @param carouselUrlArray 轮播图组
+// @param imgUrl 轮播图组
 // @param watermarkImgUrl 水印图片
 // @param watermarkPosition 水印位置 0 全部 1第一张
 // @return []string 轮播图组
@@ -358,4 +367,122 @@ func GetTaskType() string {
 	default:
 		return "错误！"
 	}
+}
+
+// GetWatermarkImg 获取水印图片
+// @return string 水印图片 base64
+func GetWatermarkImg() (string, error) {
+	// 1. 获取日期
+	t := time.Unix(golabl.Task.Header.TaskCreateAt, 0)
+	yearMonthDay := t.Format("2006-01-02")
+
+	// 2. 获取文件后缀（去除前面的.）
+	extWithDot := path.Ext(golabl.Task.Header.ShopMsg.WatermarkImgUrl)
+	// 拼接本地存储路径
+	imgUrl := "img/watermark/" + yearMonthDay + "/" + golabl.Task.TaskId + extWithDot
+
+	// 3. 判断本地文件是否存在
+	if _, err := os.Stat(imgUrl); err == nil {
+		// 文件存在 → 直接读取并转base64返回
+		imgBytes, err := os.ReadFile(imgUrl)
+		if err != nil {
+			return "", err
+		}
+		return base64.StdEncoding.EncodeToString(imgBytes), nil
+	}
+
+	// 4. 文件不存在 → 创建目录、下载图片、保存本地、转base64
+	// 创建多级目录
+	dirPath := filepath.Dir(imgUrl)
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return "", err
+	}
+
+	// 下载远程图片
+	resp, err := http.Get(golabl.Task.Header.ShopMsg.WatermarkImgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// 判断下载响应是否成功
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("下载水印图片响应异常: %s\n", resp.Status)
+		return "", fmt.Errorf("下载水印图片失败: %s", resp.Status)
+	}
+
+	// 读取图片二进制数据
+	imgBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("读取下载的图片数据失败: %v\n", err)
+		return "", err
+	}
+
+	// 保存图片到本地
+	if err := os.WriteFile(imgUrl, imgBytes, 0644); err != nil {
+		fmt.Printf("保存水印图片到本地失败: %v\n", err)
+		return "", err
+	}
+
+	// 5. 转base64返回
+	return base64.StdEncoding.EncodeToString(imgBytes), nil
+}
+
+// GetSkuWatermarkImg 获取sku水印图片
+// @return string 水印图片 base64
+func GetSkuWatermarkImg() (string, error) {
+	// 1. 获取日期
+	t := time.Unix(golabl.Task.Header.TaskCreateAt, 0)
+	yearMonthDay := t.Format("2006-01-02")
+
+	// 2. 获取文件后缀（去除前面的.）
+	extWithDot := path.Ext(golabl.Task.Header.ShopMsg.SkuWatermarkImgUrl)
+	// 拼接本地存储路径
+	imgUrl := "img/skuwatermark/" + yearMonthDay + "/" + golabl.Task.TaskId + extWithDot
+
+	// 3. 判断本地文件是否存在
+	if _, err := os.Stat(imgUrl); err == nil {
+		// 文件存在 → 直接读取并转base64返回
+		imgBytes, err := os.ReadFile(imgUrl)
+		if err != nil {
+			return "", err
+		}
+		return base64.StdEncoding.EncodeToString(imgBytes), nil
+	}
+
+	// 4. 文件不存在 → 创建目录、下载图片、保存本地、转base64
+	// 创建多级目录
+	dirPath := filepath.Dir(imgUrl)
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return "", err
+	}
+
+	// 下载远程图片
+	resp, err := http.Get(golabl.Task.Header.ShopMsg.SkuWatermarkImgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// 判断下载响应是否成功
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("下载水印图片响应异常: %s\n", resp.Status)
+		return "", fmt.Errorf("下载水印图片失败: %s", resp.Status)
+	}
+
+	// 读取图片二进制数据
+	imgBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("读取下载的图片数据失败: %v\n", err)
+		return "", err
+	}
+
+	// 保存图片到本地
+	if err := os.WriteFile(imgUrl, imgBytes, 0644); err != nil {
+		fmt.Printf("保存水印图片到本地失败: %v\n", err)
+		return "", err
+	}
+
+	// 5. 转base64返回
+	return base64.StdEncoding.EncodeToString(imgBytes), nil
 }

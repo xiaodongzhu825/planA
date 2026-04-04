@@ -20,9 +20,12 @@ func Init() {
 	default:
 		speed = 18
 	}
-	//如果需要打水印，则速率下降为5
+	//如果需要打水印，则速率下降为10
 	if golabl.Task.Header.ShopMsg.WatermarkImgUrl != "" {
-		speed = 5
+		speed = golabl.Config.Speed.Watermark
+		if speed == 0 {
+			speed = 10
+		}
 	}
 	//初始化限速器
 	golabl.Speed = rate.NewLimiter(rate.Limit(speed), 1)

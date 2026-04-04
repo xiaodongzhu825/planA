@@ -34,7 +34,10 @@ func main() {
 
 	// 拉取商品列表与拼多多商品详情列表
 	if golabl.Task.Header.TaskType == 3 || (golabl.Task.Header.TaskType == 4 && golabl.Task.Header.ShopType == "1") {
-		golabl.Platform.GetGoodsTask()
+		_, getGoodsTask := golabl.Platform.GetGoodsTask()
+		if getGoodsTask != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, getGoodsTask.Error())
+		}
 		// 通知 A程序任务完成
 		httpTaskStatusOverErr := tool.NotifyA()
 		if httpTaskStatusOverErr != nil {

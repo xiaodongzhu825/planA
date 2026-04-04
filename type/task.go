@@ -105,6 +105,7 @@ type ShopMsg struct {
 	TwoDiscount                 int64       `json:"two_discount"`                     // 两件折扣
 	DistrictMsg                 DistrictMsg `json:"district_msg"`                     // 地区信息【限闲鱼使用】
 	ShopContext                 string      `json:"shop_context"`                     // 店铺描述
+	SkuWatermarkImgUrl          string      `json:"sku_watermark_img_url"`            //sku 水印图片链接
 }
 
 // PriceMod 价格模版结构体

@@ -11,10 +11,12 @@ func Init() {
 	c := cron.New(cron.WithSeconds()) // 支持秒级别的精度
 	// 每日执行删除sqlite过期记录
 	_, delSqlIteErr := c.AddFunc("0 0 0 * * ?", func() {
-		DeleteOldExportFile() //删除过期的导出文件
-		DeleteOldRedis()      //删除 redis中过期数据
-		DeleteOldRecords()    //删除task_record过期记录
-		DeleteOldExport()     //删除task_export过期记录
+		DeleteOldSkuWatermarkImage() //删除过期的 sku水印图片
+		DeleteOldWatermarkImage()    //删除过期的水印图片
+		DeleteOldExportFile()        //删除过期的导出文件
+		DeleteOldRedis()             //删除 redis中过期数据
+		DeleteOldRecords()           //删除task_record过期记录
+		DeleteOldExport()            //删除task_export过期记录
 	})
 	if delSqlIteErr != nil {
 		logs.LoggingMiddleware("error", "定时任务 每日执行删除sqlite过期记录 失败")

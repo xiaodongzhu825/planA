@@ -62,6 +62,7 @@ type ShopDetail struct {
 	CarouseLastImgUrlArray      []string `json:"carouse_last_img_url_array"`       //轮播图最后图片
 	GoodsDetailFirstImgUrlArray []string `json:"goods_detail_first_img_url_array"` //商品详情首图 URL 数组
 	GoodsDetailLastImgUrlArray  []string `json:"goods_detail_last_img_url_array"`  //商品详情最后图片 URL 数组
+	SkuWatermarkImgUrl          string   `json:"sku_watermark_img_url"`            //sku 水印图片链接
 }
 
 // ShopContext 店铺上下文

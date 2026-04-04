@@ -8,7 +8,7 @@ server:
 speed: #限速器
   pdd_speed: 18 #拼多多 每秒多少个任务
   xianyu_speed: 5 #闲鱼 每秒多少个任务
-  watermark: 5 #打水印速率的个数
+  watermark: 15 #打水印速率的个数
 minio: #minio 图片空间
   url: "103.236.68.64:19000" #minio地址
   access_key_id: "minio" #minio keyId
@@ -85,5 +85,5 @@ file_url:
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deduction_url: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
-  pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsDetailList" #查询拼多多商品详情列表接口
-  pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
+  pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
+  pdd_add_goods_url: "http://119.45.237.193:14003/task/putShopGoods" #添加拼多多商品接口

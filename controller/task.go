@@ -172,7 +172,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	//如果是拉取任务则直接执行 B方法程序
+	//如果是拉取任务则直接执行 B方法程序  taskType == 3(拉取任务) || (taskType == 4 && dataVal.ShopType == "1")(拼多多拉取详情任务)
 	if taskType == 3 || (taskType == 4 && dataVal.ShopType == "1") {
 		// 执行 B方法程序
 		_, runTaskWorkerErr := process.RunTaskWorker(taskId)
@@ -1017,7 +1017,8 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 					DistrictId:   districtId,
 					DistrictType: districtType,
 				},
-				ShopContext: context.Context, //店铺描述
+				ShopContext:        context.Context,           //店铺描述
+				SkuWatermarkImgUrl: detail.SkuWatermarkImgUrl, //sku 水印图片
 			},
 			PriceMod:         priceModArr,             //价格模版
 			ShipPriceMod:     "",                      //运费模版
@@ -1114,6 +1115,18 @@ func AddTask(taskId string, bodyData []string) int {
 				}
 				fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
 				continue
+			}
+		}
+		//处理图片 仅官图不处理
+		if header.ImgType == 2 { //仅实拍图，使用传递过来的图片
+			bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
+		} else if header.ImgType == 3 { // 优先官图，优先使用 bookInfo中的图片，如果没有使用传递过来的图片
+			if len(bookInfo.ImageObject.CarouselUrlArray) == 0 {
+				bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
+			}
+		} else if header.ImgType == 4 { //优先实拍，优先使用 传递过来的图片，如果没有使用bookInfo中的图片
+			if len(taskBody.BookInfo.ImageObject.CarouselUrlArray) > 0 {
+				bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
 			}
 		}
 		var catId string

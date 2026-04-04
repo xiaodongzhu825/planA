@@ -275,3 +275,97 @@ func DeleteOldLog(dir string) {
 		}
 	}
 }
+
+// DeleteOldWatermarkImage 删除三天以上的水印图片
+func DeleteOldWatermarkImage() {
+	// 目标根目录（你提供的目录）
+	rootDir := `img\watermark`
+
+	// 计算需要删除的截止时间：当前时间 - 3天
+	expireTime := time.Now().AddDate(0, 0, -3)
+
+	// 遍历根目录
+	err := filepath.Walk(rootDir, func(path string, f os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("无法访问目录 %s: %v", path, err)
+		}
+
+		// 只处理一级子文件夹（不递归）
+		if path == rootDir {
+			return nil
+		}
+		if !f.IsDir() {
+			return nil
+		}
+
+		// 解析文件夹名称为日期（格式：2006-01-02）
+		dirName := f.Name()
+		dirTime, err := time.Parse("2006-01-02", dirName)
+		if err != nil {
+			// 不是日期格式的文件夹跳过
+			return nil
+		}
+
+		// 判断是否超过3天
+		if dirTime.Before(expireTime) {
+			// 删除文件夹（包括里面所有内容）
+			err := os.RemoveAll(path)
+			if err != nil {
+				return fmt.Errorf("无法删除目录 %s: %v", path, err)
+			}
+		}
+
+		// 只处理一级子目录，不递归深入
+		return filepath.SkipDir
+	})
+	if err != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("删除三天以上的水印图片失败: %v", err.Error()))
+	}
+}
+
+// DeleteOldSkuWatermarkImage 删除三天以上的sku水印图片
+func DeleteOldSkuWatermarkImage() {
+	// 目标根目录（你提供的目录）
+	rootDir := `img\skuwatermark`
+
+	// 计算需要删除的截止时间：当前时间 - 3天
+	expireTime := time.Now().AddDate(0, 0, -3)
+
+	// 遍历根目录
+	err := filepath.Walk(rootDir, func(path string, f os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("无法访问目录 %s: %v", path, err)
+		}
+
+		// 只处理一级子文件夹（不递归）
+		if path == rootDir {
+			return nil
+		}
+		if !f.IsDir() {
+			return nil
+		}
+
+		// 解析文件夹名称为日期（格式：2006-01-02）
+		dirName := f.Name()
+		dirTime, err := time.Parse("2006-01-02", dirName)
+		if err != nil {
+			// 不是日期格式的文件夹跳过
+			return nil
+		}
+
+		// 判断是否超过3天
+		if dirTime.Before(expireTime) {
+			// 删除文件夹（包括里面所有内容）
+			err := os.RemoveAll(path)
+			if err != nil {
+				return fmt.Errorf("无法删除目录 %s: %v", path, err)
+			}
+		}
+
+		// 只处理一级子目录，不递归深入
+		return filepath.SkipDir
+	})
+	if err != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("删除三天以上的水印图片失败: %v", err.Error()))
+	}
+}

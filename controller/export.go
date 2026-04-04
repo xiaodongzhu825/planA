@@ -430,7 +430,7 @@ func ExportCSV(taskId string, total int64) {
 	}
 
 	// 初始化偏移量
-	offset := 0
+	page := 1
 	// 标记是否是第一次写入（用于写入CSV表头）
 	// 如果文件已存在，则不需要写入表头
 	isFirstWrite := !fileExists
@@ -453,15 +453,15 @@ func ExportCSV(taskId string, total int64) {
 
 	// 循环获取并写入数据
 	for {
-		// 每次获取batchSize条数据
-		dataBatch, err := service.GetBodyOverDataByBatch(taskId, offset, batchSize)
+		// 每次获取 batchSize条数据
+		dataBatch, err := service.GetBodyOverDataByBatch(taskId, page, batchSize)
 		if err != nil {
-			errMsg := fmt.Sprintf("获取任务详情批次数据失败 offset:%d, err:%v", offset, err)
+			errMsg := fmt.Sprintf("获取任务详情批次数据失败 page:%d, err:%v", page, err)
 			fmt.Println(errMsg)
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 			return
 		}
-
+		fmt.Printf("数据长度: %v", len(dataBatch))
 		// 没有数据了，退出循环
 		if len(dataBatch) == 0 {
 			// 导出完成
@@ -492,7 +492,7 @@ func ExportCSV(taskId string, total int64) {
 		// 追加写入CSV文件
 		// 注意：AppendToCSV函数需要修改以支持文件存在时的追加模式
 		if writeErr := AppendToCSV(fullPath, dataBatch, isFirstWrite, taskId); writeErr != nil {
-			errMsg := fmt.Sprintf("写入CSV文件失败 offset:%d, err:%v", offset, writeErr)
+			errMsg := fmt.Sprintf("写入CSV文件失败 page:%d, err:%v", page, writeErr)
 			fmt.Println(errMsg)
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 			return
@@ -504,6 +504,6 @@ func ExportCSV(taskId string, total int64) {
 		}
 
 		// 更新偏移量
-		offset += batchSize
+		page++
 	}
 }

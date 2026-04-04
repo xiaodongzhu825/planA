@@ -22,6 +22,7 @@ func GetPublishingVid(taskMsg *planAType.TaskBody) error {
 		if errors.Is(getErr, redis.Nil) {
 			publishing.Value = "北京大学出版社"
 			publishing.Vid = 483727
+			taskMsg.Publishing = publishing
 			return nil
 		}
 		return getErr

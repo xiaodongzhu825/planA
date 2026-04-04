@@ -118,7 +118,7 @@ func InitializeLogger(logDir string) error {
 		return fmt.Errorf("创建日志目录失败: %v", err)
 	}
 
-	// 创建logger配置
+	// 创建 logger配置
 	config := LoggerConfig{
 		LogDir:          logDir,
 		SplitType:       2,                 // SplitByDay

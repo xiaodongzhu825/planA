@@ -39,33 +39,34 @@ func InitImageDll() (*ImageDLL, error) {
 
 // WatermarkConfig 添加水印
 type WatermarkConfig struct {
-	SourceImageURL string  // 源图片URL地址
-	WatermarkURL   string  // 水印图片URL地址
-	Opacity        float64 // 不透明度 (0.0-1.0)
-	Position       string  // 位置: center, top-left, top-right, bottom-left, bottom-right, tile
-	TileSpacing    int     // 平铺时的间距
-	Scale          float64 // 水印缩放比例 (0.0-1.0)
-	Rotation       float64 // 旋转角度 (度数)
-	XOffset        int     // X轴偏移量
-	YOffset        int     // Y轴偏移量
-	Timeout        int     // 下载超时时间（秒），默认30秒
-	OutputFormat   string  // 输出格式: "jpeg", "png", "auto"（默认auto，根据源图片格式）auto
-	JPEGQuality    int     // JPEG质量 (1-100)，默认95
+	SourceImageURL  string  // 源图片URL地址
+	WatermarkURL    string  // 水印图片URL地址
+	WatermarkBase64 string  // 水印图片base64编码字符串（新增，优先使用）
+	Opacity         float64 // 不透明度 (0.0-1.0)
+	Position        string  // 位置: center, top-left, top-right, bottom-left, bottom-right, tile
+	TileSpacing     int     // 平铺时的间距
+	Scale           float64 // 水印缩放比例 (0.0-1.0)
+	Rotation        float64 // 旋转角度 (度数)
+	XOffset         int     // X轴偏移量
+	YOffset         int     // Y轴偏移量
+	Timeout         int     // 下载超时时间（秒），默认30秒
+	OutputFormat    string  // 输出格式: "jpeg", "png", "auto"（默认auto，根据源图片格式）auto
+	JPEGQuality     int     // JPEG质量 (1-100)，默认95
 }
 
 // AddWatermarkFromURLExs 添加水印
 func (m *ImageDLL) AddWatermarkFromURLExs(sourceImageUrl, watermarkUrl string) (string, error) {
 
 	watermarkConfig := WatermarkConfig{
-		SourceImageURL: sourceImageUrl,
-		WatermarkURL:   watermarkUrl,
-		Position:       "center",
-		Opacity:        1.0,
-		Scale:          1.0,
-		TileSpacing:    50,
-		Timeout:        30,
-		OutputFormat:   "jpeg",
-		JPEGQuality:    95,
+		SourceImageURL:  sourceImageUrl,
+		WatermarkBase64: watermarkUrl,
+		Position:        "center",
+		Opacity:         1.0,
+		Scale:           1.0,
+		TileSpacing:     50,
+		Timeout:         30,
+		OutputFormat:    "jpeg",
+		JPEGQuality:     95,
 	}
 	watermarkConfigJson, err := json.Marshal(watermarkConfig)
 	if err != nil {

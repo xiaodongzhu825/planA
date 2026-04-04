@@ -103,8 +103,13 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 
 	// 存在水印图片，则打水印
 	if golabl.Task.Header.ShopMsg.WatermarkImgUrl != "" {
+		//获取水印图片
+		watermarkImgUrl, watermarkImgErr := tool.GetWatermarkImg()
+		if watermarkImgErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取水印图片失败 %v", watermarkImgErr))
+		}
 		//打水印
-		watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(imageDll, taskMsg.BookInfo.ImageObject.CarouselUrlArray, golabl.Task.Header.ShopMsg.WatermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
+		watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(imageDll, taskMsg.BookInfo.ImageObject.CarouselUrlArray, watermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
 		if watermarkFromURLExsErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("图片打水印失败 %v", watermarkFromURLExsErr))
 		}
@@ -128,7 +133,10 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("缺少构造轮播图图片-未提交 isbn %v", taskMsg.BookInfo.Isbn))
 	}
 	// 构建详情图
-	goodsAdd.DetailGallery = tool.BuildDetailGallery(golabl.Task.Header.ShopMsg.GoodsDetailFirstImgUrlArray, golabl.Task.Header.ShopMsg.GoodsDetailLastImgUrlArray, taskMsg.BookInfo.ImageObject.DetailUrlObject)
+	goodsAdd.DetailGallery = tool.BuildDetailGallery(golabl.Task.Header.ShopMsg.GoodsDetailFirstImgUrlArray, golabl.Task.Header.ShopMsg.GoodsDetailLastImgUrlArray, taskMsg.BookInfo.ImageObject.DetailUrlObject, oldCarouselUrlArray[0])
+	if len(goodsAdd.DetailGallery) == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("缺少构造详情图-未提交 isbn %v", taskMsg.BookInfo.Isbn))
+	}
 
 	// 构建 catId
 	var catID int64
@@ -205,14 +213,16 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	}
 
 	goodsAdd.GoodsProperties = buildGoodsPropertiesList(
-		taskMsg.BookInfo.Isbn,       // ISBN
-		goodsAdd.GoodsName,          // 商品名称
-		taskMsg.BookInfo.PagesCount, // 页数
-		taskMsgBookInfoPrice,        // 价格
-		taskMsg.Publishing.Vid,      // 出版社 Vid
-		taskMsg.BookInfo.Author,     // 作者
-		taskMsg.BookInfo.Format,     // 开本
-		taskMsg.BookInfo.Binding,    // 装帧
+		taskMsg.BookInfo.Isbn,            // ISBN
+		goodsAdd.GoodsName,               // 商品名称
+		taskMsg.BookInfo.PagesCount,      // 页数
+		taskMsgBookInfoPrice,             // 价格
+		taskMsg.Publishing.Vid,           // 出版社 Vid
+		taskMsg.BookInfo.Author,          // 作者
+		taskMsg.BookInfo.Format,          // 开本
+		taskMsg.BookInfo.Binding,         // 装帧
+		taskMsg.BookInfo.WordsCount,      // 字数
+		taskMsg.BookInfo.PublicationDate, // 出版时间
 	)
 
 	//库存
@@ -230,8 +240,29 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		taskMsg.Detail.SkuCode = goodsAdd.OutGoodsId
 	}
 
-	//获取 sku
-	sku, err := buildSkuList(pddDll, price, goodsAdd.CarouselGallery[0], taskMsg.Detail.Stock, taskMsg.Detail.SkuCode)
+	//构建 sku信息
+	skuThumbnail := oldCarouselUrlArray[0]
+	if golabl.Task.Header.ShopMsg.SkuWatermarkImgUrl != "" {
+		//获取水印图片
+		skuWatermarkImgUrl, skuWatermarkImgErr := tool.GetSkuWatermarkImg()
+		if skuWatermarkImgErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取水印图片失败 %v", skuWatermarkImgErr))
+		}
+		//sku 打水印
+		skuThumbnailArr := []string{skuThumbnail}
+		skuWatermarkFromURLExsBase64Arr, skuWatermarkFromURLExsErr := tool.AddWatermarkFromURLExs(imageDll, skuThumbnailArr, skuWatermarkImgUrl, "1")
+		if skuWatermarkFromURLExsErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("sku图片打水印失败 %v", skuWatermarkFromURLExsErr))
+		}
+		//sku 图片上传到拼多多
+		skuToPdd, uploadImageToPddErr := tool.UploadImageToPdd(pddDll, skuWatermarkFromURLExsBase64Arr)
+		if uploadImageToPddErr != nil {
+			return "", fmt.Errorf("图片上传到拼多多失败 %v", uploadImageToPddErr)
+		}
+		//将上传的图片替换到商品轮播图中
+		skuThumbnail = skuToPdd[0]
+	}
+	sku, err := buildSkuList(pddDll, price, skuThumbnail, taskMsg.Detail.Stock, taskMsg.Detail.SkuCode)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, err)
 	}
@@ -282,7 +313,7 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 	const maxPage = 100
 	const maxRecordsPerRange = 10000 // 每个时间范围最多获取10000条
 
-	//var lastCreatedAt int64 = 0
+	var lastCreatedAt int64 = 0
 
 	// 统计变量
 	totalFetched := 0   // 总共获取到的商品数（包括重复）
@@ -295,39 +326,39 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, isTaskBodyWaitExistErr)
 	}
 	if exist {
-		//// 获取最后一条数据的创建时间
-		//lastBodyWaitDataJson, getLastGoodsCreateTimeErr := service.GetTaskBodyWaitLast()
-		//if getLastGoodsCreateTimeErr != nil {
-		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, getLastGoodsCreateTimeErr)
-		//}
-		//// 解析 lastBodyWaitData 到结构体
-		//var lastBodyWaitData planAType.TaskBody
-		//unmarshalErr := json.Unmarshal([]byte(lastBodyWaitDataJson), &lastBodyWaitData)
-		//if unmarshalErr != nil {
-		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, unmarshalErr)
-		//}
-		////将数据的创建时间给到 lastCreatedAt
-		//lastCreatedAt = lastBodyWaitData.BookInfo.Price
-		////第二阶段 获取商品
-		//phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
-		//if phaseTwoGoodsErr != nil {
-		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
-		//}
+		// 获取最后一条数据的创建时间
+		lastBodyWaitDataJson, getLastGoodsCreateTimeErr := service.GetTaskBodyWaitLast()
+		if getLastGoodsCreateTimeErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, getLastGoodsCreateTimeErr)
+		}
+		// 解析 lastBodyWaitData 到结构体
+		var lastBodyWaitData planAType.TaskBody
+		unmarshalErr := json.Unmarshal([]byte(lastBodyWaitDataJson), &lastBodyWaitData)
+		if unmarshalErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, unmarshalErr)
+		}
+		//将数据的创建时间给到 lastCreatedAt
+		lastCreatedAt = lastBodyWaitData.BookInfo.Price
+		//第二阶段 获取商品
+		phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
+		if phaseTwoGoodsErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
+		}
 	} else {
-		////第一阶段 拉取任务数据
-		//firstTimeGoodsErr := phaseOneGoods(pageSize, maxPage, &totalFetched, &lastCreatedAt)
-		//if firstTimeGoodsErr != nil {
-		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, firstTimeGoodsErr)
-		//}
-		////第二阶段 获取商品
-		//phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
-		//if phaseTwoGoodsErr != nil {
-		//	return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
-		//}
+		//第一阶段 拉取任务数据
+		firstTimeGoodsErr := phaseOneGoods(pageSize, maxPage, &totalFetched, &lastCreatedAt)
+		if firstTimeGoodsErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, firstTimeGoodsErr)
+		}
+		//第二阶段 获取商品
+		phaseTwoGoodsErr := PhaseTwoGoods(pageSize, &totalFetched, &lastCreatedAt, maxRecordsPerRange)
+		if phaseTwoGoodsErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
+		}
 	}
 
 	//去重复与保存
-	deduplicateToBodyOverErr := deduplicateToBodyOver(&duplicateCount, &uniqueCount, &totalFetched)
+	deduplicateToBodyOverErr := deduplicateToBodyOver(&duplicateCount, &uniqueCount)
 	if deduplicateToBodyOverErr != nil {
 		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, deduplicateToBodyOverErr)
 	}
@@ -374,28 +405,33 @@ func (pinDuoDuo *PinDuoDuo) DelGoodsTask() string {
 // @param author 作者
 // @param format 开本
 // @param binding 装帧
+// @param wordsCount 字数
+// @param publicationDate 出版时间
 // @return []GoodsProperties 商品属性列表
-func buildGoodsPropertiesList(isbn, bookName string, pageCount, price int64, publishingVid int64, author string, format int64, binding string) []planBTypePinduoduo.GoodsProperties {
+func buildGoodsPropertiesList(isbn, bookName string, pageCount, price int64, publishingVid int64, author string, format int64, binding string, wordsCount int64, publicationDate string) []planBTypePinduoduo.GoodsProperties {
 	var goodsPropertiesArr []planBTypePinduoduo.GoodsProperties
 	//isbn
-	goodsPropertiesIsbn := planBTypePinduoduo.GoodsProperties{
-		RefPid: 425,
-		Value:  isbn,
+	if isbn != "" {
+		goodsPropertiesIsbn := planBTypePinduoduo.GoodsProperties{
+			RefPid: 425,
+			Value:  isbn,
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesIsbn)
 	}
-	goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesIsbn)
 
 	//书名
-	goodsPropertiesBookName := planBTypePinduoduo.GoodsProperties{
-		RefPid: 876,
-		Value:  bookName,
+	if bookName != "" {
+		goodsPropertiesBookName := planBTypePinduoduo.GoodsProperties{
+			RefPid: 876,
+			Value:  bookName,
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesBookName)
 	}
-	goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesBookName)
 
 	//页数
 	if pageCount == 0 {
 		pageCount = 200
 	}
-
 	goodsPropertiesPageNum := planBTypePinduoduo.GoodsProperties{
 		RefPid:    692,
 		Value:     strconv.FormatInt(pageCount, 10),
@@ -406,38 +442,64 @@ func buildGoodsPropertiesList(isbn, bookName string, pageCount, price int64, pub
 	//定价
 	goodsPropertiesPrice := planBTypePinduoduo.GoodsProperties{
 		RefPid:    879,
-		Value:     strconv.FormatInt(price/10000, 10),
+		Value:     strconv.FormatInt(price/100, 10),
 		ValueUnit: "元",
 	}
 	goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesPrice)
 
 	//出版社
-	goodsPropertiesPublishing := planBTypePinduoduo.GoodsProperties{
-		RefPid: 880,
-		Vid:    publishingVid,
+	if publishingVid != 0 {
+		goodsPropertiesPublishing := planBTypePinduoduo.GoodsProperties{
+			RefPid: 880,
+			Vid:    publishingVid,
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesPublishing)
 	}
-	goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesPublishing)
 
 	//作者
-	goodsPropertiesAuthor := planBTypePinduoduo.GoodsProperties{
-		RefPid: 882,
-		Value:  author,
+	if author != "" {
+		goodsPropertiesAuthor := planBTypePinduoduo.GoodsProperties{
+			RefPid: 882,
+			Value:  author,
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesAuthor)
 	}
-	goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesAuthor)
 
 	//开本
-	goodsPropertiesFormat := planBTypePinduoduo.GoodsProperties{
-		RefPid: 890,
-		Value:  strconv.FormatInt(format, 10),
+	if format != 0 {
+		goodsPropertiesFormat := planBTypePinduoduo.GoodsProperties{
+			RefPid: 890,
+			Value:  strconv.FormatInt(format, 10),
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesFormat)
 	}
-	goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesFormat)
 
-	//装帧
-	goodsPropertiesBinding := planBTypePinduoduo.GoodsProperties{
-		RefPid: 891,
-		Value:  binding,
+	//装帧类型
+	if binding != "" {
+		goodsPropertiesBinding := planBTypePinduoduo.GoodsProperties{
+			RefPid: 888,
+			Value:  binding,
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesBinding)
 	}
-	goodsPropertiesArr = append(goodsPropertiesArr, goodsPropertiesBinding)
+
+	//字数
+	if wordsCount != 0 {
+		goodsWordsCountBinding := planBTypePinduoduo.GoodsProperties{
+			RefPid: 887,
+			Value:  strconv.FormatInt(wordsCount, 10),
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsWordsCountBinding)
+	}
+
+	//出版时间（部分数据出版时间是1970-01，视为没有出版时间）
+	if publicationDate != "" && publicationDate != "1970-01" {
+		goodsPublicationDateBinding := planBTypePinduoduo.GoodsProperties{
+			RefPid: 881,
+			Value:  publicationDate,
+		}
+		goodsPropertiesArr = append(goodsPropertiesArr, goodsPublicationDateBinding)
+	}
 	return goodsPropertiesArr
 }
 
@@ -536,9 +598,9 @@ func addGoods(pddDll *pdd.PddDLL, logUuid string, goodsInfo planBTypePinduoduo.G
 参数: %s
 ════════════════════════════════════════════════════════════════`,
 			logUuid,
-			time.Now().Format("2006-01-02 15:04:05.000"),
 			golabl.Task.TaskId,
 			golabl.Task.Header.ShopName,
+			time.Now().Format("2006-01-02 15:04:05.000"),
 			string(goodsInfoStr))
 
 		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, addGoodsReqMsg)
@@ -589,11 +651,66 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 			"pageSize":    strconv.Itoa(pageSize),
 		}
 
-		goodsList, getGoodsListErr := tool.GetPddGoodsList(params)
+		goodsList, goodsListStr, getGoodsListErr := tool.GetPddGoodsList(params)
 		if getGoodsListErr != nil {
 			return fmt.Errorf("获取商品列表失败，页码: %d, 错误: %v", page, getGoodsListErr)
 		}
+		if goodsListStr == "{}" {
+			//如果读取不到数据，重试一次
+			fmt.Println("通过容器获取获取商品列表数据失败，重试一次")
+			goodsList, goodsListStr, getGoodsListErr = tool.GetPddGoodsList(params)
+			if getGoodsListErr != nil {
+				return fmt.Errorf("获取商品列表失败，页码: %d, 错误: %v", page, getGoodsListErr)
+			}
+		}
+		if goodsListStr == "{}" {
+			fmt.Println("---------------------------------------错误！！！！goodsListStr----------------------------------")
+			fmt.Println(goodsListStr)
+			fmt.Println("---------------------------------------错误！！！！goodsListStr----------------------------------")
+			return fmt.Errorf("容器返回数据为空")
+		}
+		//如果是需要拉取详情的商品
+		if golabl.Task.Header.TaskType == 4 {
+			// 获取原始商品列表
+			originalGoodsList := goodsList.GoodsList
+			totalCount := len(originalGoodsList)
 
+			if totalCount == 0 {
+				return nil // 或继续后续处理
+			}
+
+			// 存储所有获取到的商品详情
+			allGoodsDetailList := make([]planBTypePinduoduo.GoodsItem, 0, totalCount)
+
+			// 每100条调用一次
+			batchSize := 100
+			n := 0
+			for i := 0; i < totalCount; i += batchSize {
+				// 计算当前批次的起始和结束位置
+				end := i + batchSize
+				if end > totalCount {
+					end = totalCount
+				}
+				batch := originalGoodsList[i:end]
+				n++
+				// 调用接口获取商品详情
+				fmt.Printf("第 %v 页  第 %v 次 \n", page, n)
+				goodsDetailList, goodsDetailListStr, getPddGoodsDetailErr := tool.GetPddGoodsDetail(batch)
+				if getPddGoodsDetailErr != nil {
+					fmt.Println("----------------------------错误！！！！goodsDetailList-------------------------------")
+					fmt.Printf("batch start %d end %d, batch size %d, total %d\n", i, end, len(batch), totalCount)
+					fmt.Println(goodsDetailListStr)
+					fmt.Println("----------------------------错误！！！！goodsDetailList-------------------------------")
+					return getPddGoodsDetailErr
+				}
+
+				// 将当前批次的结果添加到总结果中
+				allGoodsDetailList = append(allGoodsDetailList, goodsDetailList...)
+			}
+
+			// 赋值回原变量
+			goodsList.GoodsList = allGoodsDetailList
+		}
 		// 收集商品数据并统计
 		for _, goods := range goodsList.GoodsList {
 			*totalFetched++
@@ -621,6 +738,7 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 					Price:           goods.CreatedAt,
 				},
 				Detail: planAType.TaskDetail{
+					Status:  1,
 					Error:   string(jsonData),
 					GoodsId: goods.GoodsId,
 					Stock:   int64(goods.SkuList[0].ReserveQuantity),
@@ -647,11 +765,14 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 
 		// 如果没有更多数据，提前退出
 		if len(goodsList.GoodsList) == 0 {
+			fmt.Println("没有更多数据，退出循环 ")
+			fmt.Println(goodsListStr)
 			break
 		}
 
 		// 可选：添加延迟，避免请求过快
-		time.Sleep(100 * time.Millisecond)
+		// 暂停200豪秒
+		time.Sleep(200 * time.Millisecond)
 		fmt.Printf("第一阶段 - 总数：%v 当前已取出：%v \n", goodsList.TotalCount, *totalFetched)
 	}
 	return nil
@@ -705,11 +826,63 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 					"createdAtEnd":  strconv.FormatInt(currentCreatedAtEnd, 10),
 				}
 
-				goodsList, getGoodsListErr := tool.GetPddGoodsList(params)
+				goodsList, goodsListStr, getGoodsListErr := tool.GetPddGoodsList(params)
 				if getGoodsListErr != nil {
 					return fmt.Errorf("获取商品列表失败（时间范围），页码: %d, 错误: %v", currentPage, getGoodsListErr)
 				}
+				if goodsListStr == "{}" {
+					fmt.Println("通过容器获取获取商品列表数据失败，重试一次")
+					goodsList, goodsListStr, getGoodsListErr = tool.GetPddGoodsList(params)
+					if getGoodsListErr != nil {
+						return fmt.Errorf("获取商品列表失败（时间范围），页码: %d, 错误: %v", currentPage, getGoodsListErr)
+					}
+				}
+				if goodsListStr == "{}" {
+					return fmt.Errorf("容器返回数据为空")
+				}
 
+				//如果是需要拉取详情的商品
+				if golabl.Task.Header.TaskType == 4 {
+					// 获取原始商品列表
+					originalGoodsList := goodsList.GoodsList
+					totalCount := len(originalGoodsList)
+
+					if totalCount == 0 {
+						return nil // 或继续后续处理
+					}
+
+					// 存储所有获取到的商品详情
+					allGoodsDetailList := make([]planBTypePinduoduo.GoodsItem, 0, totalCount)
+
+					// 每100条调用一次
+					batchSize := 100
+					n := 0
+					for i := 0; i < totalCount; i += batchSize {
+						// 计算当前批次的起始和结束位置
+						end := i + batchSize
+						if end > totalCount {
+							end = totalCount
+						}
+						batch := originalGoodsList[i:end]
+						n++
+						// 调用接口获取商品详情
+						fmt.Printf(" 第 %v 次 \n", n)
+						goodsDetailList, goodsDetailListStr, getPddGoodsDetailErr := tool.GetPddGoodsDetail(batch)
+						if getPddGoodsDetailErr != nil {
+							fmt.Println("----------------------------错误！！！！goodsDetailList-------------------------------")
+							fmt.Printf("batch start %d end %d, batch size %d, total %d\n", i, end, len(batch), totalCount)
+							fmt.Println(goodsDetailListStr)
+							fmt.Println("----------------------------错误！！！！goodsDetailList-------------------------------")
+							return getPddGoodsDetailErr
+						}
+
+						// 将当前批次的结果添加到总结果中
+						allGoodsDetailList = append(allGoodsDetailList, goodsDetailList...)
+					}
+
+					// 赋值回原变量
+					goodsList.GoodsList = allGoodsDetailList
+				}
 				// 如果当前页没有数据
 				if len(goodsList.GoodsList) == 0 {
 					// 如果当前页是第一页且没有数据
@@ -821,8 +994,8 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 
 				currentPage++
 
-				// 可选：添加延迟，避免请求过快
-				time.Sleep(100 * time.Millisecond)
+				// 暂停200豪秒
+				time.Sleep(200 * time.Millisecond)
 			}
 
 			// 判断是否需要继续循环
@@ -844,7 +1017,7 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 				break
 			}
 
-			// 可选：在批次之间添加延迟，避免请求过快
+			// 暂停200豪秒
 			time.Sleep(200 * time.Millisecond)
 		}
 
@@ -858,9 +1031,8 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 // 拉取任务 读取body_wait去重复后写入到body_over中
 // @param duplicateCount int64 重复商品数量
 // @param uniqueCount int64 不重复商品数量
-// @param totalFetched int64 总商品数量
 // @return error 错误信息
-func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int, totalFetched *int) error {
+func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 	page := 1
 	pageSize := 1000
 	var dataList []planBTypePinduoduo.GoodsItem
@@ -892,7 +1064,6 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int, totalFetched *
 			break
 		}
 		for _, v := range list {
-			*totalFetched++
 			// 解析v 到结构体
 			goods := planAType.TaskBody{}
 			jsonUnmarshalErr := json.Unmarshal([]byte(v), &goods)
@@ -923,27 +1094,28 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int, totalFetched *
 			}
 		}
 		start := time.Now()
-		fmt.Println("开始请求111")
 		// 将获取的数据推送写入店铺商品数据接口
-		_, writePddGoodsDataErr := tool.WritePddGoodsData(dataList, page, pageTotal)
+		ret, retStr, writePddGoodsDataErr := tool.WritePddGoodsData(dataList, page, pageTotal)
 		if writePddGoodsDataErr != nil {
 			return writePddGoodsDataErr
 		}
+		if ret.Code != "200" {
+			return fmt.Errorf("添加商品失败 %v", retStr)
+		}
 		elapsed := time.Since(start)
-		fmt.Println("请求结束111")
 		num = num + len(dataList)
-		fmt.Printf("当前页 %v 总页数 %v 当前数据量 %v 总数据量 %v", page, pageTotal, len(dataList), num)
+		fmt.Printf("开始添加商品信息到系统店铺中 当前页 %v 总页数 %v 当前数据量 %v 总数据量 %v", page, pageTotal, len(dataList), num)
 		fmt.Printf("执行耗时: %v\n", elapsed)
 		page++
 		//清空 dataStr
 		dataList = []planBTypePinduoduo.GoodsItem{}
 		// 暂停1秒
-		time.Sleep(10 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 	// 删除body_wait
-	//deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
-	//if deleteTaskBodyWaitErr != nil {
-	//	return deleteTaskBodyWaitErr
-	//}
+	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
+	if deleteTaskBodyWaitErr != nil {
+		return deleteTaskBodyWaitErr
+	}
 	return nil
 }

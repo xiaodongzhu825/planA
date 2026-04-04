@@ -74,11 +74,11 @@ func Logic() {
 		golabl.Pool.Wg.Add(1)
 
 		//协程池 提交
-		taskExecute()
-		//if taskPoolErr := golabl.Pool.Pool.Submit(taskExecute); taskPoolErr != nil {
-		//	logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池意外-原因来自:%d", taskPoolErr))
-		//	golabl.Pool.Wg.Done() // 确保计数正确
-		//}
+		//taskExecute()
+		if taskPoolErr := golabl.Pool.Pool.Submit(taskExecute); taskPoolErr != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池意外-原因来自:%d", taskPoolErr))
+			golabl.Pool.Wg.Done() // 确保计数正确
+		}
 
 		// 判断 任务数是否超过1000 并且 判断是否执行到了1000的倍数
 		if golabl.Task.Header.TaskCountTrue > 1000 && golabl.Logic.TaskIndex%1000 == 0 {

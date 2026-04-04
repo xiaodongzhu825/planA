@@ -83,7 +83,7 @@ func Logic() {
 		// 判断 任务数是否超过1000 并且 判断是否执行到了1000的倍数
 		if golabl.Task.Header.TaskCountTrue > 1000 && golabl.Logic.TaskIndex%1000 == 0 {
 			// 更新任务头部信息
-			updateTaskHeaderErr := updateTaskHeader()
+			updateTaskHeaderErr := tool.UpdateTaskHeader()
 			if updateTaskHeaderErr != nil {
 				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("更新任务头信息失败-原因来自:%v", updateTaskHeaderErr))
 			}
@@ -103,7 +103,7 @@ func Logic() {
 	//}
 
 	// 更新任务头部信息
-	if updateTaskHeaderErr := updateTaskHeader(); updateTaskHeaderErr != nil {
+	if updateTaskHeaderErr := tool.UpdateTaskHeader(); updateTaskHeaderErr != nil {
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("更新任务头信息失败-原因来自:%v", updateTaskHeaderErr))
 	}
 
@@ -166,7 +166,7 @@ func taskExecute() {
 	}
 
 	// 更新 footer信息
-	if updateTaskFooterErr := service.UpdateTaskFooter(status); updateTaskFooterErr != nil {
+	if updateTaskFooterErr := service.UpdateTaskFooter(status, 1); updateTaskFooterErr != nil {
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", updateTaskFooterErr))
 	}
 
@@ -183,16 +183,4 @@ func taskExecute() {
 
 	fmt.Println(errorStr)
 
-}
-
-// 更新头部信息
-// @return error 错误信息
-func updateTaskHeader() error {
-	//通过 footer 来更新 header 的计数
-	golabl.Task.Header.TaskCountWait = golabl.Task.Footer.TaskCountWait.Load()
-	golabl.Task.Header.TaskCountOver = golabl.Task.Footer.TaskCountOver.Load()
-	golabl.Task.Header.TaskCountSuccess = golabl.Task.Footer.TaskCountSuccess.Load()
-	golabl.Task.Header.TaskCountError = golabl.Task.Footer.TaskCountError.Load()
-	golabl.Task.Header.LastIndex = golabl.Logic.LastIndex
-	return service.UpdateTaskHeaderCount()
 }

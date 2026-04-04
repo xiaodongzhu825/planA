@@ -357,6 +357,17 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 		}
 	}
 
+	//更新状态为推送中
+	updateTaskStatusErr := service.UpdateTaskStatus(planAType.TaskStatusPushTaskStatus)
+	if updateTaskStatusErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskStatusErr)
+	}
+	fmt.Println("golabl.Task.Footer.TaskCountTrue :", golabl.Task.Footer.TaskCountTrue)
+	//重新设置任务进度
+	if updateTaskHeaderErr := service.SetTaskCount(strconv.FormatInt(golabl.Task.Footer.TaskCountTrue, 10)); updateTaskHeaderErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskHeaderErr)
+	}
+
 	//去重复与保存
 	deduplicateToBodyOverErr := deduplicateToBodyOver(&duplicateCount, &uniqueCount)
 	if deduplicateToBodyOverErr != nil {
@@ -665,6 +676,16 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 			fmt.Println("---------------------------------------错误！！！！goodsListStr----------------------------------")
 			return fmt.Errorf("容器返回数据为空")
 		}
+
+		//更新 header进度总数
+		if page == 1 {
+			// 更新进度
+			fmt.Println("总数  ", strconv.Itoa(goodsList.TotalCount))
+			if updateTaskHeaderErr := service.SetTaskCount(strconv.Itoa(goodsList.TotalCount)); updateTaskHeaderErr != nil {
+				return updateTaskHeaderErr
+			}
+		}
+
 		//如果是需要拉取详情的商品
 		if golabl.Task.Header.TaskType == 4 {
 			// 获取原始商品列表
@@ -751,6 +772,8 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 				return addTaskToBodyWaitErr
 			}
 
+			// 更新 header 进度
+
 		}
 
 		// 记录最后一页的最后一条数据的创建时间
@@ -764,6 +787,19 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 			fmt.Println("没有更多数据，退出循环 ")
 			fmt.Println(goodsListStr)
 			break
+		}
+
+		// 获取 footer信息
+		if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
+			return getTaskFooterErr
+		}
+		con := int64(len(goodsList.GoodsList))
+		if con >= golabl.Task.Footer.TaskCountTrue {
+			con = golabl.Task.Footer.TaskCountTrue - con
+		}
+		// 更新 进度
+		if updateTaskProgressErr := updateTaskProgress(con); updateTaskProgressErr != nil {
+			return updateTaskProgressErr
 		}
 
 		// 可选：添加延迟，避免请求过快
@@ -990,6 +1026,19 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 
 				currentPage++
 
+				// 获取 footer信息
+				if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
+					return getTaskFooterErr
+				}
+				con := int64(len(goodsList.GoodsList))
+				if con >= golabl.Task.Footer.TaskCountTrue {
+					con = golabl.Task.Footer.TaskCountTrue - con
+				}
+				// 更新 进度
+				if updateTaskProgressErr := updateTaskProgress(con); updateTaskProgressErr != nil {
+					return updateTaskProgressErr
+				}
+
 				// 暂停200豪秒
 				time.Sleep(200 * time.Millisecond)
 			}
@@ -1103,6 +1152,20 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 		fmt.Printf("开始添加商品信息到系统店铺中 当前页 %v 总页数 %v 当前数据量 %v 总数据量 %v", page, pageTotal, len(dataList), num)
 		fmt.Printf("执行耗时: %v\n", elapsed)
 		page++
+
+		// 获取 footer信息
+		if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
+			return getTaskFooterErr
+		}
+		con := int64(len(list))
+		if con >= golabl.Task.Footer.TaskCountTrue {
+			con = golabl.Task.Footer.TaskCountTrue - con
+		}
+		// 更新 进度
+		if updateTaskProgressErr := updateTaskProgress(con); updateTaskProgressErr != nil {
+			return updateTaskProgressErr
+		}
+
 		//清空 dataStr
 		dataList = []planBTypePinduoduo.GoodsItem{}
 		// 暂停1秒
@@ -1112,6 +1175,24 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
 	if deleteTaskBodyWaitErr != nil {
 		return deleteTaskBodyWaitErr
+	}
+	return nil
+}
+
+// 更新拉取商品进度
+// @param con int64 更新进度数
+// @return error 错误信息
+func updateTaskProgress(con int64) error {
+	// 更新 进度
+	if updateTaskFooterErr := service.UpdateTaskFooter(1, con); updateTaskFooterErr != nil {
+		return updateTaskFooterErr
+	}
+	// 重新获取 footer信息
+	if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
+		return getTaskFooterErr
+	}
+	if updateTaskHeaderCountErr := tool.UpdateTaskHeader(); updateTaskHeaderCountErr != nil {
+		return updateTaskHeaderCountErr
 	}
 	return nil
 }

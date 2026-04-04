@@ -100,8 +100,9 @@ func UpdateTaskHeaderCount() error {
 
 // UpdateTaskFooter 更新任务尾
 // @param returnErr int64 类型 1=正确 2= 错误
+// @param count int64 类型 更新的数据
 // @return error 错误信息
-func UpdateTaskFooter(returnErr int64) error {
+func UpdateTaskFooter(returnErr int64, count int64) error {
 	// 测试 client 是否可用
 	err := golabl.Redis.RedisDbA.Ping(golabl.Ctx).Err()
 	if err != nil {
@@ -123,12 +124,12 @@ func UpdateTaskFooter(returnErr int64) error {
 	pipe := golabl.Redis.RedisDbA.Pipeline()
 	// 更新任务尾
 	if returnErr == 1 {
-		pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_success", 1)
+		pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_success", count)
 	} else {
-		pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_error", 1)
+		pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_error", count)
 	}
-	pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_wait", -1)
-	pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_over", 1)
+	pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_wait", -count)
+	pipe.HIncrBy(golabl.Ctx, footerKey, "task_count_over", count)
 	_, ExecErr := pipe.Exec(golabl.Ctx)
 	if ExecErr != nil {
 		return ExecErr
@@ -302,6 +303,45 @@ func DeleteTaskBodyOver() error {
 // DeleteTaskBodyBackup 删除body_backup 数据
 func DeleteTaskBodyBackup() error {
 	return golabl.Redis.RedisDbA.Del(golabl.Ctx, golabl.Task.TaskId+":body_backup").Err()
+}
+
+// SetTaskCount 设置 任务数
+// @param value string
+// @return error 错误信息
+func SetTaskCount(value string) error {
+
+	// 使用事务确保 操作的原子性
+	pipe := golabl.Redis.RedisDbA.TxPipeline()
+
+	taskCountTrueKey := "task_count_true"
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":header", taskCountTrueKey, value)
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":footer", taskCountTrueKey, value)
+
+	taskCountWaitKey := "task_count_wait"
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":header", taskCountWaitKey, value)
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":footer", taskCountWaitKey, value)
+
+	taskCountOverKey := "task_count_over"
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":header", taskCountOverKey, 0)
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":footer", taskCountOverKey, 0)
+
+	taskCountSuccessKey := "task_count_success"
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":header", taskCountSuccessKey, 0)
+	pipe.HSet(golabl.Ctx, golabl.Task.TaskId+":footer", taskCountSuccessKey, 0)
+
+	// 执行事务
+	_, execErr := pipe.Exec(golabl.Ctx)
+	if execErr != nil {
+		return fmt.Errorf("更新 总任务数失败: %v\n", execErr)
+	}
+	return nil
+}
+
+// UpdateTaskStatus 更新任务状态
+// @param status int 任务状态
+// @return error 错误信息
+func UpdateTaskStatus(status int) error {
+	return golabl.Redis.RedisDbA.HSet(golabl.Ctx, golabl.Task.TaskId+":header", "status", status).Err()
 }
 
 // =========================== 以下是私有方法 ===========================

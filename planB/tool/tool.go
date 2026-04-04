@@ -12,6 +12,7 @@ import (
 	"planA/planB/initialization/golabl"
 	"planA/planB/modules/image"
 	"planA/planB/modules/pdd"
+	"planA/planB/service"
 	planBTypeModules "planA/planB/type/modules"
 	planAType "planA/type"
 	"strconv"
@@ -485,4 +486,16 @@ func GetSkuWatermarkImg() (string, error) {
 
 	// 5. 转base64返回
 	return base64.StdEncoding.EncodeToString(imgBytes), nil
+}
+
+// UpdateTaskHeader 更新头部信息
+// @return error 错误信息
+func UpdateTaskHeader() error {
+	//通过 footer 来更新 header 的计数
+	golabl.Task.Header.TaskCountWait = golabl.Task.Footer.TaskCountWait.Load()
+	golabl.Task.Header.TaskCountOver = golabl.Task.Footer.TaskCountOver.Load()
+	golabl.Task.Header.TaskCountSuccess = golabl.Task.Footer.TaskCountSuccess.Load()
+	golabl.Task.Header.TaskCountError = golabl.Task.Footer.TaskCountError.Load()
+	golabl.Task.Header.LastIndex = golabl.Logic.LastIndex
+	return service.UpdateTaskHeaderCount()
 }

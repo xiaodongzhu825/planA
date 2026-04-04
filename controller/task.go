@@ -128,7 +128,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	//推送redis
+	//推送 redis
 	err = service.UpdateTaskHeader(taskId, task.Header)
 	if err != nil {
 		errMsg := "保存任务头失败: " + err.Error()
@@ -136,6 +136,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
+	//更新任务尾
 	err = service.UpdateTaskFooter(taskId, &task.Footer)
 	if err != nil {
 		errMsg := "保存任务尾失败: " + err.Error()

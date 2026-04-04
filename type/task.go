@@ -120,10 +120,11 @@ type PriceMod struct {
 type TaskStatus int64
 
 const (
-	TaskStatusRunning TaskStatus = 1 // 运行中
-	TaskStatusPaused  TaskStatus = 2 // 已暂停
-	TaskStatusStopped TaskStatus = 3 // 已停止
-	TaskStatusOver    TaskStatus = 4 // 已完成
+	TaskStatusRunning        TaskStatus = 1  // 运行中
+	TaskStatusPaused         TaskStatus = 2  // 已暂停
+	TaskStatusStopped        TaskStatus = 3  // 已停止
+	TaskStatusOver           TaskStatus = 4  // 已完成
+	TaskStatusPushTaskStatus            = 10 // 推送中（拉取任务）
 )
 
 // TaskDetail 详情结构

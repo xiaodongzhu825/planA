@@ -1129,6 +1129,7 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 				//记录到data数组中，之后推送到写入店铺商品数据接口
 				dataList = append(dataList, GoodsItem)
 				//写入到body_over
+				goods.Detail.Status = 1
 				addTaskToBodyOverErr := service.AddTaskToBodyOver(goods, []string{"body_over", "body_backup"})
 				if addTaskToBodyOverErr != nil {
 					return addTaskToBodyOverErr
@@ -1138,7 +1139,6 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 				*duplicateCount++
 			}
 		}
-		start := time.Now()
 		// 将获取的数据推送写入店铺商品数据接口
 		ret, retStr, writePddGoodsDataErr := tool.WritePddGoodsData(dataList, page, pageTotal)
 		if writePddGoodsDataErr != nil {
@@ -1147,10 +1147,8 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 		if ret.Code != "200" {
 			return fmt.Errorf("添加商品失败 %v", retStr)
 		}
-		elapsed := time.Since(start)
 		num = num + len(dataList)
-		fmt.Printf("开始添加商品信息到系统店铺中 当前页 %v 总页数 %v 当前数据量 %v 总数据量 %v", page, pageTotal, len(dataList), num)
-		fmt.Printf("执行耗时: %v\n", elapsed)
+		fmt.Printf("开始添加商品信息到系统店铺中 当前页 %v 总页数 %v 当前数据量 %v 总数据量 %v \n", page, pageTotal, len(dataList), num)
 		page++
 
 		// 获取 footer信息

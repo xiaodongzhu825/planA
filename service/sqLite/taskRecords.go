@@ -300,3 +300,37 @@ func GetTaskRecordsOldList() ([]sqLiteType.TaskRecords, error) {
 	// 返回查询结果
 	return records, nil
 }
+
+// GetTaskByShopIdAndTaskType 根据 shopId和 taskType获取任务记录
+// @param taskId 任务ID
+// @param taskType 任务类型
+// @return []sqLiteType.TaskRecords 任务列表
+// @return error 错误信息
+func GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]sqLiteType.TaskRecords, error) {
+	query := `SELECT id, user_id, shop_id, task_id, shop_name, task_type, create_at 
+              FROM task_records 
+              WHERE shop_id = ? AND task_type = ?`
+	var records []sqLiteType.TaskRecords
+	rows, err := golabl.SqliteDb.Query(query, taskId, taskType)
+	if err != nil {
+		return nil, fmt.Errorf("查询任务记录失败: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var record sqLiteType.TaskRecords
+		err = rows.Scan(
+			&record.ID,
+			&record.UserID,
+			&record.ShopID,
+			&record.TaskID,
+			&record.ShopName,
+			&record.TaskType,
+			&record.CreateAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描任务记录数据失败: %v", err)
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}

@@ -99,6 +99,18 @@ func (s *SqlAdapter) GetTaskRecords24Hour() ([]*_type.TaskRecordsDTO, error) {
 	listDTO := convertSqliteTaskRecordsToDTO(list)
 	return listDTO, err
 }
+
+// GetTaskByShopIdAndTaskType 根据 shopId和 taskType获取任务记录
+// @param taskId 任务ID
+// @param taskType 任务类型
+// @return []*_type.TaskRecordsDTO 任务列表
+// @return error 错误信息
+func (s *SqlAdapter) GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]*_type.TaskRecordsDTO, error) {
+	list, err := sqLiteServer.GetTaskByShopIdAndTaskType(taskId, taskType)
+	listDTO := convertSqliteTaskRecordsToDTO(list)
+	return listDTO, err
+}
+
 func convertSqliteTaskRecordsToDTO(records []sqliteType.TaskRecords) []*_type.TaskRecordsDTO {
 	dtos := make([]*_type.TaskRecordsDTO, len(records))
 	for i, r := range records {

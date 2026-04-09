@@ -4,13 +4,14 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"planA/initialization/golabl"
 	"sort"
 	"strings"
 )
 
 // SignParams 对参数进行签名（类似支付宝、微信支付）
 func SignParams(params map[string]string) string {
-	SecretKey := "your_secret_key_123456"
+	SecretKey := golabl.Config.Server.SignKey
 	// 1. 过滤空值
 	filteredParams := make(map[string]string)
 	for k, v := range params {

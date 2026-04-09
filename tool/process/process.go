@@ -91,41 +91,50 @@ func RunTaskWorker(taskId string) (string, error) {
 // @param taskId 任务ID
 // @return error 错误
 func SuspendProcess(taskId string) error {
-	// 1. 查询PID
+
+	// 1. 判断 pid是否存在
 	processId, getProcessIdErr := service.GetProcessId(taskId)
-	if getProcessIdErr != nil {
+	// 检查是否有错误（排除redis key不存在的情况）
+	if getProcessIdErr != nil && !errors.Is(getProcessIdErr, _redis.Nil) {
 		return getProcessIdErr
 	}
 
-	// 2. 将字符串转换为整数
-	pid, err := strconv.Atoi(processId)
-	if err != nil {
-		return fmt.Errorf("PID格式错误: %s, 错误: %v", processId, err)
+	// 2. 判断pid是否存在
+	if processId != "" {
+		//验证进程是否真实存在
+		if IsProcessExistWindows(processId) {
+
+			// 将字符串转换为整数
+			pid, err := strconv.Atoi(processId)
+			if err != nil {
+				return fmt.Errorf("PID格式错误: %s, 错误: %v", processId, err)
+			}
+
+			// 检查 PID是否有效
+			if pid <= 0 {
+				return fmt.Errorf("PID必须为正整数")
+			}
+
+			// 打开进程
+			hProcess, _, err := procOpenProcess.Call(
+				PROCESS_SUSPEND_RESUME,
+				uintptr(0),
+				uintptr(pid),
+			)
+			if hProcess == 0 {
+				return fmt.Errorf("打开进程失败: %v", err)
+			}
+			defer procCloseHandle.Call(hProcess)
+
+			// 暂停进程
+			callSstatus, _, _ := procNtSuspendProcess.Call(hProcess)
+			if callSstatus != 0 {
+				return fmt.Errorf("NtSuspendProcess 失败: 0x%X", callSstatus)
+			}
+		}
 	}
 
-	// 3. 检查PID是否有效
-	if pid <= 0 {
-		return fmt.Errorf("PID必须为正整数")
-	}
-
-	// 4. 打开进程
-	hProcess, _, err := procOpenProcess.Call(
-		PROCESS_SUSPEND_RESUME,
-		uintptr(0),
-		uintptr(pid),
-	)
-	if hProcess == 0 {
-		return fmt.Errorf("打开进程失败: %v", err)
-	}
-	defer procCloseHandle.Call(hProcess)
-
-	// 5. 暂停进程
-	callSstatus, _, _ := procNtSuspendProcess.Call(hProcess)
-	if callSstatus != 0 {
-		return fmt.Errorf("NtSuspendProcess 失败: 0x%X", callSstatus)
-	}
-
-	// 6. 修改Header中的状态
+	// 3. 修改Header中的状态
 	status := int64(_type.TaskStatusPaused)
 	updateHeaderStatusErr := service.UpdateHeaderStatus(taskId, status)
 	if updateHeaderStatusErr != nil {
@@ -178,7 +187,6 @@ func ResumeProcess(taskId string) error {
 	if updateHeaderStatusErr != nil {
 		return updateHeaderStatusErr
 	}
-
 	return nil
 }
 
@@ -186,13 +194,27 @@ func ResumeProcess(taskId string) error {
 // @param taskId 队列名称
 // @return error 错误
 func StopTask(taskId string) error {
-	// 1. 恢复B程序避免程序处于暂停状态
-	resumeProcessErr := ResumeProcess(taskId)
-	if resumeProcessErr != nil {
-		return resumeProcessErr
+
+	// 1. 判断 pid是否存在
+	processId, getProcessIdErr := service.GetProcessId(taskId)
+	// 检查是否有错误（排除redis key不存在的情况）
+	if getProcessIdErr != nil && !errors.Is(getProcessIdErr, _redis.Nil) {
+		return getProcessIdErr
 	}
 
-	// 2. 修改 Header中的状态 并且 删除 bodyWait 中的数据
+	// 2. 判断pid是否存在
+	if processId != "" {
+		//验证进程是否真实存在
+		if IsProcessExistWindows(processId) {
+			// 恢复 B程序避免程序处于暂停状态
+			resumeProcessErr := ResumeProcess(taskId)
+			if resumeProcessErr != nil {
+				return resumeProcessErr
+			}
+		}
+	}
+
+	// 3. 修改 Header中的状态 并且 删除 bodyWait 中的数据
 	stopTaskErr := service.StopTask(taskId)
 	if stopTaskErr != nil {
 		return stopTaskErr

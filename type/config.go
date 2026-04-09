@@ -27,6 +27,7 @@ type Server struct {
 	RedisExp     int    `json:"redis_exp"`
 	ReadDb       string `json:"read_db"`
 	ErrPauseTime int    `json:"err_pause_time"`
+	SignKey      string `json:"sign_key"`
 }
 
 // Speed 限速器结构

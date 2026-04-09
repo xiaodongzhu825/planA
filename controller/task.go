@@ -32,7 +32,6 @@ import (
 
 // CreateTask 创建任务
 func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
-
 	// 验证表单
 	dataVal, createTaskValidatorErr := validator.CreateTaskValidator(data)
 	if createTaskValidatorErr != nil {
@@ -66,19 +65,29 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	shop := shopData.Shop
-	spec := shopData.Spec
-	detail := shopData.ShopDetail
-	context := shopData.ShopContext
-	priceTemplateRangeStr := shopData.PriceTemplate.RangePrice
-
+	// 定义变量
+	var spec *_type.Spec
+	var context *_type.ShopContext
 	var priceRange []_type.PriceRange
-	err = json.Unmarshal([]byte(priceTemplateRangeStr), &priceRange)
-	if err != nil {
-		errMsg := "解析价格模板失败:" + err.Error() + " 原始数据：" + shopData.PriceTemplate.RangePrice
+	// 实例化
+	spec = &_type.Spec{}              // 指向零值结构体的指针
+	context = &_type.ShopContext{}    // 指向零值结构体的指针
+	priceRange = []_type.PriceRange{} // 空切片
+
+	if shopData.Shop == nil {
+		errMsg := "店铺数据为空"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
+	shop := shopData.Shop
+
+	if shopData.ShopDetail == nil {
+		errMsg := "未设置商品详情"
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	detail := shopData.ShopDetail
+
 	if shop.ShopType != dataVal.ShopType {
 		errMsg := "店铺类型不匹配 错误店铺类型:" + shop.ShopType
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -86,7 +95,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	//验证店铺规格信息是否正确
-	if dataVal.ShopType == "1" {
+	if dataVal.ShopType == "1" && dataVal.TaskType == "1" {
 		pddDll, initPddSOErr := pdd.InitPddDll()
 		if initPddSOErr != nil {
 			errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
@@ -109,6 +118,60 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	//	tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 	//	return
 	//}
+
+	//如果是拉取任务则校验是否已有在执行的  taskType == 3(拉取任务) || (taskType == 4 && dataVal.ShopType == "1")(拼多多拉取详情任务)
+	if taskType == 3 || (taskType == 4 && dataVal.ShopType == "1") {
+		//查询店铺拉取商品或者拉取商品详情所有任务
+		read := rep.CreateDbFactoryRead()
+		taskList, getTaskByShopIdAndTaskTypeErr := read.GetTaskByShopIdAndTaskType(shopData.Shop.ID, taskType)
+		if getTaskByShopIdAndTaskTypeErr != nil {
+			errMsg := "获取任务失败: " + getTaskByShopIdAndTaskTypeErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		for _, task := range taskList {
+			// 获取 header信息
+			taskHeader, getTaskHeaderErr := service.GetTaskHeader(task.TaskId)
+			if getTaskHeaderErr != nil {
+				errMsg := "获取任务头失败: " + getTaskHeaderErr.Error()
+				tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+				return
+			}
+			//判断这个店铺是否已经存在正在执行的任务
+			if taskHeader.Status == 1 {
+				errMsg := "当前店铺已经有此类任务正在执行中"
+				tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+				return
+			}
+		}
+	} else if taskType == 1 || taskType == 2 {
+		if shopData.Spec == nil {
+			errMsg := "未设置规格"
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		spec = shopData.Spec
+		//如果价格模版为空，则返回错误信息
+		if shopData.PriceTemplate == nil {
+			errMsg := "未选择价格模版"
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		context = shopData.ShopContext
+		//如果价格模版为空，则返回错误信息
+		if shopData.PriceTemplate == nil {
+			errMsg := "未选择价格模版"
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		priceTemplateRangeStr := shopData.PriceTemplate.RangePrice
+		err = json.Unmarshal([]byte(priceTemplateRangeStr), &priceRange)
+		if err != nil {
+			errMsg := "解析价格模板失败:" + err.Error() + " 原始数据：" + shopData.PriceTemplate.RangePrice
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+	}
 
 	//请求创建任务接口并获取任务 id
 	taskId, err := CreateTaskRequest(dataVal.ShopID, dataVal.TaskType)
@@ -371,14 +434,6 @@ func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	if header.Status != _type.TaskStatusPaused {
 		errMsg := "当前状态不是暂停"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-	//推送redis
-	status := int64(_type.TaskStatusRunning)
-	err := service.UpdateHeaderStatus(dataVal.TaskID, status)
-	if err != nil {
-		errMsg := err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -968,9 +1023,13 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 		districtType = detail.DistrictType
 	}
 	// specTypeID 转换为int64
-	specTypeID, err := parseAdjustPercent(spec.SpecTypeID)
-	if err != nil {
-		return &task, fmt.Errorf("价格模版 adjustPercent 转换失败: %v", err)
+	var specTypeID int64
+	var parseAdjustPercentErr error
+	if spec.SpecTypeID != "" {
+		specTypeID, parseAdjustPercentErr = parseAdjustPercent(spec.SpecTypeID)
+		if parseAdjustPercentErr != nil {
+			return &task, fmt.Errorf("规格类型ID 转换失败: %v", parseAdjustPercentErr)
+		}
 	}
 	//shopCount 转换为int64
 	taskCountInt64, err := strconv.ParseInt(taskCount, 10, 64)

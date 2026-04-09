@@ -126,7 +126,7 @@ func taskExecute() {
 	taskMsg, taskMsgErr := service.GetTaskToPopFromBodyWait()
 	if errors.Is(taskMsgErr, redis.Nil) {
 		//redis 读nil空+1
-		fmt.Printf("第 %v 次读出 Redis Nil", atomic.LoadInt64(&golabl.Logic.RedisNilCon))
+		fmt.Printf("第 %v 次读出 Redis Nil \n", atomic.LoadInt64(&golabl.Logic.RedisNilCon))
 		atomic.AddInt64(&golabl.Logic.RedisNilCon, 1)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
 		return

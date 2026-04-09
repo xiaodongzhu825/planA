@@ -368,7 +368,6 @@ func LoggingMiddleware(level string, str string) {
 	str = tool.SteLog(str)
 	switch {
 	case level == LOG_LEVEL_ERROR:
-		fmt.Println(str)
 		logErrorErr := LogError(str)
 		if logErrorErr != nil {
 			fmt.Println("记录错误日志失败:", logErrorErr)

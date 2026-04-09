@@ -180,7 +180,4 @@ func taskExecute() {
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "任务失败 添加到BodyOver失败-原因:店铺内发布商品总数已达到上限")
 		}
 	}
-
-	fmt.Println(errorStr)
-
 }

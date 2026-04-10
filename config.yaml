@@ -7,6 +7,7 @@ server:
   err_pause_time: 3000 #错误暂停时间（毫秒）
   sign_key: "jRQdCh52Z55Kzh1hADaA2ZtdTKetj2PXk60Tz5Yc0iz9aD8Wafbk7CwAZ8cz69A9zb9caZ3k9dnR3Ys06J5nYFPrZ0xE9p6TY8DCD538ryiRjW81YTPmk41tCEnXizPh" #签名密钥
   data_day: 2 #数据保存时间（天）
+  is_c: true #是否启动 C程序
 speed: #限速器
   pdd_speed: 18 #拼多多 每秒多少个任务
   xianyu_speed: 5 #闲鱼 每秒多少个任务
@@ -90,3 +91,4 @@ file_url:
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
   pdd_get_goods_detail_url: "http://192.168.101.127:8085/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
   pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
+  backup_url: "C:\\file\\backup" #备份文件路径

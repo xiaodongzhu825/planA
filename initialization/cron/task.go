@@ -382,8 +382,8 @@ func DeleteOldSkuWatermarkImage() {
 func BackupBodyBackup() {
 
 	// 定义导出目录
-	csvUrl := "file/backup"
-
+	csvUrl := golabl.Config.FileUrl.BackupUrl
+	fmt.Println("路径：" + csvUrl)
 	// 获取所有任务数据
 	read := rep.CreateDbFactoryRead()
 	list, getAllTaskErr := read.GetAllTask()
@@ -480,7 +480,7 @@ func BackupBodyBackup() {
 
 // ZipBackupFile 压缩backup文件
 func ZipBackupFile() {
-	csvUrl := "file/backup"
+	csvUrl := golabl.Config.FileUrl.BackupUrl
 	// 获取昨天的日期
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	// 拼接完整的文件路径
@@ -573,7 +573,7 @@ func ZipBackupFile() {
 
 // DeleteZipFile 删除zip文件
 func DeleteZipFile() {
-	zipDir := "file/backup"
+	zipDir := golabl.Config.FileUrl.BackupUrl
 	day := golabl.Config.Server.DataDay
 
 	// 获取当前时间

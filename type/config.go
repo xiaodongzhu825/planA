@@ -29,6 +29,7 @@ type Server struct {
 	ErrPauseTime int    `json:"err_pause_time"`
 	SignKey      string `json:"sign_key"`
 	DataDay      int    `json:"data_day"`
+	IsC          bool   `json:"is_c"`
 }
 
 // Speed 限速器结构
@@ -130,4 +131,5 @@ type FileUrl struct {
 	PddGetGoodsUrl            string `json:"pdd_get_goods_url"`
 	PddGetGoodsDetailUrl      string `json:"pdd_get_goods_detail_url"`
 	PddAddGoodsUrl            string `json:"pdd_add_goods_url"`
+	BackupUrl                 string `json:"backup_url"`
 }

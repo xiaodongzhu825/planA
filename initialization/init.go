@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"planA/initialization/c"
 	"planA/initialization/config"
 	"planA/initialization/cron"
 	"planA/initialization/golabl"
@@ -47,6 +48,8 @@ func Init() error {
 	middle.Init()
 	//初始化路由
 	router.Init()
+	//运行 C程序
+	c.RunC()
 	return nil
 
 }

@@ -16,7 +16,7 @@ func TaskInit() {
 	// ====================== 【不需要验签】的接口 ======================
 	//taskRouter.HandleFunc("/create", controller.CreateTask).Methods("POST")            // 创建新任务
 	//taskRouter.HandleFunc("/setTaskBody", controller.SetTaskBody).Methods("POST")      // 设置任务执行内容
-	taskRouter.HandleFunc("/pause/{id}", controller.PauseTask).Methods("GET")          // 暂停指定任务（任务ID）
+	taskRouter.HandleFunc("/pause/{id}", controller.PauseTask).Methods("GET")          // 暂停指定任务
 	taskRouter.HandleFunc("/resume/{id}", controller.ResumeTask).Methods("GET")        // 恢复指定任务
 	taskRouter.HandleFunc("/stop/{id}", controller.StopTask).Methods("GET")            // 停止指定任务
 	taskRouter.HandleFunc("/over/{id}", controller.OverTask).Methods("GET")            // 完成任务
@@ -26,5 +26,5 @@ func TaskInit() {
 	taskRouter.HandleFunc("/b", controller.B).Methods("GET")                           // 运行B程序（特殊功能）
 	taskRouter.HandleFunc("/header/get/{id}", controller.GetTaskHeader).Methods("GET") // 获取任务 header信息
 	taskRouter.HandleFunc("/getOver/{id}", controller.GetBodyOver).Methods("GET")      // 根据任务ID 获取body_over
-	taskRouter.HandleFunc("/getTaskList", controller.GetTaskList).Methods("GET")       // 获取 task列表
+	//taskRouter.HandleFunc("/getTaskList", controller.GetTaskList).Methods("GET")       // 获取 task列表
 }

@@ -94,22 +94,6 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	//验证店铺规格信息是否正确
-	if dataVal.ShopType == "1" && dataVal.TaskType == "1" {
-		pddDll, initPddSOErr := pdd.InitPddDll()
-		if initPddSOErr != nil {
-			errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
-			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-			return
-		}
-		_, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(pddDll, shop.Token, spec.SpecTypeID, spec.SpecName)
-		if buildPddGoodsSpecIdErr != nil {
-			errMsg := "构建规格ID失败: " + buildPddGoodsSpecIdErr.Error()
-			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-			return
-		}
-	}
-
 	//扣费
 	//userId := strconv.FormatInt(shop.CreateBy, 10)
 	//_, taskDeductionErr := TaskDeduction(shopID, userId)
@@ -138,7 +122,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 				return
 			}
 			//判断这个店铺是否已经存在正在执行的任务
-			if taskHeader.Status == 1 {
+			if taskHeader.Status == 1 || taskHeader.Status == 10 {
 				errMsg := "当前店铺已经有此类任务正在执行中"
 				tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 				return
@@ -170,6 +154,22 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 			errMsg := "解析价格模板失败:" + err.Error() + " 原始数据：" + shopData.PriceTemplate.RangePrice
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
+		}
+
+		//验证店铺规格信息是否正确
+		if dataVal.ShopType == "1" && dataVal.TaskType == "1" {
+			pddDll, initPddSOErr := pdd.InitPddDll()
+			if initPddSOErr != nil {
+				errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
+				tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+				return
+			}
+			_, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(pddDll, shop.Token, spec.SpecTypeID, spec.SpecName)
+			if buildPddGoodsSpecIdErr != nil {
+				errMsg := "构建规格ID失败: " + buildPddGoodsSpecIdErr.Error()
+				tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 
@@ -654,9 +654,9 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 		//获取 body_over 信息
-		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId, 0, 10)
-		if GetTaskBodyOverLimit10Err != nil {
-			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", GetTaskBodyOverLimit10Err)
+		bodyOver, _, GetTaskBodyOverErr := service.GetTaskBodyOver(v.TaskId, 0, 10)
+		if GetTaskBodyOverErr != nil {
+			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", GetTaskBodyOverErr)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
@@ -670,6 +670,7 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 			"last_index":         footer.LastIndex,
 			"task_count":         footer.TaskCount,
 		}
+		header.ShopMsg.Token = "****暂不展示*****"
 		dataTask := map[string]interface{}{
 			"header":    header,
 			"footer":    footerData,
@@ -741,8 +742,8 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 		//获取 body_over 信息
-		bodyOver, GetTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(v.TaskId, 0, 10)
-		if GetTaskBodyOverLimit10Err != nil {
+		bodyOver, _, GetTaskBodyOverErr := service.GetTaskBodyOver(v.TaskId, 0, 10)
+		if GetTaskBodyOverErr != nil {
 			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", getTaskFooterErr)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
@@ -794,6 +795,7 @@ func GetTaskHeader(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Session(httpMsg, "")
 		return
 	}
+	header.ShopMsg.Token = "****暂不展示*****"
 	tool.Session(httpMsg, header)
 }
 
@@ -807,13 +809,19 @@ func GetBodyOver(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	// 获取分页参数
 	page, size := tool.SetPage(dataVal.Page, dataVal.Size)
-	bodyOver, getTaskBodyOverLimit10Err := service.GetTaskBodyOverLimit10(dataVal.TaskID, page, size)
+	bodyOver, total, getTaskBodyOverLimit10Err := service.GetTaskBodyOver(dataVal.TaskID, page, size)
 	if getTaskBodyOverLimit10Err != nil {
 		errMsg := getTaskBodyOverLimit10Err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
-	tool.Session(httpMsg, bodyOver)
+	dataRet := map[string]interface{}{
+		"page":  page,
+		"size":  size,
+		"total": total,
+		"list":  bodyOver,
+	}
+	tool.Session(httpMsg, dataRet)
 }
 
 // GetTaskList 获取任务列表

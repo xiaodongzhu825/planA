@@ -454,7 +454,7 @@ func ExportCSV(taskId string, total int64) {
 	// 循环获取并写入数据
 	for {
 		// 每次获取 batchSize条数据
-		dataBatch, err := service.GetBodyOverDataByBatch(taskId, page, batchSize)
+		dataBatch, _, err := service.GetBodyOverDataByBatch(taskId, page, batchSize)
 		if err != nil {
 			errMsg := fmt.Sprintf("获取任务详情批次数据失败 page:%d, err:%v", page, err)
 			fmt.Println(errMsg)

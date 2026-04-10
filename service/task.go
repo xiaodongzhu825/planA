@@ -107,13 +107,13 @@ func GetListLength(taskKey string) (int64, error) {
 	return golabl.RedisDbA.LLen(golabl.Ctx, bodyWaitKey).Result()
 }
 
-// GetTaskBodyOverLimit10 分页获取已完成任务
+// GetTaskBodyOver 分页获取已完成任务
 // @param taskKey 任务键
 // @param page 页码
 // @param size 每页数量
 // @return []_type.TaskBody 任务体列表
 // @return error 错误信息
-func GetTaskBodyOverLimit10(taskKey string, page int, size int) ([]_type.TaskBody, error) {
+func GetTaskBodyOver(taskKey string, page int, size int) ([]_type.TaskBody, int64, error) {
 	return GetBodyOverDataByBatch(taskKey, page, size)
 }
 
@@ -131,23 +131,45 @@ func GetBodyOverCount(taskKey string) (int64, error) {
 // @param page 页
 // @param size 页数量
 // @return []_type.TaskBody 任务体列表
+// @return int64 总数
 // @return error 错误信息
-func GetBodyOverDataByBatch(taskKey string, page, size int) ([]_type.TaskBody, error) {
+func GetBodyOverDataByBatch(taskKey string, page, size int) ([]_type.TaskBody, int64, error) {
 	var bodyOverArr []_type.TaskBody
 
 	bodyOverKey := getBodyOverKey(taskKey)
+
+	// 获取总数
+	total, err := golabl.RedisDbA.LLen(golabl.Ctx, bodyOverKey).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return bodyOverArr, 0, nil
+		}
+		return bodyOverArr, 0, fmt.Errorf("获取body_over总数错误: %w", err)
+	}
+
 	// 计算起始索引（从0开始）
 	start := (page - 1) * size
 	end := start + size - 1
+
+	// 如果起始索引超出范围，直接返回空数据
+	if start >= int(total) {
+		return bodyOverArr, total, nil
+	}
+
 	bodyOverStr, err := golabl.RedisDbA.LRange(golabl.Ctx, bodyOverKey, int64(start), int64(end)).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return bodyOverArr, nil
+			return bodyOverArr, total, nil
 		}
-		return bodyOverArr, fmt.Errorf("获取body_over数据错误: %w", err)
+		return bodyOverArr, 0, fmt.Errorf("获取body_over数据错误: %w", err)
 	}
 
-	return parseTaskBodyList(bodyOverStr)
+	list, err := parseTaskBodyList(bodyOverStr)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return list, total, nil
 }
 
 // ClearBodyOver 清空已完成任务队列

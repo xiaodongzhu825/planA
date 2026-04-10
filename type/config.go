@@ -28,6 +28,7 @@ type Server struct {
 	ReadDb       string `json:"read_db"`
 	ErrPauseTime int    `json:"err_pause_time"`
 	SignKey      string `json:"sign_key"`
+	DataDay      int    `json:"data_day"`
 }
 
 // Speed 限速器结构
@@ -120,6 +121,7 @@ type FileUrl struct {
 	LogDll                    string `json:"log_dll"`
 	ImageDll                  string `json:"image_dll"`
 	BFileName                 string `json:"b_file_name"`
+	CFileName                 string `json:"c_file_name"`
 	CreateTaskUrl             string `json:"create_task_url"`
 	BannedWordSubstitutionUrl string `json:"banned_word_substitution_url"`
 	CreateTaskNoticeUrl       string `json:"create_task_notice_url"`

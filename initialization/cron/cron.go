@@ -17,6 +17,7 @@ func Init() {
 		DeleteOldRedis()             //删除 redis中过期数据
 		DeleteOldRecords()           //删除task_record过期记录
 		DeleteOldExport()            //删除task_export过期记录
+		DeleteZipFile()              //删除 zip文件
 	})
 	if delSqlIteErr != nil {
 		logs.LoggingMiddleware("error", "定时任务 每日执行删除sqlite过期记录 失败")
@@ -56,5 +57,24 @@ func Init() {
 		logs.LoggingMiddleware("error", "定时任务 删除过期日志文件 启动失败")
 		return
 	}
+
+	//// 备份 body_backup到硬盘 - 每分钟执行一次，使用锁防止并发（挪到C.exe）
+	//_, backupBodyBackupErr := c.AddFunc("0 * * * * ?", func() {
+	//	BackupBodyBackup()
+	//})
+	//if backupBodyBackupErr != nil {
+	//	logs.LoggingMiddleware("error", "定时任务 备份 body_backup到硬盘 启动失败")
+	//	return
+	//}
+	//
+	//// 每天上午9点压缩昨天csv文件（挪到C.exe）
+	//_, zipBackupFileErr := c.AddFunc("0 0 9 * * ?", func() {
+	//	ZipBackupFile()
+	//})
+	//if zipBackupFileErr != nil {
+	//	logs.LoggingMiddleware("error", "定时任务 zipBackupFile 启动失败")
+	//	return
+	//}
+
 	c.Start() // 启动调度器（非阻塞）
 }

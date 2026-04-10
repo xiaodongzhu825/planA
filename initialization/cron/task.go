@@ -1,12 +1,17 @@
 package cron
 
 import (
+	"archive/zip"
+	"encoding/csv"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"planA/controlState/serviceAlive"
 	"planA/controller"
 	"planA/initialization/config"
+	"planA/initialization/golabl"
 	"planA/modules/logs"
 	"planA/modules/pdd"
 	"planA/rep"
@@ -15,15 +20,16 @@ import (
 	"planA/tool"
 	"planA/tool/process"
 	"regexp"
+	"strings"
 	"time"
 )
 
-// DeleteOldExportFile 删除3天前的导出文件
+// DeleteOldExportFile 删除N天前的导出文件
 func DeleteOldExportFile() {
 	read := rep.CreateDbFactoryRead()
 	lite, getTaskExportOldListErr := read.GetTaskExportOldList()
 	if getTaskExportOldListErr != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取SQLite中3天前的记录失败："+getTaskExportOldListErr.Error())
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取SQLite中N天前的记录失败："+getTaskExportOldListErr.Error())
 		return
 	}
 	for _, v := range lite {
@@ -35,35 +41,35 @@ func DeleteOldExportFile() {
 	}
 }
 
-// DeleteOldRecords 删除 task_records 表中3天前的记录
+// DeleteOldRecords 删除 task_records 表中N天前的记录
 func DeleteOldRecords() {
 	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
 	mysqlDeleteTaskRecordsOldDataErr := mysqlWrite.DeleteTaskRecordsOldData()
 	if mysqlDeleteTaskRecordsOldDataErr != nil {
-		errMsg := fmt.Sprintf("删除task_records表中3天前的记录失败: %v", mysqlDeleteTaskRecordsOldDataErr)
+		errMsg := fmt.Sprintf("删除task_records表中N天前的记录失败: %v", mysqlDeleteTaskRecordsOldDataErr)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 		return
 	}
 	sqLiteDeleteTaskRecordsOldDataErr := sqliteWrite.DeleteTaskRecordsOldData()
 	if sqLiteDeleteTaskRecordsOldDataErr != nil {
-		errMsg := fmt.Sprintf("删除task_records表中3天前的记录失败: %v", sqLiteDeleteTaskRecordsOldDataErr)
+		errMsg := fmt.Sprintf("删除task_records表中N天前的记录失败: %v", sqLiteDeleteTaskRecordsOldDataErr)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 		return
 	}
 }
 
-// DeleteOldExport 删除  task_export  表中3天前的记录
+// DeleteOldExport 删除  task_export  表中N天前的记录
 func DeleteOldExport() {
 	mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
 	mysqlDeleteTaskExportOldDataErr := mysqlWrite.DeleteTaskExportOldData()
 	if mysqlDeleteTaskExportOldDataErr != nil {
-		errMsg := fmt.Sprintf("删除task_export表中3天前的记录失败: %v", mysqlDeleteTaskExportOldDataErr)
+		errMsg := fmt.Sprintf("删除task_export表中N天前的记录失败: %v", mysqlDeleteTaskExportOldDataErr)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 		return
 	}
 	sqliteDeleteTaskExportOldDataErr := sqliteWrite.DeleteTaskExportOldData()
 	if sqliteDeleteTaskExportOldDataErr != nil {
-		errMsg := fmt.Sprintf("删除task_export表中3天前的记录失败: %v", sqliteDeleteTaskExportOldDataErr)
+		errMsg := fmt.Sprintf("删除task_export表中N天前的记录失败: %v", sqliteDeleteTaskExportOldDataErr)
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 		return
 	}
@@ -158,12 +164,12 @@ func CheckBannedWordSubstitutionUrlAlive() {
 	serviceAlive.SetServiceAlive("违禁词替换接口", elapsedMs)
 }
 
-// DeleteOldRedis 删除redis3天前的数据
+// DeleteOldRedis 删除redisN天前的数据
 func DeleteOldRedis() {
 	read := rep.CreateDbFactoryRead()
 	list, getTaskRecordsOldListtErr := read.GetTaskRecordsOldList()
 	if getTaskRecordsOldListtErr != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取task_export中3天前的记录失败："+getTaskRecordsOldListtErr.Error())
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取task_export中N天前的记录失败："+getTaskRecordsOldListtErr.Error())
 		return
 	}
 	for _, v := range list {
@@ -204,7 +210,7 @@ func B() {
 	}
 }
 
-// DeleteOldLog 删除日志3天以上的日志文件
+// DeleteOldLog 删除日志N天以上的日志文件
 func DeleteOldLog(dir string) {
 	// 配置参数
 	pattern := `^[^-]+-[a-z]+-(\d{4}-\d{2}-\d{2})(?:-\d{2})?\.log$` // 匹配两种格式：ERROR-task-2026-03-23-04.log 和 ERROR-task-2026-03-23.log
@@ -276,13 +282,14 @@ func DeleteOldLog(dir string) {
 	}
 }
 
-// DeleteOldWatermarkImage 删除三天以上的水印图片
+// DeleteOldWatermarkImage 删除N天以上的水印图片
 func DeleteOldWatermarkImage() {
 	// 目标根目录（你提供的目录）
 	rootDir := `img\watermark`
 
-	// 计算需要删除的截止时间：当前时间 - 3天
-	expireTime := time.Now().AddDate(0, 0, -3)
+	// 计算需要删除的截止时间：当前时间 - N天
+	days := golabl.Config.Server.DataDay
+	expireTime := time.Now().AddDate(0, 0, -days)
 
 	// 遍历根目录
 	err := filepath.Walk(rootDir, func(path string, f os.FileInfo, err error) error {
@@ -306,7 +313,7 @@ func DeleteOldWatermarkImage() {
 			return nil
 		}
 
-		// 判断是否超过3天
+		// 判断是否超过N天
 		if dirTime.Before(expireTime) {
 			// 删除文件夹（包括里面所有内容）
 			err := os.RemoveAll(path)
@@ -319,17 +326,18 @@ func DeleteOldWatermarkImage() {
 		return filepath.SkipDir
 	})
 	if err != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("删除三天以上的水印图片失败: %v", err.Error()))
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("删除N天以上的水印图片失败: %v", err.Error()))
 	}
 }
 
-// DeleteOldSkuWatermarkImage 删除三天以上的sku水印图片
+// DeleteOldSkuWatermarkImage 删除N天以上的sku水印图片
 func DeleteOldSkuWatermarkImage() {
 	// 目标根目录（你提供的目录）
 	rootDir := `img\skuwatermark`
 
-	// 计算需要删除的截止时间：当前时间 - 3天
-	expireTime := time.Now().AddDate(0, 0, -3)
+	// 计算需要删除的截止时间：当前时间 - N天
+	days := golabl.Config.Server.DataDay
+	expireTime := time.Now().AddDate(0, 0, -days)
 
 	// 遍历根目录
 	err := filepath.Walk(rootDir, func(path string, f os.FileInfo, err error) error {
@@ -353,7 +361,7 @@ func DeleteOldSkuWatermarkImage() {
 			return nil
 		}
 
-		// 判断是否超过3天
+		// 判断是否超过N天
 		if dirTime.Before(expireTime) {
 			// 删除文件夹（包括里面所有内容）
 			err := os.RemoveAll(path)
@@ -366,6 +374,251 @@ func DeleteOldSkuWatermarkImage() {
 		return filepath.SkipDir
 	})
 	if err != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("删除三天以上的水印图片失败: %v", err.Error()))
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("删除N天以上的水印图片失败: %v", err.Error()))
 	}
+}
+
+// BackupBodyBackup 备份 body_backup到硬盘
+func BackupBodyBackup() {
+
+	// 定义导出目录
+	csvUrl := "file/backup"
+
+	// 获取所有任务数据
+	read := rep.CreateDbFactoryRead()
+	list, getAllTaskErr := read.GetAllTask()
+	if getAllTaskErr != nil {
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取所有任务数据失败："+getAllTaskErr.Error())
+		return
+	}
+
+	for _, v := range list {
+
+		dateDir := v.CreateAt.Format("2006-01-02") // 按日期分组
+		// 构建完整的目录路径
+		taskCsvUrl := filepath.Join(csvUrl, dateDir)
+
+		// 获取 backup数据长度
+		backupLen, getBodyBackupLenErr := service.GetBodyBackupLen(v.TaskId)
+		if getBodyBackupLenErr != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务 %s 的backup长度失败：%v", v.TaskId, getBodyBackupLenErr))
+			continue // 跳过当前任务，继续处理下一个
+		}
+		if backupLen == 0 {
+			// 如果 backup中没有数据则跳过
+			continue
+		}
+
+		csvFileName := fmt.Sprintf("%v.csv", v.TaskId)
+		// 检查并创建目录（如果不存在）
+		err := os.MkdirAll(taskCsvUrl, 0755)
+		if err != nil {
+			errMsg := fmt.Sprintf("创建目录失败: %v", err)
+			fmt.Println(errMsg)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			return
+		}
+
+		// 拼接完整的文件路径
+		fullPath := filepath.Join(taskCsvUrl, csvFileName)
+
+		// 判断文件是否存在，决定是创建新文件还是追加写入
+		var file *os.File
+		if _, err := os.Stat(fullPath); err == nil {
+			// 文件存在，以追加模式打开
+			file, err = os.OpenFile(fullPath, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				errMsg := fmt.Sprintf("打开文件失败: %v", err)
+				fmt.Println(errMsg)
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+				continue
+			}
+		} else if os.IsNotExist(err) {
+			// 文件不存在，创建新文件
+			file, err = os.Create(fullPath)
+			if err != nil {
+				errMsg := fmt.Sprintf("创建文件失败: %v", err)
+				fmt.Println(errMsg)
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+				continue
+			}
+		} else {
+			// 其他错误（如权限问题）
+			errMsg := fmt.Sprintf("检查文件状态失败: %v", err)
+			fmt.Println(errMsg)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			continue
+		}
+		defer file.Close()
+
+		// 创建 CSV写入器
+		writer := csv.NewWriter(file)
+		defer writer.Flush()
+
+		// 循环获取并写入数据
+		for i := 0; i < int(backupLen); i++ {
+			// 获取 backup数据
+			one, getBodyBackupOneErr := service.GetBodyBackupOne(v.TaskId)
+			if getBodyBackupOneErr != nil {
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务 %s 的body_backup数据失败：%v", v.TaskId, getBodyBackupOneErr))
+				break // 跳出当前循环，继续下一个任务
+			}
+
+			// 将数据写入到CSV文件的一行（A列）
+			// 假设 one 是字符串类型，如果是结构体需要根据实际字段调整
+			record := []string{one} // 如果 one 不是字符串，需要转换，例如 fmt.Sprintf("%v", one)
+
+			if err := writer.Write(record); err != nil {
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("写入CSV数据失败：%v", err))
+				break
+			}
+		}
+
+		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("任务 %s 的数据已成功写入文件：%s", v.TaskId, fullPath))
+	}
+}
+
+// ZipBackupFile 压缩backup文件
+func ZipBackupFile() {
+	csvUrl := "file/backup"
+	// 获取昨天的日期
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	// 拼接完整的文件路径
+	taskCsvUrl := filepath.Join(csvUrl, yesterday)
+
+	// 检查源目录是否存在
+	srcInfo, err := os.Stat(taskCsvUrl)
+	if os.IsNotExist(err) {
+		log.Printf("目录不存在: %s", taskCsvUrl)
+		return
+	}
+
+	// 如果不是目录，则直接返回
+	if !srcInfo.IsDir() {
+		log.Printf("路径不是目录: %s", taskCsvUrl)
+		return
+	}
+
+	// 创建zip文件
+	zipFileName := taskCsvUrl + ".zip"
+	zipFile, err := os.Create(zipFileName)
+	if err != nil {
+		log.Printf("创建zip文件失败: %v", err)
+		return
+	}
+	defer zipFile.Close()
+
+	// 创建zip writer
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	// 遍历目录并添加文件
+	err = filepath.Walk(taskCsvUrl, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 跳过目录本身
+		if info.IsDir() {
+			return nil
+		}
+
+		// 获取相对路径作为zip内的文件名
+		relPath, err := filepath.Rel(taskCsvUrl, path)
+		if err != nil {
+			return err
+		}
+
+		// 创建zip中的文件头
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		header.Name = filepath.Join(yesterday, relPath) // 保留目录结构
+		header.Method = zip.Deflate
+
+		// 创建zip中的文件
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
+		// 打开并复制源文件
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		_, err = io.Copy(writer, file)
+		return err
+	})
+
+	if err != nil {
+		log.Printf("压缩失败: %v", err)
+		os.Remove(zipFileName) // 删除不完整的zip文件
+		return
+	}
+
+	log.Printf("压缩成功: %s", zipFileName)
+
+	// 压缩成功后删除原目录
+	err = os.RemoveAll(taskCsvUrl)
+	if err != nil {
+		log.Printf("删除原目录失败: %v", err)
+		return
+	}
+	log.Printf("成功删除原目录: %s", taskCsvUrl)
+}
+
+// DeleteZipFile 删除zip文件
+func DeleteZipFile() {
+	zipDir := "file/backup"
+	day := golabl.Config.Server.DataDay
+
+	// 获取当前时间
+	now := time.Now()
+	// 计算截止时间（当天0点减去指定天数）
+	cutoffTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -day)
+
+	// 读取目录
+	entries, err := os.ReadDir(zipDir)
+	if err != nil {
+		fmt.Printf("读取目录失败: %v\n", err)
+		return
+	}
+
+	deletedCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		fileName := entry.Name()
+		if !strings.HasSuffix(fileName, ".zip") {
+			continue
+		}
+
+		// 从文件名解析日期（格式：2026-04-10.zip）
+		dateStr := strings.TrimSuffix(fileName, ".zip")
+		fileDate, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			// 如果文件名不符合日期格式，跳过
+			continue
+		}
+
+		// 如果文件日期早于或等于截止时间，则删除
+		if !fileDate.After(cutoffTime) {
+			filePath := filepath.Join(zipDir, fileName)
+			err := os.Remove(filePath)
+			if err != nil {
+				fmt.Printf("删除文件失败 %s: %v\n", filePath, err)
+			} else {
+				fmt.Printf("已删除文件: %s\n", filePath)
+				deletedCount++
+			}
+		}
+	}
+
+	fmt.Printf("共删除 %d 个%d天前的zip文件\n", deletedCount, day)
 }

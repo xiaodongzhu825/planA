@@ -85,19 +85,19 @@ func GetTaskExportList(page, pageSize int, userId string) ([]mysqlType.TaskExpor
 	return taskExport, total, err
 }
 
-// DeleteOldExport 删除task_export表中3天前的记录
+// DeleteOldExport 删除task_export表中N天前的记录
 // @return error 错误信息
 func DeleteOldExport() error {
-	// 计算三天前的日期时间
-	threeDaysAgo := time.Now().AddDate(0, 0, -3)
+	days := golabl.Config.Server.DataDay
+	threeDaysAgo := time.Now().AddDate(0, 0, -days)
 	return golabl.MysqlDb.Where("create_at < ?", threeDaysAgo).Delete(&mysqlType.TaskExport{}).Error
 }
 
-// GetOldExportSQLite 获取task_export表中3天前的记录
+// GetOldExportSQLite 获取task_export表中N天前的记录
 func GetOldExportSQLite() ([]mysqlType.TaskExport, error) {
 	var taskExport []mysqlType.TaskExport
-	// 计算三天前的日期时间
-	threeDaysAgo := time.Now().AddDate(0, 0, -3)
+	days := golabl.Config.Server.DataDay
+	threeDaysAgo := time.Now().AddDate(0, 0, -days)
 	err := golabl.MysqlDb.Where("create_at < ?", threeDaysAgo).Find(&taskExport).Error
 	return taskExport, err
 }

@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	_redis "github.com/go-redis/redis/v8"
 )
@@ -85,6 +86,89 @@ func RunTaskWorker(taskId string) (string, error) {
 		return "", CallSendPublishingERR
 	}
 	return processId, nil
+}
+
+// RunCProgram 启动 C程序
+func RunCProgram() error {
+	// 1. 构建并验证程序路径
+	fileUrlConfig, getFileUrlConfigErr := config.GetFileUrlConfig()
+	if getFileUrlConfigErr != nil {
+		errMsg := fmt.Sprintf("获取文件路径配置失败: %v", getFileUrlConfigErr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return fmt.Errorf(errMsg)
+	}
+	programPath := fileUrlConfig.CFileName
+
+	// 2. 验证程序路径是否存在
+	absProgramPath, err := filepath.Abs(programPath)
+	if err != nil {
+		errMsg := fmt.Sprintf("转换程序路径为绝对路径失败: %s, 原始路径: %s", err, programPath)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return fmt.Errorf(errMsg)
+	}
+
+	// 3. 验证程序文件
+	_, statErr := os.Stat(absProgramPath)
+	if statErr != nil {
+		errMsg := fmt.Sprintf("程序文件不存在或无访问权限: %s, 错误: %v", absProgramPath, statErr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		return fmt.Errorf(errMsg)
+	}
+	// 4. 修改PowerShell脚本 - 不等待进程退出
+	psScript := fmt.Sprintf(`
+		$ErrorActionPreference = "Stop"
+		$programPath = "%s"
+		try {
+			if (-not (Test-Path $programPath -PathType Leaf)) {
+				throw "程序文件不存在: $programPath"
+			}
+			
+			$psi = New-Object System.Diagnostics.ProcessStartInfo
+			$psi.FileName = $programPath
+			$psi.UseShellExecute = $true
+			$psi.WindowStyle = 'Normal'
+			$psi.WorkingDirectory = (Split-Path $programPath -Parent)
+			$psi.CreateNoWindow = $false
+			
+			Write-Host "正在启动程序: $programPath"
+			$process = [System.Diagnostics.Process]::Start($psi)
+			Write-Host "程序启动成功，PID: $($process.Id)"
+			
+			# 不要调用 WaitForExit()，让PowerShell立即退出
+			# 但确保进程独立运行
+			$process.Dispose()
+			
+			Write-Host "程序已启动，PowerShell即将退出"
+		} catch {
+			Write-Error "启动程序失败: $_"
+			exit 1
+		}
+	`, programPath)
+
+	// 5. 执行PowerShell命令 - 不等待完成
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
+
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE
+			HideWindow:    false,
+		}
+	}
+
+	// 6. 启动PowerShell但不等待（或者等待短时间后分离）
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("启动程序失败: %v", err)
+	}
+
+	// 可选：等待1秒让程序启动，然后让PowerShell独立运行
+	go func() {
+		time.Sleep(1 * time.Second)
+		cmd.Process.Release() // 释放进程句柄，让PowerShell独立运行
+	}()
+
+	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, "C程序已启动")
+	return nil
 }
 
 // SuspendProcess 暂停指定PID的进程

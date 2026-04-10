@@ -39,8 +39,8 @@ type TaskRecords struct {
 	// IsExport 是否导出，默认为false(0)
 	IsExport *int64 `gorm:"column:is_export;type:tinyint(1);default:0;comment:是否导出(0:否 1:是)" json:"is_export,omitempty"`
 
-	// TaskType 任务类型，默认为 1 核价发布 2 表格发布
-	TaskType *int64 `gorm:"column:task_type;type:tinyint(1);default:1;comment:任务类型(1:核价发布 2:表格发布)" json:"task_type,omitempty"`
+	// TaskType 任务类型，默认为 1 核价发布 2 表格发布 3:拉取商品 4:拉取商品详情
+	TaskType *int64 `gorm:"column:task_type;type:tinyint(1);default:1;comment:任务类型(1:核价发布 2:表格发布 3:拉取商品 4:拉取商品详情)" json:"task_type,omitempty"`
 
 	// CreateAt 创建时间（GORM会自动维护创建时间）
 	CreateAt *time.Time `gorm:"column:create_at;type:datetime;autoCreateTime;comment:创建时间" json:"create_at,omitempty"`

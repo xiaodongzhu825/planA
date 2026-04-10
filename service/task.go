@@ -334,6 +334,8 @@ func StopTask(taskId string) error {
 }
 
 // DelTask 删除任务
+// @param taskId 任务ID
+// @return error 错误信息
 func DelTask(taskId string) error {
 	// 开启事务
 	pipe := golabl.RedisDbA.TxPipeline()
@@ -354,6 +356,22 @@ func DelTask(taskId string) error {
 	pipe.Del(golabl.Ctx, getBodyBackupKey(taskId))
 
 	return executePipeline(pipe)
+}
+
+// GetBodyBackupLen 获取body_backup长度
+// @param taskId 任务ID
+// @return int64 body_backup长度
+// @return error 错误信息
+func GetBodyBackupLen(taskId string) (int64, error) {
+	return golabl.RedisDbA.LLen(golabl.Ctx, getBodyBackupKey(taskId)).Result()
+}
+
+// GetBodyBackupOne 读取一条body_backup数据
+// @param taskId 任务ID
+// @return string body_backup数据
+// @return error 错误信息
+func GetBodyBackupOne(taskId string) (string, error) {
+	return golabl.RedisDbA.LPop(golabl.Ctx, getBodyBackupKey(taskId)).Result()
 }
 
 //********************************************以下为是有方法*****************************************//

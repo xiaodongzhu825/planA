@@ -187,14 +187,16 @@ func GetTaskRecordByTaskID(taskID string) (*sqLiteType.TaskRecords, error) {
 	return &record, nil
 }
 
-// DeleteOldTaskRecords 删除task_records表中3天前的记录
+// DeleteOldTaskRecords 删除task_records表中N天前的记录
 // @return error 错误信息
 func DeleteOldTaskRecords() error {
-	// 使用SQLite的date函数计算3天前
-	result, err := golabl.SqliteDb.Exec(`
-        DELETE FROM task_records 
-        WHERE create_at < datetime('now', 'localtime', '-3 days')
-    `)
+	// 使用SQLite的date函数计算N天前
+	days := golabl.Config.Server.DataDay
+	deleteSQL := fmt.Sprintf(`
+    DELETE FROM task_records 
+    WHERE create_at < datetime('now', 'localtime', '-%d days')
+`, days)
+	result, err := golabl.SqliteDb.Exec(deleteSQL)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)
 	}
@@ -204,7 +206,7 @@ func DeleteOldTaskRecords() error {
 		return fmt.Errorf("获取影响行数失败: %v", err)
 	}
 
-	fmt.Printf("已删除 %d 条大于3天的记录\n", rowsAffected)
+	fmt.Printf("已删除 %d 条大于N天的记录\n", rowsAffected)
 	return nil
 }
 
@@ -257,12 +259,13 @@ func GetTaskRecords24Hour() ([]sqLiteType.TaskRecords, error) {
 	return records, nil
 }
 
-// GetTaskRecordsOldList 获取task_records表中3天前的记录
+// GetTaskRecordsOldList 获取task_records表中N天前的记录
 func GetTaskRecordsOldList() ([]sqLiteType.TaskRecords, error) {
-	querySQL := `SELECT id, user_id, shop_id, task_id, shop_name, is_export, task_type, create_at
-        FROM task_records 
-        WHERE create_at < datetime('now', 'localtime', '-3 days')
-    `
+	days := golabl.Config.Server.DataDay
+	querySQL := fmt.Sprintf(`SELECT id, user_id, shop_id, task_id, shop_name, is_export, task_type, create_at
+    FROM task_records 
+    WHERE create_at < datetime('now', 'localtime', '-%d days')
+`, days)
 	// 执行查询
 	rows, err := golabl.SqliteDb.Query(querySQL)
 	if err != nil {
@@ -312,6 +315,36 @@ func GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]sqLiteType.Task
               WHERE shop_id = ? AND task_type = ?`
 	var records []sqLiteType.TaskRecords
 	rows, err := golabl.SqliteDb.Query(query, taskId, taskType)
+	if err != nil {
+		return nil, fmt.Errorf("查询任务记录失败: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var record sqLiteType.TaskRecords
+		err = rows.Scan(
+			&record.ID,
+			&record.UserID,
+			&record.ShopID,
+			&record.TaskID,
+			&record.ShopName,
+			&record.TaskType,
+			&record.CreateAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描任务记录数据失败: %v", err)
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+// GetAllTask 查询所有任务
+func GetAllTask() ([]sqLiteType.TaskRecords, error) {
+
+	query := `SELECT id, user_id, shop_id, task_id, shop_name, task_type, create_at 
+              FROM task_records`
+	var records []sqLiteType.TaskRecords
+	rows, err := golabl.SqliteDb.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("查询任务记录失败: %v", err)
 	}

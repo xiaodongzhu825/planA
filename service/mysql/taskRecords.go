@@ -83,10 +83,11 @@ func UpdateTaskRecords(record *mysqlType.TaskRecords) error {
 	return golabl.MysqlDb.Model(&mysqlType.TaskRecords{}).Where("task_id = ?", record.TaskID).Updates(record).Error
 }
 
-// DeleteOldTaskRecords 删除大于三天的数据
+// DeleteOldTaskRecords 删除大于N天的数据
 // @return error 错误信息
 func DeleteOldTaskRecords() error {
-	threeDaysAgo := time.Now().AddDate(0, 0, -3)
+	days := golabl.Config.Server.DataDay
+	threeDaysAgo := time.Now().AddDate(0, 0, -days)
 	return golabl.MysqlDb.Where("create_at < ?", threeDaysAgo).Delete(&mysqlType.TaskRecords{}).Error
 }
 
@@ -112,10 +113,11 @@ func GetTaskRecords24Hour() ([]*mysqlType.TaskRecords, error) {
 	return tasks, err
 }
 
-// GetTaskRecordsOldList 获取task_records表中3天前的记录
+// GetTaskRecordsOldList 获取task_records表中N天前的记录
 func GetTaskRecordsOldList() ([]*mysqlType.TaskRecords, error) {
 	var tasks []*mysqlType.TaskRecords
-	threeDaysAgo := time.Now().AddDate(0, 0, -3)
+	days := golabl.Config.Server.DataDay
+	threeDaysAgo := time.Now().AddDate(0, 0, -days)
 
 	err := golabl.MysqlDb.Where("create_at < ?",
 		threeDaysAgo).
@@ -133,5 +135,14 @@ func GetTaskRecordsOldList() ([]*mysqlType.TaskRecords, error) {
 func GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]*mysqlType.TaskRecords, error) {
 	var task []*mysqlType.TaskRecords
 	err := golabl.MysqlDb.Model(&mysqlType.TaskRecords{}).Where("shop_id = ? AND task_type = ?", taskId, taskType).Find(&task).Error
+	return task, err
+}
+
+// GetAllTask 查询所有的任务
+// @return []*mysqlType.TaskRecords 所有任务
+// @return error 错误信息
+func GetAllTask() ([]*mysqlType.TaskRecords, error) {
+	var task []*mysqlType.TaskRecords
+	err := golabl.MysqlDb.Model(&mysqlType.TaskRecords{}).Find(&task).Error
 	return task, err
 }

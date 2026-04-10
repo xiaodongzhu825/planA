@@ -84,7 +84,6 @@ func (s *SqlAdapter) GetTaskRecordsOldList() ([]*_type.TaskRecordsDTO, error) {
 // DeleteTaskRecordsOldData 删除任务记录旧数据
 // @return error 错误信息
 func (s *SqlAdapter) DeleteTaskRecordsOldData() error {
-
 	return sqLiteServer.DeleteOldTaskRecords()
 }
 
@@ -107,6 +106,15 @@ func (s *SqlAdapter) GetTaskRecords24Hour() ([]*_type.TaskRecordsDTO, error) {
 // @return error 错误信息
 func (s *SqlAdapter) GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]*_type.TaskRecordsDTO, error) {
 	list, err := sqLiteServer.GetTaskByShopIdAndTaskType(taskId, taskType)
+	listDTO := convertSqliteTaskRecordsToDTO(list)
+	return listDTO, err
+}
+
+// GetAllTask 获取所有的任务记录
+// @return []*_type.TaskRecordsDTO 所有任务列表
+// @return error 错误信息
+func (s *SqlAdapter) GetAllTask() ([]*_type.TaskRecordsDTO, error) {
+	list, err := sqLiteServer.GetAllTask()
 	listDTO := convertSqliteTaskRecordsToDTO(list)
 	return listDTO, err
 }

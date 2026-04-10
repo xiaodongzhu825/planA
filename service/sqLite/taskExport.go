@@ -186,14 +186,12 @@ func GetTaskExportsList(page, pageSize int, userId string) ([]sqLiteType.TaskExp
 	return records, total, nil
 }
 
-// DeleteOldExport 删除task_export表中3天前的记录
+// DeleteOldExport 删除task_export表中N天前的记录
 // @return error 错误信息
 func DeleteOldExport() error {
-	// 使用SQLite的date函数计算3天前
-	result, err := golabl.SqliteDb.Exec(`
-        DELETE FROM task_export 
-        WHERE create_at < datetime('now','localtime', '-3 days')
-    `)
+	days := golabl.Config.Server.DataDay
+	sql := fmt.Sprintf("DELETE FROM task_export WHERE create_at < datetime('now','localtime', '-%d days')", days)
+	result, err := golabl.SqliteDb.Exec(sql)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)
 	}
@@ -203,18 +201,18 @@ func DeleteOldExport() error {
 		return fmt.Errorf("获取影响行数失败: %v", err)
 	}
 
-	fmt.Printf("已删除 %d 条大于3天的记录\n", rowsAffected)
+	fmt.Printf("已删除 %d 条大于N天的记录\n", rowsAffected)
 	return nil
 }
 
-// GetOldExport 获取task_export表中3天前的记录
-// @return []TaskExport 3天前的记录
+// GetOldExport 获取task_export表中N天前的记录
+// @return []TaskExport N天前的记录
 // @return error 错误信息
 func GetOldExport() ([]sqLiteType.TaskExport, error) {
-	// 计算3天前的时间
-	sevenDaysAgo := time.Now().AddDate(0, 0, -3)
+	days := golabl.Config.Server.DataDay
+	sevenDaysAgo := time.Now().AddDate(0, 0, -days)
 
-	// 查询3天前的记录
+	// 查询N天前的记录
 	rows, err := golabl.SqliteDb.Query(`
         SELECT id, user_id, task_id, shop_name, file_url, status, total, complete_at, create_at 
         FROM task_export 
@@ -223,7 +221,7 @@ func GetOldExport() ([]sqLiteType.TaskExport, error) {
     `, sevenDaysAgo)
 
 	if err != nil {
-		return nil, fmt.Errorf("查询3天前导出记录失败: %v", err)
+		return nil, fmt.Errorf("查询N天前导出记录失败: %v", err)
 	}
 	defer rows.Close()
 

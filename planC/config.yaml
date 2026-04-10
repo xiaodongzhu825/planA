@@ -6,7 +6,6 @@ server:
   read_db: "mysql" #读数据库 mysql sqlite
   err_pause_time: 3000 #错误暂停时间（毫秒）
   sign_key: "jRQdCh52Z55Kzh1hADaA2ZtdTKetj2PXk60Tz5Yc0iz9aD8Wafbk7CwAZ8cz69A9zb9caZ3k9dnR3Ys06J5nYFPrZ0xE9p6TY8DCD538ryiRjW81YTPmk41tCEnXizPh" #签名密钥
-  data_day: 2 #数据保存时间（天）
 speed: #限速器
   pdd_speed: 18 #拼多多 每秒多少个任务
   xianyu_speed: 5 #闲鱼 每秒多少个任务

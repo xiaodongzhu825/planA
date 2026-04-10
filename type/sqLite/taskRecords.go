@@ -14,7 +14,7 @@ type TaskRecords struct {
 	TaskID   string    // 任务 ID
 	ShopName string    // 店铺名称
 	IsExport int64     // 是否已导出(0:未导出 1:已导出)
-	TaskType int64     // 任务类型(1:核价发布 2:表格发布
+	TaskType int64     // 任务类型(1:核价发布 2:表格发布 3:拉取商品 4:拉取商品详情)
 	CreateAt time.Time // 创建时间
 }
 

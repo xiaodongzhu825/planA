@@ -403,7 +403,7 @@ func ExportCSV(taskId string, total int64) {
 	csvFileName := fmt.Sprintf("%v.csv", taskId)
 
 	// 定义导出目录
-	exportDir := "export"
+	exportDir := "file/export"
 	// 检查并创建目录（如果不存在）
 	err := os.MkdirAll(exportDir, 0755)
 	if err != nil {

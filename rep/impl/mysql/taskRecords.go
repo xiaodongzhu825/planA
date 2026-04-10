@@ -112,6 +112,15 @@ func (g *GormAdapter) GetTaskByShopIdAndTaskType(taskId int64, taskType int64) (
 	return listDTO, err
 }
 
+// GetAllTask 获取所有的任务记录
+// @return []*_type.TaskRecordsDTO 所有任务列表
+// @return error 错误信息
+func (g *GormAdapter) GetAllTask() ([]*_type.TaskRecordsDTO, error) {
+	list, err := mysqlServer.GetAllTask()
+	listDTO := convertMysqlTaskRecordsToDTO(list)
+	return listDTO, err
+}
+
 // convertMysqlToDTO 转换mysqlType.TaskExport为_type.TaskExport
 // @param records mysqlType.TaskExport列表
 // @return []*_type.TaskExport _type.TaskExport列表

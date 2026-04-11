@@ -3,8 +3,9 @@ package title
 import (
 	"fmt"
 	"planA/planB/initialization/golabl"
-	"planA/planB/tool"
+	"syscall"
 	"time"
+	"unsafe"
 )
 
 // SetWinTitle 设置窗口标题
@@ -61,5 +62,15 @@ func SetWinTitle() {
 
 	//任务 id
 	title = title + golabl.Task.Header.TaskId
-	tool.SetConsoleTitle(title)
+	setConsoleTitle(title)
+}
+
+// SetConsoleTitle 设置窗口标题
+// @param title 标题
+func setConsoleTitle(title string) {
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	procSetConsoleTitle := kernel32.NewProc("SetConsoleTitleW")
+	// 将字符串转换为UTF-16指针
+	titlePtr, _ := syscall.UTF16PtrFromString(title)
+	procSetConsoleTitle.Call(uintptr(unsafe.Pointer(titlePtr)))
 }

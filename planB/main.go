@@ -36,12 +36,12 @@ func main() {
 	if golabl.Task.Header.TaskType == 3 || (golabl.Task.Header.TaskType == 4 && golabl.Task.Header.ShopType == "1") {
 		_, getGoodsTask := golabl.Platform.GetGoodsTask()
 		if getGoodsTask != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, getGoodsTask.Error())
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, getGoodsTask.Error())
 		}
 		// 通知 A程序任务完成
 		httpTaskStatusOverErr := tool.NotifyA()
 		if httpTaskStatusOverErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, httpTaskStatusOverErr.Error())
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, httpTaskStatusOverErr.Error())
 		}
 		//延迟3分钟,并且循环打印每秒倒计时
 		totalSeconds := 180 // 3分钟 = 180秒

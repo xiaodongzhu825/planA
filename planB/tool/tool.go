@@ -10,16 +10,12 @@ import (
 	"path"
 	"path/filepath"
 	"planA/planB/initialization/golabl"
-	"planA/planB/modules/image"
-	"planA/planB/modules/pdd"
 	"planA/planB/service"
 	planBTypeModules "planA/planB/type/modules"
 	planAType "planA/type"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
-	"unsafe"
 )
 
 // BuildPrice 价格处理
@@ -258,13 +254,12 @@ func FilterWord(taskMsg *planAType.TaskBody) error {
 }
 
 // AddWatermarkFromURLExs 打水印
-// @param imageDll 图片处理DLL
 // @param imgUrl 轮播图组
 // @param watermarkImgUrl 水印图片
 // @param watermarkPosition 水印位置 0 全部 1第一张
 // @return []string 轮播图组
 // @return error 错误信息
-func AddWatermarkFromURLExs(imageDll *image.ImageDLL, imgUrl []string, watermarkImgUrl string, watermarkPosition string) ([]planBTypeModules.ImageResult, error) {
+func AddWatermarkFromURLExs(imgUrl []string, watermarkImgUrl string, watermarkPosition string) ([]planBTypeModules.ImageResult, error) {
 	var watermarkFromURLExsBase64Arr []planBTypeModules.ImageResult
 	// 循环轮播图组给图片打水印
 	for i := 0; i < len(imgUrl); i++ {
@@ -274,7 +269,7 @@ func AddWatermarkFromURLExs(imageDll *image.ImageDLL, imgUrl []string, watermark
 		// 给图片打水印，带重试机制，最大重试次数为3
 		maxRetries := 3
 		for retryCount := 0; retryCount <= maxRetries; retryCount++ {
-			newImgJson, addWatermarkFromURLExsErr = imageDll.AddWatermarkFromURLExs(imgUrl[i], watermarkImgUrl)
+			newImgJson, addWatermarkFromURLExsErr = golabl.ImageDll.AddWatermarkFromURLExs(imgUrl[i], watermarkImgUrl)
 
 			// 判断是否包含超时错误
 			if addWatermarkFromURLExsErr != nil && strings.Contains(addWatermarkFromURLExsErr.Error(), "dialing to the given TCP address timed out") {
@@ -308,15 +303,14 @@ func AddWatermarkFromURLExs(imageDll *image.ImageDLL, imgUrl []string, watermark
 }
 
 // UploadImageToPdd 将图片上传到拼多多
-// @param pddDll pddDLL对象
 // @param watermarkFromURLExsBase64Arr 待上传的base64图片列表
 // @return []string 图片列表
 // @return error 错误信息
-func UploadImageToPdd(pddDll *pdd.PddDLL, watermarkFromURLExsBase64Arr []planBTypeModules.ImageResult) ([]string, error) {
+func UploadImageToPdd(watermarkFromURLExsBase64Arr []planBTypeModules.ImageResult) ([]string, error) {
 	var imageUrlArr []string
 	for _, watermarkFromURLExsBase64 := range watermarkFromURLExsBase64Arr {
 		var pddImg planBTypeModules.GoodsImageUploadResponse
-		imageUrl, pddGoodsImageUploadErr := pddDll.PddGoodsImageUpload(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, watermarkFromURLExsBase64.Data)
+		imageUrl, pddGoodsImageUploadErr := golabl.PddDll.PddGoodsImageUpload(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, watermarkFromURLExsBase64.Data)
 		if pddGoodsImageUploadErr != nil {
 			return imageUrlArr, pddGoodsImageUploadErr
 		}
@@ -328,16 +322,6 @@ func UploadImageToPdd(pddDll *pdd.PddDLL, watermarkFromURLExsBase64Arr []planBTy
 		imageUrlArr = append(imageUrlArr, pddImg.GoodsImageUploadResponse.ImageURL)
 	}
 	return imageUrlArr, nil
-}
-
-// SetConsoleTitle 设置窗口标题
-// @param title 标题
-func SetConsoleTitle(title string) {
-	kernel32 := syscall.NewLazyDLL("kernel32.dll")
-	procSetConsoleTitle := kernel32.NewProc("SetConsoleTitleW")
-	// 将字符串转换为UTF-16指针
-	titlePtr, _ := syscall.UTF16PtrFromString(title)
-	procSetConsoleTitle.Call(uintptr(unsafe.Pointer(titlePtr)))
 }
 
 // GetPlatformName 获取平台名称

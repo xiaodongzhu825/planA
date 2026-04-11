@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/planB/initialization/golabl"
-	"planA/planB/tool"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -49,8 +47,8 @@ var loggerDLLInstance *LoggerDLL
 var loggerHandle string
 var loggerContextHandle string
 
-// ensureLoggerDLL 确保logger DLL已加载
-func ensureLoggerDLL() (*LoggerDLL, error) {
+// EnsureLoggerDLL 确保logger DLL已加载
+func EnsureLoggerDLL(url string) (*LoggerDLL, error) {
 	if loggerDLLInstance != nil {
 		return loggerDLLInstance, nil
 	}
@@ -60,7 +58,7 @@ func ensureLoggerDLL() (*LoggerDLL, error) {
 		return nil, fmt.Errorf("logger DLL only supported on Windows platform")
 	}
 
-	dllPath := filepath.Join(golabl.Config.FileUrl.LogDll, "logger.dll")
+	dllPath := filepath.Join(url, "logger.dll")
 
 	// 检查文件是否存在
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
@@ -107,11 +105,7 @@ func cStr(ptr uintptr) string {
 }
 
 // InitializeLogger 初始化logger
-func InitializeLogger(logDir string) error {
-	m, err := ensureLoggerDLL()
-	if err != nil {
-		return err
-	}
+func InitializeLogger(m *LoggerDLL, logDir string) error {
 
 	// 确保日志目录存在
 	if err := os.MkdirAll(logDir, 0755); err != nil {
@@ -151,15 +145,11 @@ func InitializeLogger(logDir string) error {
 	m.freeString.Call(ret)
 
 	// 创建默认上下文
-	return createLoggerContext("main")
+	return createLoggerContext(m, "main")
 }
 
 // createLoggerContext 创建带任务类型的logger上下文
-func createLoggerContext(taskType string) error {
-	m, err := ensureLoggerDLL()
-	if err != nil {
-		return err
-	}
+func createLoggerContext(m *LoggerDLL, taskType string) error {
 
 	if loggerHandle == "" {
 		return fmt.Errorf("logger未初始化")
@@ -187,16 +177,12 @@ func createLoggerContext(taskType string) error {
 }
 
 // SetLogTaskType 设置当前日志任务类型
-func SetLogTaskType(taskType string) error {
-	return createLoggerContext(taskType)
+func SetLogTaskType(m *LoggerDLL, taskType string) error {
+	return createLoggerContext(m, taskType)
 }
 
 // LogInfo 记录信息日志
-func LogInfo(message string) error {
-	m, err := ensureLoggerDLL()
-	if err != nil {
-		return err
-	}
+func LogInfo(m *LoggerDLL, message string) error {
 
 	if loggerContextHandle == "" {
 		return fmt.Errorf("logger上下文未初始化")
@@ -214,11 +200,7 @@ func LogInfo(message string) error {
 }
 
 // LogError 记录错误日志
-func LogError(message string) error {
-	m, err := ensureLoggerDLL()
-	if err != nil {
-		return err
-	}
+func LogError(m *LoggerDLL, message string) error {
 
 	if loggerContextHandle == "" {
 		return fmt.Errorf("logger上下文未初始化")
@@ -236,12 +218,7 @@ func LogError(message string) error {
 }
 
 // LogWarning 记录警告日志
-func LogWarning(message string) error {
-	m, err := ensureLoggerDLL()
-	if err != nil {
-		return err
-	}
-
+func LogWarning(m *LoggerDLL, message string) error {
 	if loggerContextHandle == "" {
 		return fmt.Errorf("logger上下文未初始化")
 	}
@@ -258,11 +235,7 @@ func LogWarning(message string) error {
 }
 
 // LogSuccess 记录成功日志
-func LogSuccess(message string) error {
-	m, err := ensureLoggerDLL()
-	if err != nil {
-		return err
-	}
+func LogSuccess(m *LoggerDLL, message string) error {
 
 	if loggerContextHandle == "" {
 		return fmt.Errorf("logger上下文未初始化")
@@ -280,12 +253,7 @@ func LogSuccess(message string) error {
 }
 
 // CloseLogger 关闭logger
-func CloseLogger() error {
-	m, err := ensureLoggerDLL()
-	if err != nil {
-		return err
-	}
-
+func CloseLogger(m *LoggerDLL) error {
 	ret, _, _ := m.closeAllLoggers.Call()
 	if ret == 0 {
 		return fmt.Errorf("关闭logger失败")
@@ -320,76 +288,35 @@ func SetConsoleOutput(enabled bool) {
 }
 
 // LogWithLevel 带级别的日志记录，可以精确控制显示
-func LogWithLevel(level, message string, showConsole bool) {
+func LogWithLevel(m *LoggerDLL, level, message string, showConsole bool) {
 	if !IsLoggerInitialized() {
 		return
 	}
 
 	switch level {
 	case "ERROR":
-		LogError(message)
+		LogError(m, message)
 	case "WARNING":
-		LogWarning(message)
+		LogWarning(m, message)
 	case "SUCCESS":
-		LogSuccess(message)
+		LogSuccess(m, message)
 	case "INFO":
-		LogInfo(message)
+		LogInfo(m, message)
 	default:
-		LogInfo(message)
+		LogInfo(m, message)
 	}
 }
 
 // LogOnlyFile 仅写入文件，不输出到控制台
-func LogOnlyFile(level, message string) {
+func LogOnlyFile(m *LoggerDLL, level, message string) {
 	// 临时禁用控制台输出
 	os.Setenv("LOG_CONSOLE", "false")
-	LogWithLevel(level, message, false)
+	LogWithLevel(m, level, message, false)
 }
 
 // LogConsoleAndFile 同时输出到控制台和文件
-func LogConsoleAndFile(level, message string) {
+func LogConsoleAndFile(m *LoggerDLL, level, message string) {
 	// 临时启用控制台输出
 	os.Setenv("LOG_CONSOLE", "true")
-	LogWithLevel(level, message, true)
-}
-
-// LoggingMiddleware 记录日志
-func LoggingMiddleware(level string, str string) {
-	initializeLoggerErr := InitializeLogger("logs")
-	if initializeLoggerErr != nil {
-		fmt.Println("初始化日志失败:", initializeLoggerErr)
-		return
-	}
-	setLogTaskTypeErr := SetLogTaskType("task")
-	if setLogTaskTypeErr != nil {
-		fmt.Println("设置日志任务类型失败:", setLogTaskTypeErr)
-		return
-	}
-	str = tool.SteLog(str)
-	switch {
-	case level == LOG_LEVEL_ERROR:
-		logErrorErr := LogError(str)
-		if logErrorErr != nil {
-			fmt.Println("记录错误日志失败:", logErrorErr)
-			return
-		}
-	case level == LOG_LEVEL_WARNING:
-		logWarningErr := LogWarning(str)
-		if logWarningErr != nil {
-			fmt.Println("记录警告日志失败:", logWarningErr)
-			return
-		}
-	case level == LOG_LEVEL_SUCCESS:
-		logSuccessErr := LogSuccess(str)
-		if logSuccessErr != nil {
-			fmt.Println("记录成功日志失败:", logSuccessErr)
-			return
-		}
-	default:
-		logInfoErr := LogInfo(str)
-		if logInfoErr != nil {
-			fmt.Println("记录信息日志失败:", logInfoErr)
-			return
-		}
-	}
+	LogWithLevel(m, level, message, true)
 }

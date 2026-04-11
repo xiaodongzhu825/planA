@@ -24,7 +24,7 @@ func HttpGetRequest(url string) (int, string, error) {
 	// 读取响应内容
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return resp.StatusCode, "", fmt.Errorf("http get 读取响应失败: %v %v", url, httpGetErr)
+		return resp.StatusCode, "", fmt.Errorf("http get 读取响应失败: %v %v", url, err)
 	}
 	return resp.StatusCode, string(body), nil
 }

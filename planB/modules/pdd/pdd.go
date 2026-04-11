@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/planB/initialization/golabl"
 	"syscall"
 	"unsafe"
 )
@@ -46,8 +45,8 @@ type PddErrorResponse struct {
 }
 
 // InitPddDll 初始化 pddDLL
-func InitPddDll() (*PddDLL, error) {
-	dllPath := filepath.Join(golabl.Config.FileUrl.PddDll, "pdd.dll")
+func InitPddDll(url string) (*PddDLL, error) {
+	dllPath := filepath.Join(url, "pdd.dll")
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("pdd DLL 不存在: %s", dllPath)
 	}

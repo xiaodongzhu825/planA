@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"planA/planB/initialization/golabl"
 	"planA/planB/modules/logs"
-	xianYuDll "planA/planB/modules/xianYu"
 	"planA/planB/service"
 	"planA/planB/tool"
 	planBTypeXianyu "planA/planB/type/xianyu"
@@ -56,10 +55,6 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 
 	// 构建参数
 	var goodsAdd planBTypeXianyu.GoodsAdd
-	xianYuDlls, err := xianYuDll.InitXianYuDll()
-	if err != nil {
-		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("初始化拼多多DLL失败 %v", err))
-	}
 
 	// 解析应用 id与应用秘钥
 	var token planBTypeXianyu.Token
@@ -240,7 +235,7 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	// 闲鱼批次商品 KEY
 	goodsAdd.ItemKey = strconv.FormatInt(time.Now().Unix(), 10)
 	// 新增商品
-	goodsAddRet, goodsAddStr, err := addGoods(xianYuDlls, logUuid, goodsAdd)
+	goodsAddRet, goodsAddStr, err := addGoods(logUuid, goodsAdd)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品提交 %v", err))
 	}
@@ -259,7 +254,7 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 		UserName:           []string{token.Username},
 	}
 	//商品上架
-	_, _, err = launchGoods(xianYuDlls, logUuid, launchGoodsInfo)
+	_, _, err = launchGoods(logUuid, launchGoodsInfo)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品提交 %v", err))
 	}
@@ -328,20 +323,19 @@ func getProvinceCityDistrict(types int64, id int) (int, int, int, error) {
 }
 
 // 商品新增
-// @param xianYuDLL xianYuDLL对象
 // @param token 授权令牌
 // @param logUuid 日志ID
 // @param goodsInfo 添加商品信息
 // @return XianYuAddGoodsResponse 商品新增结果
 // @return string 添加商品结果json
 // @return error 错误信息
-func addGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, goodsInfo planBTypeXianyu.GoodsAdd) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
+func addGoods(logUuid string, goodsInfo planBTypeXianyu.GoodsAdd) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
 	var goodsAdd planBTypeXianyu.XianYuAddGoodsResponse
 	goodsInfoStr, marshalErr := json.Marshal(goodsInfo)
 	if marshalErr != nil {
 		return goodsAdd, "", marshalErr
 	}
-	goodsAddStr, xianYuGoodsAddErr := xianYuDLL.XianYuGoodsAdd(string(goodsInfoStr), golabl.Config.FileUrl.XianYuDll)
+	goodsAddStr, xianYuGoodsAddErr := golabl.XianYuDll.XianYuGoodsAdd(string(goodsInfoStr), golabl.Config.FileUrl.XianYuDll)
 	if xianYuGoodsAddErr != nil {
 		return goodsAdd, "", xianYuGoodsAddErr
 	}
@@ -361,20 +355,20 @@ func addGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, goodsInfo planBTyp
 			logUuid,
 			time.Now().Format("2006-01-02 15:04:05.000"),
 			string(goodsInfoStr))
-		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, addGoodsReqMsg)
+		tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, addGoodsReqMsg)
 		return goodsAdd, goodsAddStr, errors.New("闲鱼 XianYuGoodsAdd 错误:" + goodsAddStr)
 	}
 	return goodsAdd, goodsAddStr, nil
 }
 
 // 商品上架
-func launchGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, launchGoodsInfo planBTypeXianyu.Product) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
+func launchGoods(logUuid string, launchGoodsInfo planBTypeXianyu.Product) (planBTypeXianyu.XianYuAddGoodsResponse, string, error) {
 	var launchGoods planBTypeXianyu.XianYuAddGoodsResponse
 	launchGoodsInfoStr, marshalErr := json.Marshal(launchGoodsInfo)
 	if marshalErr != nil {
 		return launchGoods, "", marshalErr
 	}
-	launchGoodsStr, xianYuLaunchGoodsAddErr := xianYuDLL.XianYuLaunchGoods(string(launchGoodsInfoStr), golabl.Config.FileUrl.XianYuDll)
+	launchGoodsStr, xianYuLaunchGoodsAddErr := golabl.XianYuDll.XianYuLaunchGoods(string(launchGoodsInfoStr), golabl.Config.FileUrl.XianYuDll)
 	if xianYuLaunchGoodsAddErr != nil {
 		return launchGoods, "", xianYuLaunchGoodsAddErr
 	}
@@ -394,7 +388,7 @@ func launchGoods(xianYuDLL *xianYuDll.XianYuDLL, logUuid string, launchGoodsInfo
 			logUuid,
 			time.Now().Format("2006-01-02 15:04:05.000"),
 			string(launchGoodsInfoStr))
-		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, addGoodsReqMsg)
+		tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, addGoodsReqMsg)
 		return launchGoods, launchGoodsStr, errors.New("闲鱼 XianYuLaunchGoods 错误:" + launchGoodsStr)
 	}
 	return launchGoods, launchGoodsStr, nil

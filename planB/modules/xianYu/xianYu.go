@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/planB/initialization/golabl"
 	"syscall"
 	"unsafe"
 )
@@ -20,11 +19,11 @@ type XianYuDLL struct {
 }
 
 // InitXianYuDll 初始化 XianYuDLL
-func InitXianYuDll() (*XianYuDLL, error) {
+func InitXianYuDll(url string) (*XianYuDLL, error) {
 	if gXianYuDll != nil {
 		return gXianYuDll, nil
 	}
-	dllPath := filepath.Join(golabl.Config.FileUrl.XianYuDll, "xy.dll")
+	dllPath := filepath.Join(url, "xy.dll")
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("XianYu DLL 不存在: %s", dllPath)
 	}

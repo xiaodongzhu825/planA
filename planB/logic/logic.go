@@ -31,19 +31,19 @@ func Logic() {
 
 		//TODO 在更新config方法出去后应该去除该代码 每次重新获取配置文件
 		if configErr := config.GetConfigSetToG(); configErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, configErr.Error())
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, configErr.Error())
 			return
 		}
 
 		// 使用令牌桶进行速率控制（每秒20个）
 		if err := golabl.Speed.Wait(golabl.Ctx); err != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("令牌桶等待失败-原因来自于:%v", err))
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("令牌桶等待失败-原因来自于:%v", err))
 			continue
 		}
 
 		//TODO 重新获取任务头尾
 		if taskErr := task.GetTaskHeaderAndFooterSetToG(); taskErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, taskErr.Error())
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, taskErr.Error())
 			continue
 		}
 
@@ -59,7 +59,7 @@ func Logic() {
 			//获取任务真实的 wait数量
 			count, getTaskBodyWaitCountErr := service.GetTaskBodyWaitCount()
 			if getTaskBodyWaitCountErr != nil {
-				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务任务真实的 wait数量失败-原因来自:%v", getTaskBodyWaitCountErr))
+				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务任务真实的 wait数量失败-原因来自:%v", getTaskBodyWaitCountErr))
 				return
 			}
 			// 如果数量真的是0，则完成任务
@@ -75,9 +75,18 @@ func Logic() {
 
 		//协程池 提交
 		//taskExecute()
-		if taskPoolErr := golabl.Pool.Pool.Submit(taskExecute); taskPoolErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池意外-原因来自:%d", taskPoolErr))
-			golabl.Pool.Wg.Done() // 确保计数正确
+		//if taskPoolErr := golabl.Pool.Pool.Submit(taskExecute); taskPoolErr != nil {
+		//	tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池意外-原因来自:%d", taskPoolErr))
+		//	golabl.Pool.Wg.Done() // 确保计数正确
+		//}
+		// 改进后的任务提交
+		if taskPoolErr := golabl.Pool.Pool.Submit(func() {
+			defer golabl.Pool.Wg.Done()
+			taskExecute()
+		}); taskPoolErr != nil {
+			//tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池提交失败: %v", taskPoolErr))
+			golabl.Pool.Wg.Done()
+			// 考虑将任务重新加入队列或记录失败
 		}
 
 		// 判断 任务数是否超过1000 并且 判断是否执行到了1000的倍数
@@ -85,7 +94,7 @@ func Logic() {
 			// 更新任务头部信息
 			updateTaskHeaderErr := tool.UpdateTaskHeader()
 			if updateTaskHeaderErr != nil {
-				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("更新任务头信息失败-原因来自:%v", updateTaskHeaderErr))
+				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("更新任务头信息失败-原因来自:%v", updateTaskHeaderErr))
 			}
 		}
 	}
@@ -104,21 +113,18 @@ func Logic() {
 
 	// 更新任务头部信息
 	if updateTaskHeaderErr := tool.UpdateTaskHeader(); updateTaskHeaderErr != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("更新任务头信息失败-原因来自:%v", updateTaskHeaderErr))
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("更新任务头信息失败-原因来自:%v", updateTaskHeaderErr))
 	}
 
 	// 通知 A程序任务完成
 	httpTaskStatusOverErr := tool.NotifyA()
 	if httpTaskStatusOverErr != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, httpTaskStatusOverErr.Error())
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, httpTaskStatusOverErr.Error())
 	}
 }
 
 // 任务执行
 func taskExecute() {
-	// 任务完成
-	defer golabl.Pool.Wg.Done()
-
 	//初始化 变量
 	status := golabl.BodyStatusSuccess //默认的书籍执行状态·
 	errorStr := "执行成功"                 //默认的书籍执行描述
@@ -128,10 +134,10 @@ func taskExecute() {
 		//redis 读nil空+1
 		fmt.Printf("第 %v 次读出 Redis Nil \n", atomic.LoadInt64(&golabl.Logic.RedisNilCon))
 		atomic.AddInt64(&golabl.Logic.RedisNilCon, 1)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
 		return
 	} else if taskMsgErr != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
 		return
 	}
 
@@ -141,13 +147,13 @@ func taskExecute() {
 		//任务调度失败
 		status = golabl.BodyStatusError
 		errorStr = fmt.Sprintf("任务调度失败-原因来自:%v", err)
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务调度失败-原因来自:%v", err))
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务调度失败-原因来自:%v", err))
 	} else {
 		//任务调度成功
 		var bodyOver planAType.TaskBody
 		unmarshalErr := json.Unmarshal([]byte(bodyOverJson), &bodyOver)
 		if unmarshalErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("bodyOver json.Unmarshal错误-原因:%v", unmarshalErr))
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("bodyOver json.Unmarshal错误-原因:%v", unmarshalErr))
 		}
 		//更新 taskMsg
 		taskMsg = bodyOver
@@ -161,23 +167,25 @@ func taskExecute() {
 	if taskMsg.BookInfo.Isbn != "" {
 		// 添加任务到bodyOver、bodyData、bodyBackup
 		if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg, []string{}); addTaskToBodyOverErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))
 		}
 	}
 
 	// 更新 footer信息
 	if updateTaskFooterErr := service.UpdateTaskFooter(status, 1); updateTaskFooterErr != nil {
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", updateTaskFooterErr))
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", updateTaskFooterErr))
 	}
 
 	// 如果错误是 店铺商品发布达到上限则暂停程序
 	if strings.Contains(errorStr, "店铺内发布商品总数已达到上限") {
 		golabl.Task.Header.LastIndex = golabl.LastIndexGoodsMaxRestriction
 		//暂停 B程序运行
-		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "任务失败 添加到BodyOver失败-原因:店铺内发布商品总数已达到上限")
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "任务失败 添加到BodyOver失败-原因:店铺内发布商品总数已达到上限")
 		pauseTaskErr := tool.PauseTask()
 		if pauseTaskErr != nil {
-			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "任务失败 添加到BodyOver失败-原因:店铺内发布商品总数已达到上限")
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "任务失败 添加到BodyOver失败-原因:店铺内发布商品总数已达到上限")
 		}
 	}
+
+	fmt.Println(errorStr)
 }

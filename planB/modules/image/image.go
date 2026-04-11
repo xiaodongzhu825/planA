@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"planA/planB/initialization/golabl"
 	"syscall"
 	"unsafe"
 )
 
 var (
 	gImageDll *ImageDLL
+
+	// Windows API - 使用 C 运行时库
+	libc       = syscall.NewLazyDLL("msvcrt.dll")
+	procFree   = libc.NewProc("free")
+	procMalloc = libc.NewProc("malloc")
 )
 
 // ImageDLL 图片工具DLL结构
@@ -21,8 +25,8 @@ type ImageDLL struct {
 }
 
 // InitImageDll 初始化 imageDLL
-func InitImageDll() (*ImageDLL, error) {
-	dllPath := filepath.Join(golabl.Config.FileUrl.ImageDll, "image.dll")
+func InitImageDll(url string) (*ImageDLL, error) {
+	dllPath := filepath.Join(url, "image.dll")
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Image DLL 不存在: %s", dllPath)
 	}
@@ -56,7 +60,6 @@ type WatermarkConfig struct {
 
 // AddWatermarkFromURLExs 添加水印
 func (m *ImageDLL) AddWatermarkFromURLExs(sourceImageUrl, watermarkUrl string) (string, error) {
-
 	watermarkConfig := WatermarkConfig{
 		SourceImageURL:  sourceImageUrl,
 		WatermarkBase64: watermarkUrl,
@@ -77,13 +80,41 @@ func (m *ImageDLL) AddWatermarkFromURLExs(sourceImageUrl, watermarkUrl string) (
 	if err != nil {
 		return "", fmt.Errorf("找不到函数 AddWatermarkFromURLEx: %v", err)
 	}
-	watermarkConfigJsonPtr, _ := syscall.BytePtrFromString(string(watermarkConfigJson))
 
+	// 分配内存并确保释放
+	jsonStr := string(watermarkConfigJson)
+	jsonPtr := cString(jsonStr)
+	defer freeCString(jsonPtr)
+
+	// 调用 DLL 函数
 	resultPtr, _, _ := proc.Call(
-		uintptr(unsafe.Pointer(watermarkConfigJsonPtr)),
+		uintptr(unsafe.Pointer(jsonPtr)),
 	)
 	result := cStr(resultPtr)
 	return result, nil
+}
+
+// cString 分配 C 字符串（使用 malloc）
+func cString(str string) unsafe.Pointer {
+	// 计算需要的内存大小
+	size := len(str) + 1
+	ptr, _, _ := procMalloc.Call(uintptr(size))
+	if ptr == 0 {
+		return nil
+	}
+	// 复制字符串内容
+	for i := 0; i < len(str); i++ {
+		*(*byte)(unsafe.Pointer(ptr + uintptr(i))) = str[i]
+	}
+	*(*byte)(unsafe.Pointer(ptr + uintptr(len(str)))) = 0 // 结尾加 \0
+	return unsafe.Pointer(ptr)
+}
+
+// freeCString 释放 C 字符串
+func freeCString(ptr unsafe.Pointer) {
+	if ptr != nil {
+		procFree.Call(uintptr(ptr))
+	}
 }
 
 // cStr 将 C 字符串指针转换为 Go 字符串

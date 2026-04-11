@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"planA/planB/initialization/golabl"
-	"planA/planB/modules/image"
 	"planA/planB/modules/logs"
-	"planA/planB/modules/pdd"
 	"planA/planB/service"
 	"planA/planB/tool"
 	planBTypePinduoduo "planA/planB/type/pinduoduo"
@@ -63,18 +61,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	}
 	taskMsg.Detail.Price = price
 
-	// 初始化 PddDll
 	var goodsAdd planBTypePinduoduo.GoodsAdd
-	pddDll, err := pdd.InitPddDll()
-	if err != nil {
-		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("初始化拼多多DLL失败 %v", err))
-	}
-
-	// 初始化 imageDll
-	imageDll, imageDllErr := image.InitImageDll()
-	if imageDllErr != nil {
-		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("初始化图片DLL失败 %v", imageDllErr))
-	}
 
 	// *********************构建参数 开始******************************** //
 
@@ -109,12 +96,12 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取水印图片失败 %v", watermarkImgErr))
 		}
 		//打水印
-		watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(imageDll, taskMsg.BookInfo.ImageObject.CarouselUrlArray, watermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
+		watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(taskMsg.BookInfo.ImageObject.CarouselUrlArray, watermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
 		if watermarkFromURLExsErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("图片打水印失败 %v", watermarkFromURLExsErr))
 		}
 		//图片上传到拼多多
-		toPdd, uploadImageToPddErr := tool.UploadImageToPdd(pddDll, watermarkFromURLExsBase64Arr)
+		toPdd, uploadImageToPddErr := tool.UploadImageToPdd(watermarkFromURLExsBase64Arr)
 		if uploadImageToPddErr != nil {
 			return "", fmt.Errorf("图片上传到拼多多失败 %v", uploadImageToPddErr)
 		}
@@ -143,9 +130,9 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 
 	if taskMsg.BookInfo.CatIdObject.PinDuoDuoCatId == "" {
 		// 调用拼多多 SDK 取类目信息
-		pddCalbackStr, pddGoodsOuterCatMappingGetErr := pddDll.PddGoodsOuterCatMappingGet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, "15543", "书籍/杂志/报纸", "书籍 "+taskMsg.BookInfo.BookName)
+		pddCalbackStr, pddGoodsOuterCatMappingGetErr := golabl.PddDll.PddGoodsOuterCatMappingGet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, "15543", "书籍/杂志/报纸", "书籍 "+taskMsg.BookInfo.BookName)
 		if pddGoodsOuterCatMappingGetErr != nil {
-			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("调用DLL类目映射失败 %w", err))
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("调用DLL类目映射失败 %w", pddGoodsOuterCatMappingGetErr))
 		}
 
 		// 解析返回的 JSON 字符串
@@ -226,7 +213,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	)
 
 	//库存
-	if taskMsg.Detail.Stock == 0 && golabl.Task.Header.TaskType == 1 {
+	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2) {
 		//如果库存为0 则给默认库存
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
 	}
@@ -250,19 +237,19 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		}
 		//sku 打水印
 		skuThumbnailArr := []string{skuThumbnail}
-		skuWatermarkFromURLExsBase64Arr, skuWatermarkFromURLExsErr := tool.AddWatermarkFromURLExs(imageDll, skuThumbnailArr, skuWatermarkImgUrl, "1")
+		skuWatermarkFromURLExsBase64Arr, skuWatermarkFromURLExsErr := tool.AddWatermarkFromURLExs(skuThumbnailArr, skuWatermarkImgUrl, "1")
 		if skuWatermarkFromURLExsErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("sku图片打水印失败 %v", skuWatermarkFromURLExsErr))
 		}
 		//sku 图片上传到拼多多
-		skuToPdd, uploadImageToPddErr := tool.UploadImageToPdd(pddDll, skuWatermarkFromURLExsBase64Arr)
+		skuToPdd, uploadImageToPddErr := tool.UploadImageToPdd(skuWatermarkFromURLExsBase64Arr)
 		if uploadImageToPddErr != nil {
 			return "", fmt.Errorf("图片上传到拼多多失败 %v", uploadImageToPddErr)
 		}
 		//将上传的图片替换到商品轮播图中
 		skuThumbnail = skuToPdd[0]
 	}
-	sku, err := buildSkuList(pddDll, price, skuThumbnail, taskMsg.Detail.Stock, taskMsg.Detail.SkuCode)
+	sku, err := buildSkuList(price, skuThumbnail, taskMsg.Detail.Stock, taskMsg.Detail.SkuCode)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, err)
 	}
@@ -271,13 +258,13 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	// *********************构建参数 结束******************************** //
 
 	// 发送请求
-	goodsAddRet, _, err := addGoods(pddDll, logUuid, goodsAdd)
+	goodsAddRet, _, err := addGoods(logUuid, goodsAdd)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品提交 %v", err))
 	}
 
 	// 获取商品提交的商品详情
-	goodsCommitDetail, _, getGoodsCommitDetailErr := getGoodsCommitDetail(pddDll, goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
+	goodsCommitDetail, _, getGoodsCommitDetailErr := getGoodsCommitDetail(goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)
 	if getGoodsCommitDetailErr != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取商品提交的商品详情失败 %w", getGoodsCommitDetailErr))
 	}
@@ -396,7 +383,7 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 		duplicateCount,
 		float64(duplicateCount)/float64(totalFetched)*100)
 	fmt.Println(statsLogMsg)
-	logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, statsLogMsg)
+	tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, statsLogMsg)
 
 	return tool.GoodsAddReturnSuccess(planAType.TaskBody{})
 }
@@ -515,21 +502,20 @@ func buildGoodsPropertiesList(isbn, bookName string, pageCount, price int64, pub
 }
 
 // sku规格生成
-// @param pddDll pddDLL对象
 // @param price 价格
 // @param thumbUrl 缩略图
 // @param stock 库存
 // @param outSkuSn 商品编码
 // @return Sku sku规格
 // @return error 错误信息
-func buildSkuList(pddDll *pdd.PddDLL, price int64, thumbUrl string, stock int64, outSkuSn string) (planBTypePinduoduo.Sku, error) {
+func buildSkuList(price int64, thumbUrl string, stock int64, outSkuSn string) (planBTypePinduoduo.Sku, error) {
 	//构建变量
 	specId := golabl.Task.Header.ShopMsg.SpecId
 	specName := golabl.Task.Header.ShopMsg.SpecName
 	specChildName := golabl.Task.Header.ShopMsg.SpecChildName
 	// 构建 Spec列表
 	var sku planBTypePinduoduo.Sku
-	goodsSpec, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(pddDll, specId, specChildName)
+	goodsSpec, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(specId, specChildName)
 	if buildPddGoodsSpecIdErr != nil {
 		return sku, buildPddGoodsSpecIdErr
 	}
@@ -561,14 +547,13 @@ func buildSkuList(pddDll *pdd.PddDLL, price int64, thumbUrl string, stock int64,
 }
 
 // buildPddGoodsSpecId 根据名称获取规格信息
-// @param pddDll pddDLL对象
 // @param specId 商品规格id
 // @param specName 规格名称
 // @return DllGoodsSpec 规格信息
 // @return error 错误信息
-func buildPddGoodsSpecId(pddDll *pdd.PddDLL, id int64, name string) (planAType.DllGoodsSpec, error) {
+func buildPddGoodsSpecId(id int64, name string) (planAType.DllGoodsSpec, error) {
 	var spec planAType.DllGoodsSpec
-	specStr, err := pddDll.PddGoodsSpecIdGet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, strconv.FormatInt(id, 10), name)
+	specStr, err := golabl.PddDll.PddGoodsSpecIdGet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, strconv.FormatInt(id, 10), name)
 	if err != nil {
 		return spec, err
 	}
@@ -581,20 +566,19 @@ func buildPddGoodsSpecId(pddDll *pdd.PddDLL, id int64, name string) (planAType.D
 }
 
 // 商品新增
-// @param pddDll pddDLL对象
 // @param logUuid 日志ID
 // @param goodsInfo 商品信息
 // @return GoodsAddResponseWrapper 商品新增结果
 // @return string 商品新增结果json
 // @return error 错误信息
-func addGoods(pddDll *pdd.PddDLL, logUuid string, goodsInfo planBTypePinduoduo.GoodsAdd) (planBTypePinduoduo.GoodsAddResponseWrapper, string, error) {
+func addGoods(logUuid string, goodsInfo planBTypePinduoduo.GoodsAdd) (planBTypePinduoduo.GoodsAddResponseWrapper, string, error) {
 	var goodsAdd planBTypePinduoduo.GoodsAddResponseWrapper
 	goodsInfoStr, jsonMarshalErr := json.Marshal(goodsInfo)
 	if jsonMarshalErr != nil {
 		return goodsAdd, "", jsonMarshalErr
 	}
 	//发送请求
-	goodsAddStr, pddGoodsAddErr := pddDll.PddGoodsAdd(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, string(goodsInfoStr))
+	goodsAddStr, pddGoodsAddErr := golabl.PddDll.PddGoodsAdd(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, string(goodsInfoStr))
 	//判断是否成功
 	if strings.Contains(goodsAddStr, "请求失败") || strings.Contains(goodsAddStr, "错误码") {
 		//记录请求日志
@@ -610,7 +594,7 @@ func addGoods(pddDll *pdd.PddDLL, logUuid string, goodsInfo planBTypePinduoduo.G
 			time.Now().Format("2006-01-02 15:04:05.000"),
 			string(goodsInfoStr))
 
-		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, addGoodsReqMsg)
+		tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, addGoodsReqMsg)
 		return goodsAdd, goodsAddStr, errors.New("拼多多 PddGoodsAdd 错误:" + goodsAddStr)
 	}
 	if pddGoodsAddErr != nil {
@@ -624,14 +608,13 @@ func addGoods(pddDll *pdd.PddDLL, logUuid string, goodsInfo planBTypePinduoduo.G
 }
 
 // 获取商品提交的商品详情
-// @param pddDll pddDLL对象
 // @param goodsCommitId 商品提交ID
 // @param goodsId 商品ID
 // @return GoodsCommitDetailResponse 商品提交详情
 // @return error 错误信息
-func getGoodsCommitDetail(pddDll *pdd.PddDLL, goodsCommitId int64, goodsId int64) (planBTypePinduoduo.GoodsCommitDetailResponse, string, error) {
+func getGoodsCommitDetail(goodsCommitId int64, goodsId int64) (planBTypePinduoduo.GoodsCommitDetailResponse, string, error) {
 	var goodsCommitDetail planBTypePinduoduo.GoodsCommitDetailResponse
-	goodsCommitDetailStr, pddGoodsCommitDetailGetErr := pddDll.PddGoodsCommitDetailGet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, strconv.FormatInt(goodsCommitId, 10), strconv.FormatInt(goodsId, 10))
+	goodsCommitDetailStr, pddGoodsCommitDetailGetErr := golabl.PddDll.PddGoodsCommitDetailGet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, strconv.FormatInt(goodsCommitId, 10), strconv.FormatInt(goodsId, 10))
 	if pddGoodsCommitDetailGetErr != nil {
 		return goodsCommitDetail, "", pddGoodsCommitDetailGetErr
 	}

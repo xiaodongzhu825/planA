@@ -10,6 +10,8 @@ import (
 	"planA/initialization/redis"
 	"planA/initialization/sqLite"
 	"sync"
+
+	"github.com/robfig/cron/v3"
 )
 
 var (
@@ -53,40 +55,35 @@ func main() {
 
 	fmt.Println("定时任务 启动成功")
 
-	fmt.Println("开始备份 body_backup到硬盘")
-	planACron.BackupBodyBackup()
-	fmt.Println("备份 body_backup到硬盘完成")
+	c := cron.New(cron.WithSeconds()) // 支持秒级别的精度
 
-	//
-	//c := cron.New(cron.WithSeconds()) // 支持秒级别的精度
-	//
-	//// 备份 body_backup到硬盘 - 每分钟执行一次，使用锁防止并发
-	//_, backupBodyBackupErr := c.AddFunc("0 * * * * ?", func() {
-	//	// 尝试获取锁，如果锁已被占用则直接返回
-	//	if !backupMutex.TryLock() {
-	//		fmt.Println("上一次备份任务尚未完成，跳过本次执行")
-	//		return
-	//	}
-	//	defer backupMutex.Unlock()
-	//	fmt.Println("开始备份 body_backup到硬盘")
-	//	planACron.BackupBodyBackup()
-	//	fmt.Println("备份 body_backup到硬盘完成")
-	//
-	//})
-	//if backupBodyBackupErr != nil {
-	//	fmt.Println("定时任务 备份 body_backup到硬盘 启动失败")
-	//	return
-	//}
-	//
-	//// 每天上午9点压缩昨天csv文件
-	//_, zipBackupFileErr := c.AddFunc("0 0 9 * * ?", func() {
-	//	fmt.Println("开始压缩昨天 csv文件")
-	//	planACron.ZipBackupFile()
-	//})
-	//if zipBackupFileErr != nil {
-	//	fmt.Println("定时任务 zipBackupFile 启动失败")
-	//	return
-	//}
-	//
-	//c.Run() // 启动调度器（阻塞运行）
+	// 备份 body_backup到硬盘 - 每分钟执行一次，使用锁防止并发
+	_, backupBodyBackupErr := c.AddFunc("0 * * * * ?", func() {
+		// 尝试获取锁，如果锁已被占用则直接返回
+		if !backupMutex.TryLock() {
+			fmt.Println("上一次备份任务尚未完成，跳过本次执行")
+			return
+		}
+		defer backupMutex.Unlock()
+		fmt.Println("开始备份 body_backup到硬盘")
+		planACron.BackupBodyBackup()
+		fmt.Println("备份 body_backup到硬盘完成")
+
+	})
+	if backupBodyBackupErr != nil {
+		fmt.Println("定时任务 备份 body_backup到硬盘 启动失败")
+		return
+	}
+
+	// 每天上午9点压缩昨天csv文件
+	_, zipBackupFileErr := c.AddFunc("0 0 9 * * ?", func() {
+		fmt.Println("开始压缩昨天 csv文件")
+		planACron.ZipBackupFile()
+	})
+	if zipBackupFileErr != nil {
+		fmt.Println("定时任务 zipBackupFile 启动失败")
+		return
+	}
+
+	c.Run() // 启动调度器（阻塞运行）
 }

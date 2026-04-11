@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"planA/planB/initialization/config"
+	"planA/planB/initialization/dll"
 	"planA/planB/initialization/golabl"
 	"planA/planB/initialization/minIo"
 	"planA/planB/initialization/platform"
@@ -68,6 +69,11 @@ func Init(taskId string) error {
 	// 初始化图片空间
 	if newMinIOClientErr := minIo.NewMinIOClient(); newMinIOClientErr != nil {
 		return fmt.Errorf("初始化图片空间失败: %v", newMinIOClientErr)
+	}
+
+	// 初始化 DLL
+	if dllErr := dll.GetDllSetToG(); dllErr != nil {
+		return fmt.Errorf("初始化DLL失败: %v", dllErr)
 	}
 
 	//设置窗口标题

@@ -13,7 +13,6 @@ import (
 	"planA/planB/initialization/speed"
 	"planA/planB/initialization/task"
 	"planA/planB/initialization/taskType"
-	"planA/planB/initialization/title"
 	planBType "planA/planB/type"
 	planAType "planA/type"
 )
@@ -77,7 +76,7 @@ func Init(taskId string) error {
 	}
 
 	//设置窗口标题
-	title.SetWinTitle()
+	//title.SetWinTitle()
 
 	return nil
 }

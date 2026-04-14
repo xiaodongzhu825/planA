@@ -754,9 +754,6 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 			if addTaskToBodyWaitErr != nil {
 				return addTaskToBodyWaitErr
 			}
-
-			// 更新 header 进度
-
 		}
 
 		// 记录最后一页的最后一条数据的创建时间
@@ -781,7 +778,7 @@ func phaseOneGoods(maxPage int, pageSize int, totalFetched *int, lastCreatedAt *
 			con = golabl.Task.Footer.TaskCountTrue - con
 		}
 		// 更新 进度
-		if updateTaskProgressErr := updateTaskProgress(con); updateTaskProgressErr != nil {
+		if updateTaskProgressErr := tool.UpdateTaskProgress(con); updateTaskProgressErr != nil {
 			return updateTaskProgressErr
 		}
 
@@ -1018,7 +1015,7 @@ func PhaseTwoGoods(pageSize int, totalFetched *int, lastCreatedAt *int64, maxRec
 					con = golabl.Task.Footer.TaskCountTrue - con
 				}
 				// 更新 进度
-				if updateTaskProgressErr := updateTaskProgress(con); updateTaskProgressErr != nil {
+				if updateTaskProgressErr := tool.UpdateTaskProgress(con); updateTaskProgressErr != nil {
 					return updateTaskProgressErr
 				}
 
@@ -1143,7 +1140,7 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 			con = golabl.Task.Footer.TaskCountTrue - con
 		}
 		// 更新 进度
-		if updateTaskProgressErr := updateTaskProgress(con); updateTaskProgressErr != nil {
+		if updateTaskProgressErr := tool.UpdateTaskProgress(con); updateTaskProgressErr != nil {
 			return updateTaskProgressErr
 		}
 
@@ -1156,24 +1153,6 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
 	if deleteTaskBodyWaitErr != nil {
 		return deleteTaskBodyWaitErr
-	}
-	return nil
-}
-
-// 更新拉取商品进度
-// @param con int64 更新进度数
-// @return error 错误信息
-func updateTaskProgress(con int64) error {
-	// 更新 进度
-	if updateTaskFooterErr := service.UpdateTaskFooter(1, con); updateTaskFooterErr != nil {
-		return updateTaskFooterErr
-	}
-	// 重新获取 footer信息
-	if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
-		return getTaskFooterErr
-	}
-	if updateTaskHeaderCountErr := tool.UpdateTaskHeader(); updateTaskHeaderCountErr != nil {
-		return updateTaskHeaderCountErr
 	}
 	return nil
 }

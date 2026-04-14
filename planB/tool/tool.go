@@ -483,3 +483,21 @@ func UpdateTaskHeader() error {
 	golabl.Task.Header.LastIndex = golabl.Logic.LastIndex
 	return service.UpdateTaskHeaderCount()
 }
+
+// UpdateTaskProgress 更新拉取商品进度
+// @param con int64 更新进度数
+// @return error 错误信息
+func UpdateTaskProgress(con int64) error {
+	// 更新 进度
+	if updateTaskFooterErr := service.UpdateTaskFooter(1, con); updateTaskFooterErr != nil {
+		return updateTaskFooterErr
+	}
+	// 重新获取 footer信息
+	if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
+		return getTaskFooterErr
+	}
+	if updateTaskHeaderCountErr := UpdateTaskHeader(); updateTaskHeaderCountErr != nil {
+		return updateTaskHeaderCountErr
+	}
+	return nil
+}

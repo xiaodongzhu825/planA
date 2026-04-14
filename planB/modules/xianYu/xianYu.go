@@ -74,6 +74,42 @@ func (m *XianYuDLL) XianYuLaunchGoods(bodyJson string, configFile string) (strin
 	return result, nil
 }
 
+// XianYuGetGoodsList 拉取商品列表
+func (m *XianYuDLL) XianYuGetGoodsList(bodyJson string, configFile string) (string, error) {
+	proc, err := m.Dll.FindProc("ExecuteSelectGoodsListPrice")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 ExecuteSelectGoodsListPrice: %v", err)
+	}
+	bodyJsonPtr, _ := syscall.BytePtrFromString(bodyJson)
+	configFile = configFile + "\\config.ini"
+	configFilePtr, _ := syscall.BytePtrFromString(configFile)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(bodyJsonPtr)),
+		uintptr(unsafe.Pointer(configFilePtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// XianYuGetGoodsDetail 拉取商品详情
+func (m *XianYuDLL) XianYuGetGoodsDetail(bodyJson string, configFile string) (string, error) {
+	proc, err := m.Dll.FindProc("ExecuteGetGoodsDetail")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 ExecuteGetGoodsDetail: %v", err)
+	}
+	bodyJsonPtr, _ := syscall.BytePtrFromString(bodyJson)
+	configFile = configFile + "\\config.ini"
+	configFilePtr, _ := syscall.BytePtrFromString(configFile)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(bodyJsonPtr)),
+		uintptr(unsafe.Pointer(configFilePtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
 // cStr 将 C 字符串指针转换为 Go 字符串
 func cStr(ptr uintptr) string {
 	if ptr == 0 {

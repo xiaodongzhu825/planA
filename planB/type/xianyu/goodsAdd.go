@@ -88,12 +88,12 @@ type Product struct {
 
 // XianYuAddGoodsResponse 闲鱼商品新增响应结构体
 type XianYuAddGoodsResponse struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-	Data Data   `json:"data"`
+	Code int          `json:"code"`
+	Msg  string       `json:"msg"`
+	Data GoodsResData `json:"data"`
 }
 
-type Data struct {
+type GoodsResData struct {
 	Success []SuccessItem `json:"success"`
 	Error   []interface{} `json:"error"` // 空数组，使用 interface{} 或定义具体结构
 }

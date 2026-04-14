@@ -3,6 +3,7 @@ package tool
 import (
 	"encoding/json"
 	"planA/planB/initialization/golabl"
+	planBType "planA/planB/type"
 	planBTypePinduoduo "planA/planB/type/pinduoduo"
 	"planA/tool"
 	"strconv"
@@ -33,8 +34,8 @@ func GetPddGoodsList(params map[string]string) (planBTypePinduoduo.GoodsListResp
 // WritePddGoodsData 写入商品数据
 // @param goodsListStr 商品列表
 // @return error 错误信息
-func WritePddGoodsData(goodsListStr []planBTypePinduoduo.GoodsItem, page int, pageTotal int64) (planBTypePinduoduo.AsyncTaskResponse, string, error) {
-	var ret planBTypePinduoduo.AsyncTaskResponse
+func WritePddGoodsData(goodsListStr []planBTypePinduoduo.GoodsItem, page int, pageTotal int64) (planBType.AsyncTaskResponse, string, error) {
+	var ret planBType.AsyncTaskResponse
 	marshal, marshalErr := json.Marshal(goodsListStr)
 	if marshalErr != nil {
 		return ret, "", marshalErr

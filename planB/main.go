@@ -8,8 +8,18 @@ import (
 	"planA/planB/modules/logs"
 	"planA/planB/tool"
 	"planA/planB/validation"
+
+	//"planA/planB/initialization"
+	//"planA/planB/initialization/golabl"
+	//"planA/planB/logic"
+	//"planA/planB/modules/logs"
+	//"planA/planB/tool"
+	//"planA/planB/validation"
 	"time"
 )
+
+func Init() {
+}
 
 func main() {
 	//校验参数

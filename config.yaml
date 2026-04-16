@@ -48,7 +48,7 @@ redis_config:
     addr: "127.0.0.1:6379"
     password: ""
   - db_name: "书品库"
-    db: 1
+    db: 7
     addr: "36.212.12.247:6379"
     password: "long6166@@"
   - db_name: "店铺信息"

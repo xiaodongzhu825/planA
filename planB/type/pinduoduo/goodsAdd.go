@@ -199,3 +199,69 @@ type VideoInfo struct {
 	FileID   interface{} `json:"file_id"`
 	VideoURL interface{} `json:"video_url"`
 }
+
+// SetSaleStatusGoodsTaskReq 设置商品上下架状态
+type SetSaleStatusGoodsTaskReq struct {
+	GoodsId  int64 `json:"goods_id"`  // 拼多多商品 id
+	IsOnsale int   `json:"is_onsale"` // 上下架状态：1:上架 0:下架
+}
+
+// SetSaleStatusGoodsTaskResponse 拼多多 pddGoodsSaleStatusSet 响应结构
+type SetSaleStatusGoodsTaskResponse struct {
+	GoodsSaleStatusSetResponse GoodsSaleStatusSetResponse `json:"goods_sale_status_set_response"`
+}
+type GoodsSaleStatusSetResponse struct {
+	IsSuccess bool    `json:"is_success"`
+	Msg       *string `json:"msg"` // 或使用 *string, 因为原值为null
+	RequestId string  `json:"request_id"`
+}
+
+// DeleteGoodsCommit 删除商品
+type DeleteGoodsCommit struct {
+	GoodsIds []int64 `json:"goods_ids"`
+}
+
+// DeleteGoodsCommitResponse 删除商品响应结构
+type DeleteGoodsCommitResponse struct {
+	OpenAPIResponse bool   `json:"open_api_response"`
+	RequestID       string `json:"request_id"`
+}
+
+// UpdateGoodsQuantity 更新库存
+type UpdateGoodsQuantity struct {
+	ForceUpdate bool  `json:"force_update"`
+	GoodsId     int64 `json:"goods_id"`
+	SkuId       int64 `json:"sku_id"`
+	Quantity    int64 `json:"quantity"`
+	UpdateType  int   `json:"update_type"`
+}
+
+// UpdateGoodsQuantityResponse 更新库存响应结构
+type UpdateGoodsQuantityResponse struct {
+	GoodsQuantityUpdateResponse struct {
+		IsSuccess bool   `json:"is_success"`
+		RequestID string `json:"request_id"`
+	} `json:"goods_quantity_update_response"`
+}
+
+// UpdateSkuPrice 更新sku价格
+type UpdateSkuPrice struct {
+	GoodsId           int64          `json:"goods_id"`
+	MarketPrice       int64          `json:"market_price"`
+	MarketPriceInYuan string         `json:"market_price_in_yuan"`
+	SkuPriceList      []SkuPriceItem `json:"sku_price_list"`
+}
+
+type SkuPriceItem struct {
+	GroupPrice  int64 `json:"group_price"`
+	SinglePrice int64 `json:"single_price"`
+	SkuId       int64 `json:"sku_id"`
+}
+
+// UpdateGoodsSkuPriceResponse 更新sku价格响应结构
+type UpdateGoodsSkuPriceResponse struct {
+	GoodsUpdateSkuPriceResponse struct {
+		IsSuccess     bool  `json:"is_success"`
+		GoodsCommitId int64 `json:"goods_commit_id"`
+	} `json:"goods_update_sku_price_response"`
+}

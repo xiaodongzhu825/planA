@@ -25,9 +25,8 @@ func NewPinDuoDuo() *PinDuoDuo {
 }
 
 // AddGoodsTask 添加商品
-// @param taskHeader 任务头
 // @param taskMsg 任务内容
-// @return string 预留
+// @return string body 信息
 // @return error 错误
 func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	//生成唯一请求标识（用于出错精准查询日志）
@@ -54,7 +53,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		}
 	}
 
-	// 价格出来
+	// 价格处理
 	price := tool.BuildPrice(golabl.Task.Header.PriceMod, taskMsg.Detail.Price)
 	if price == 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("不在价格区间内 isbn %v  原始价格 %v  当前价格 %v 价格模版 %v", taskMsg.BookInfo.Isbn, taskMsg.Detail.Price, price, golabl.Task.Header.PriceMod))
@@ -249,7 +248,24 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		//将上传的图片替换到商品轮播图中
 		skuThumbnail = skuToPdd[0]
 	}
-	sku, err := buildSkuList(price, skuThumbnail, taskMsg.Detail.Stock, taskMsg.Detail.SkuCode)
+
+	//构建规格名称
+	var specChildName string
+	if golabl.Task.Header.ShopMsg.SpecCompose == "0" {
+		specChildName = golabl.Task.Header.ShopMsg.SpecChildName
+	} else if golabl.Task.Header.ShopMsg.SpecCompose == "1" {
+		// 前缀+isbn+后缀
+		specChildName = golabl.Task.Header.ShopMsg.SpecPrefix + taskMsg.BookInfo.Isbn + golabl.Task.Header.ShopMsg.SpecSuffix
+	} else if golabl.Task.Header.ShopMsg.SpecCompose == "2" {
+		// 前缀+书名+后缀
+		specChildName = golabl.Task.Header.ShopMsg.SpecPrefix + taskMsg.BookInfo.BookName + golabl.Task.Header.ShopMsg.SpecSuffix
+	} else if golabl.Task.Header.ShopMsg.SpecCompose == "3" {
+		// 前缀+货号+后缀
+		specChildName = golabl.Task.Header.ShopMsg.SpecPrefix + strconv.FormatInt(taskMsg.Detail.SkuId, 10) + golabl.Task.Header.ShopMsg.SpecSuffix
+	}
+
+	//构建 sku信息
+	sku, err := buildSkuList(price, skuThumbnail, taskMsg.Detail.Stock, taskMsg.Detail.SkuCode, specChildName)
 	if err != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, err)
 	}
@@ -280,14 +296,14 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	taskMsg.Detail.Img = goodsAdd.CarouselGallery[0]
 	taskMsg.Detail.SkuCode = goodsAdd.OutGoodsId
 
-	return tool.GoodsAddReturnSuccess(taskMsg)
+	return tool.ReturnSuccess(taskMsg)
 }
 func (pinDuoDuo *PinDuoDuo) SetGoodsTask() string {
 	return ""
 }
 
 // GetGoodsTask 获取商品
-// @return string 预留
+// @return string body 信息
 // @return error 错误
 func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 	// 生成唯一请求标识（用于出错精准查询日志）
@@ -385,11 +401,30 @@ func (pinDuoDuo *PinDuoDuo) GetGoodsTask() (string, error) {
 	fmt.Println(statsLogMsg)
 	tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, statsLogMsg)
 
-	return tool.GoodsAddReturnSuccess(planAType.TaskBody{})
+	return tool.ReturnSuccess(planAType.TaskBody{})
 }
 
-func (pinDuoDuo *PinDuoDuo) DelGoodsTask() string {
-	return ""
+// OperationGoodsTask 操作商品
+// @param taskMsg 任务内容
+// @return string body 信息
+func (pinDuoDuo *PinDuoDuo) OperationGoodsTask(taskMsg planAType.TaskBody) (string, error) {
+	//生成唯一请求标识（用于出错精准查询日志）
+	logUuid, generateUUIDErr := tool.GenerateUUID()
+	if generateUUIDErr != nil {
+		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
+	}
+	switch taskMsg.Detail.Status {
+	case 1, 2:
+		return setSaleStatusGoodsTask(logUuid, taskMsg) //设置商品上下架状态 status=1 上架 status=2 下架  {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":936170582125,"status":2}}
+	case 3:
+		return deleteGoodsTask(logUuid, taskMsg) //删除商品 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":935670364385,"status":3}}
+	case 4:
+		return updateGoodsQuantity(logUuid, taskMsg) //修改商品库存 {"book_info":{"isbn":"9787532080786"},"detail":{"goods_id":935177284615,"status":4,"stock":2,"sku_id":1882660479308}}
+	case 5:
+		return updateSkuPrice(logUuid, taskMsg) //修改商品价格 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":939229985495,"status":5,"price":5000,"sku_id":1886207421871}}
+	default:
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("未知操作类型"))
+	}
 }
 
 // *******************************私有方法************************************ //
@@ -506,13 +541,13 @@ func buildGoodsPropertiesList(isbn, bookName string, pageCount, price int64, pub
 // @param thumbUrl 缩略图
 // @param stock 库存
 // @param outSkuSn 商品编码
+// @param specName 规格名称
 // @return Sku sku规格
 // @return error 错误信息
-func buildSkuList(price int64, thumbUrl string, stock int64, outSkuSn string) (planBTypePinduoduo.Sku, error) {
+func buildSkuList(price int64, thumbUrl string, stock int64, outSkuSn string, specChildName string) (planBTypePinduoduo.Sku, error) {
 	//构建变量
 	specId := golabl.Task.Header.ShopMsg.SpecId
 	specName := golabl.Task.Header.ShopMsg.SpecName
-	specChildName := golabl.Task.Header.ShopMsg.SpecChildName
 	// 构建 Spec列表
 	var sku planBTypePinduoduo.Sku
 	goodsSpec, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(specId, specChildName)
@@ -1155,4 +1190,276 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 		return deleteTaskBodyWaitErr
 	}
 	return nil
+}
+
+// setSaleStatusGoodsTask 设置商品上下架状态
+// @param taskMsg 任务内容
+// @return string body 信息
+func setSaleStatusGoodsTask(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	// 拼多多商品 Id不能为空
+	if taskMsg.Detail.GoodsId == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 Id不能为空"))
+	}
+
+	var reqDataInfo planBTypePinduoduo.SetSaleStatusGoodsTaskReq
+	reqDataInfo.GoodsId = taskMsg.Detail.GoodsId
+	if taskMsg.Detail.Status == 1 {
+		reqDataInfo.IsOnsale = 1 //上架
+	} else if taskMsg.Detail.Status == 2 {
+		reqDataInfo.IsOnsale = 0 //下架
+	} else {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("任务类型错误"))
+	}
+	setSoleStatusGoodsRet, _, err := setSoleStatusGoods(logUuid, reqDataInfo)
+	if err != nil {
+		return "", err
+	}
+	if !setSoleStatusGoodsRet.GoodsSaleStatusSetResponse.IsSuccess {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("设置商品上下架状态失败"))
+	}
+	return tool.ReturnSuccess(taskMsg)
+}
+
+// setSoleStatusGoods 商品上下架
+// @param logUuid 日志ID
+// @param reqDataInfo 请求信息
+// @return SetSaleStatusGoodsTaskResponse 结果
+// @return string 结果json
+// @return error 错误信息
+func setSoleStatusGoods(logUuid string, reqDataInfo planBTypePinduoduo.SetSaleStatusGoodsTaskReq) (planBTypePinduoduo.SetSaleStatusGoodsTaskResponse, string, error) {
+	var setSoleStatusGoods planBTypePinduoduo.SetSaleStatusGoodsTaskResponse
+	goodsInfoStr, jsonMarshalErr := json.Marshal(reqDataInfo)
+	if jsonMarshalErr != nil {
+		return setSoleStatusGoods, "", jsonMarshalErr
+	}
+	//发送请求
+	goodsSoleStatusStr, pddGoodsSoleStatusErr := golabl.PddDll.PddGoodsSaleStatusSet(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, string(goodsInfoStr))
+	//判断是否成功
+	if strings.Contains(goodsSoleStatusStr, "请求失败") || strings.Contains(goodsSoleStatusStr, "错误码") {
+		//记录请求日志
+		reqMsg := fmt.Sprintf(`
+════════════════════════════════════════════════════════════════
+【拼多多上下架请求】
+请求ID: %s
+时间: %s
+参数: %s
+════════════════════════════════════════════════════════════════`,
+			logUuid,
+			time.Now().Format("2006-01-02 15:04:05.000"),
+			string(goodsInfoStr))
+
+		tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, reqMsg)
+		return setSoleStatusGoods, goodsSoleStatusStr, errors.New("拼多多 PddGoodsSaleStatusSet 错误:" + goodsSoleStatusStr)
+	}
+	if pddGoodsSoleStatusErr != nil {
+		return setSoleStatusGoods, "", pddGoodsSoleStatusErr
+	}
+	jsonUnmarshal := json.Unmarshal([]byte(goodsSoleStatusStr), &setSoleStatusGoods)
+	if jsonUnmarshal != nil {
+		return setSoleStatusGoods, "", fmt.Errorf("解析拼多多 PddGoodsAdd 接口返回json失败: %v", jsonUnmarshal)
+	}
+	return setSoleStatusGoods, goodsSoleStatusStr, nil
+}
+
+// 删除商品
+func deleteGoodsTask(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	// 拼多多商品 Id不能为空
+	if taskMsg.Detail.GoodsId == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 Id不能为空"))
+	}
+	reqDataInfo := planBTypePinduoduo.DeleteGoodsCommit{
+		GoodsIds: []int64{taskMsg.Detail.GoodsId},
+	}
+	delGoodsRet, _, err := delGoods(logUuid, reqDataInfo)
+	if err != nil {
+		return "", err
+	}
+	if !delGoodsRet.OpenAPIResponse {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("删除商品失败"))
+	}
+	return tool.ReturnSuccess(taskMsg)
+}
+
+// delGoods 删除商品
+// @param logUuid 日志ID
+// @param reqDataInfo 请求信息
+// @return GoodsAddResponseWrapper 结果
+// @return string 结果json
+// @return error 错误信息
+func delGoods(logUuid string, reqDataInfo planBTypePinduoduo.DeleteGoodsCommit) (planBTypePinduoduo.DeleteGoodsCommitResponse, string, error) {
+	var delGoods planBTypePinduoduo.DeleteGoodsCommitResponse
+	goodsInfoStr, jsonMarshalErr := json.Marshal(reqDataInfo)
+	if jsonMarshalErr != nil {
+		return delGoods, "", jsonMarshalErr
+	}
+	//发送请求
+	delGoodsStr, pddGoodsDelErr := golabl.PddDll.PddDeleteGoodsCommit(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, string(goodsInfoStr))
+	//判断是否成功
+	if strings.Contains(delGoodsStr, "请求失败") || strings.Contains(delGoodsStr, "错误码") {
+		//记录请求日志
+		reqMsg := fmt.Sprintf(`
+════════════════════════════════════════════════════════════════
+【拼多多删除商品请求】
+请求ID: %s
+时间: %s
+参数: %s
+════════════════════════════════════════════════════════════════`,
+			logUuid,
+			time.Now().Format("2006-01-02 15:04:05.000"),
+			string(goodsInfoStr))
+
+		tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, reqMsg)
+		return delGoods, delGoodsStr, errors.New("拼多多 DelGoods 错误:" + delGoodsStr)
+	}
+	if pddGoodsDelErr != nil {
+		return delGoods, "", pddGoodsDelErr
+	}
+	jsonUnmarshal := json.Unmarshal([]byte(delGoodsStr), &delGoods)
+	if jsonUnmarshal != nil {
+		return delGoods, "", fmt.Errorf("解析拼多多 DelGoods 接口返回json失败: %v", jsonUnmarshal)
+	}
+	return delGoods, delGoodsStr, nil
+}
+
+// updateGoodsQuantity 修改库存
+func updateGoodsQuantity(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	// 拼多多商品 Id不能为空
+	if taskMsg.Detail.GoodsId == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 Id不能为空"))
+	}
+	// 拼多多商品 SkuId不能为空
+	if taskMsg.Detail.SkuId == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 SkuId不能为空"))
+	}
+	reqDataInfo := planBTypePinduoduo.UpdateGoodsQuantity{
+		ForceUpdate: true,
+		GoodsId:     taskMsg.Detail.GoodsId,
+		SkuId:       taskMsg.Detail.SkuId,
+		Quantity:    taskMsg.Detail.Stock,
+		UpdateType:  1,
+	}
+	delGoodsRet, _, err := quantityGoods(logUuid, reqDataInfo)
+	if err != nil {
+		return "", err
+	}
+	if !delGoodsRet.GoodsQuantityUpdateResponse.IsSuccess {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("修改商品库存失败"))
+	}
+	return tool.ReturnSuccess(taskMsg)
+}
+
+// quantityGoods 修改库存
+// @param logUuid 日志ID
+// @param reqDataInfo 请求信息
+// @return GoodsAddResponseWrapper 结果
+// @return string 结果json
+// @return error 错误信息
+func quantityGoods(logUuid string, reqDataInfo planBTypePinduoduo.UpdateGoodsQuantity) (planBTypePinduoduo.UpdateGoodsQuantityResponse, string, error) {
+	var quantityGoods planBTypePinduoduo.UpdateGoodsQuantityResponse
+	goodsInfoStr, jsonMarshalErr := json.Marshal(reqDataInfo)
+	if jsonMarshalErr != nil {
+		return quantityGoods, "", jsonMarshalErr
+	}
+	//发送请求
+	quantityGoodsStr, pddGoodsQuantityErr := golabl.PddDll.PddGoodsQuantityUpdate(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, string(goodsInfoStr))
+	//判断是否成功
+	if strings.Contains(quantityGoodsStr, "请求失败") || strings.Contains(quantityGoodsStr, "错误码") {
+		//记录请求日志
+		reqMsg := fmt.Sprintf(`
+	════════════════════════════════════════════════════════════════
+	【拼多多修改商品库存请求】
+	请求ID: %s
+	时间: %s
+	参数: %s
+	════════════════════════════════════════════════════════════════`,
+			logUuid,
+			time.Now().Format("2006-01-02 15:04:05.000"),
+			string(goodsInfoStr))
+
+		tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, reqMsg)
+		return quantityGoods, quantityGoodsStr, errors.New("拼多多 quantityGoods 错误:" + quantityGoodsStr)
+	}
+	if pddGoodsQuantityErr != nil {
+		return quantityGoods, "", pddGoodsQuantityErr
+	}
+	jsonUnmarshal := json.Unmarshal([]byte(quantityGoodsStr), &quantityGoods)
+	if jsonUnmarshal != nil {
+		return quantityGoods, "", fmt.Errorf("解析拼多多 quantityGoods 接口返回json失败: %v", jsonUnmarshal)
+	}
+	return quantityGoods, quantityGoodsStr, nil
+}
+
+// updateSkuPrice 修改商品价格
+func updateSkuPrice(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	// 拼多多商品 Id不能为空
+	if taskMsg.Detail.GoodsId == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 Id不能为空"))
+	}
+	// 拼多多商品 SkuId不能为空
+	if taskMsg.Detail.SkuId == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 SkuId不能为空"))
+	}
+	fen := tool.BuildGoodsPrice(taskMsg.Detail.Price)
+	yuan := tool.FenToYuan(fen)
+	reqDataInfo := planBTypePinduoduo.UpdateSkuPrice{
+		GoodsId:           taskMsg.Detail.GoodsId,
+		MarketPrice:       fen,
+		MarketPriceInYuan: yuan,
+		SkuPriceList: []planBTypePinduoduo.SkuPriceItem{
+			{
+				GroupPrice:  taskMsg.Detail.Price,
+				SinglePrice: taskMsg.Detail.Price + 100,
+				SkuId:       taskMsg.Detail.SkuId,
+			},
+		},
+	}
+	delGoodsRet, _, err := skuPrice(logUuid, reqDataInfo)
+	if err != nil {
+		return "", err
+	}
+	if !delGoodsRet.GoodsUpdateSkuPriceResponse.IsSuccess {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("修改商品库存失败"))
+	}
+	return tool.ReturnSuccess(taskMsg)
+}
+
+// skuPrice 修改价格
+// @param logUuid 日志ID
+// @param reqDataInfo 请求信息
+// @return GoodsAddResponseWrapper 结果
+// @return string 结果json
+// @return error 错误信息
+func skuPrice(logUuid string, reqDataInfo planBTypePinduoduo.UpdateSkuPrice) (planBTypePinduoduo.UpdateGoodsSkuPriceResponse, string, error) {
+	var skuPriceGoods planBTypePinduoduo.UpdateGoodsSkuPriceResponse
+	goodsInfoStr, jsonMarshalErr := json.Marshal(reqDataInfo)
+	if jsonMarshalErr != nil {
+		return skuPriceGoods, "", jsonMarshalErr
+	}
+	//发送请求
+	skuPriceGoodsStr, pddGoodsSkuPriceErr := golabl.PddDll.PddGoodsSkuPriceUpdate(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, string(goodsInfoStr))
+	//判断是否成功
+	if strings.Contains(skuPriceGoodsStr, "请求失败") || strings.Contains(skuPriceGoodsStr, "错误码") {
+		//记录请求日志
+		reqMsg := fmt.Sprintf(`
+	════════════════════════════════════════════════════════════════
+	【拼多多修改商品价格请求】
+	请求ID: %s
+	时间: %s
+	参数: %s
+	════════════════════════════════════════════════════════════════`,
+			logUuid,
+			time.Now().Format("2006-01-02 15:04:05.000"),
+			string(goodsInfoStr))
+
+		tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, reqMsg)
+		return skuPriceGoods, skuPriceGoodsStr, errors.New("拼多多 skuPrice 错误:" + skuPriceGoodsStr)
+	}
+	if pddGoodsSkuPriceErr != nil {
+		return skuPriceGoods, "", pddGoodsSkuPriceErr
+	}
+	jsonUnmarshal := json.Unmarshal([]byte(skuPriceGoodsStr), &skuPriceGoods)
+	if jsonUnmarshal != nil {
+		return skuPriceGoods, "", fmt.Errorf("解析拼多多 skuPrice 接口返回json失败: %v", jsonUnmarshal)
+	}
+	return skuPriceGoods, skuPriceGoodsStr, nil
 }

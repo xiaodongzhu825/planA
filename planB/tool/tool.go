@@ -187,8 +187,8 @@ func BuildGoodsPrice(price int64) int64 {
 	return price * 4
 }
 
-// GoodsAddReturnSuccess 添加商品返回成功处理
-func GoodsAddReturnSuccess(taskMsg planAType.TaskBody) (string, error) {
+// ReturnSuccess 添加商品返回成功处理
+func ReturnSuccess(taskMsg planAType.TaskBody) (string, error) {
 	dataRetBaty, marshalErr := json.Marshal(taskMsg)
 	if marshalErr != nil {
 		return string(dataRetBaty), fmt.Errorf("json.Marshal错误: %w", marshalErr)
@@ -500,4 +500,12 @@ func UpdateTaskProgress(con int64) error {
 		return updateTaskHeaderCountErr
 	}
 	return nil
+}
+
+// FenToYuan 将金额从分转换为元
+// 参数：fen - 金额（分），int64类型
+// 返回值：金额（元），string类型
+func FenToYuan(fen int64) string {
+	yuan := float64(fen) / 100.0
+	return fmt.Sprintf("%.2f", yuan)
 }

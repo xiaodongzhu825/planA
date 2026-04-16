@@ -13,11 +13,12 @@ import (
 // CreateTaskValidator 创建任务验证
 func CreateTaskValidator(data *http.Request) (taskValidator.CreateTask, error) {
 	form := taskValidator.CreateTask{
-		ShopID:    data.FormValue("shop_id"),
-		ShopType:  data.FormValue("shop_type"),
-		TaskCount: data.FormValue("task_count"),
-		TaskType:  data.FormValue("task_type"),
-		ImgType:   data.FormValue("img_type"),
+		ShopID:     data.FormValue("shop_id"),
+		ShopType:   data.FormValue("shop_type"),
+		TaskCount:  data.FormValue("task_count"),
+		TaskType:   data.FormValue("task_type"),
+		ImgType:    data.FormValue("img_type"),
+		UpdateType: data.FormValue("update_type"),
 	}
 	fieldCN := map[string]string{"ShopID": "店铺ID", "ShopType": "店铺类型", "TaskCount": "任务数量", "TaskType": "任务类型", "ImgType": "图片类型"}
 	if err := golabl.Validator.Struct(form); err != nil {

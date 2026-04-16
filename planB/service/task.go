@@ -163,11 +163,6 @@ func GetTaskToPopFromBodyWait() (planAType.TaskBody, error) {
 	if parseTaskBodyErr != nil {
 		return planAType.TaskBody{}, fmt.Errorf("解析任务详情信息失败: %v\n", parseTaskBodyErr)
 	}
-	// 判断任务状态
-	if taskBody.Detail.Status == 3 {
-		return planAType.TaskBody{}, fmt.Errorf("任务已执行完毕\n")
-	}
-
 	// 返回结果
 	return taskBody, nil
 }

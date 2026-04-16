@@ -12,20 +12,19 @@ import (
 // @return error 错误信息
 func Go(bodyWait planAType.TaskBody) (string, error) {
 	switch golabl.TaskType {
-	case "AddGoodsTask":
+	case golabl.TaskTypeAddGoodsTask:
 		return golabl.Platform.AddGoodsTask(bodyWait) // 添加商品
 
 	//挪到了main方法中执行
 	//case "GetGoodsTask":
 	//	return golabl.Platform.GetGoodsTask() // 获取商品
 
-	case "SetGoodsTask":
+	case golabl.TaskTypeSetGoodsTask:
 
 		return golabl.Platform.SetGoodsTask(), nil // 修改商品
 
-	case "DelGoodsTask":
-
-		return golabl.Platform.DelGoodsTask(), nil // 删除商品
+	case golabl.TaskTypeOperationGoodsTask:
+		return golabl.Platform.OperationGoodsTask(bodyWait) // 操作商品
 
 	default:
 

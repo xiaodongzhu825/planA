@@ -39,6 +39,7 @@ type TaskHeader struct {
 	TaskOverAt       int64      `json:"task_over_at"`       // 任务结束时间
 	LastIndex        int64      `json:"last_index"`         // 最后任务索引（记录程序集错误 10001=body_wait中没有数据一致读取，11002=店铺发布商品已达到上限，10003=过滤关键词异常）
 	ImgType          int64      `json:"img_type"`           // 图片类型 1仅官图 2 实拍图 3 优先官图 4 优先实拍图
+	UpdateType       int64      `json:"update_type"`        // 更新方式（仅核价发布或核价表格发布使用） 1 过滤重复 2 全新上传
 	Pool             PoolConfig `json:"pool"`               // 线程池配置
 }
 
@@ -95,7 +96,12 @@ type ShopMsg struct {
 	SpecName                    string      `json:"spec_name"`                        //规格名称
 	SpecId                      int64       `json:"spec_id"`                          //规格 ID
 	SpecChildName               string      `json:"spec_child_name"`                  //子规格名称
+	SpecCompose                 string      `json:"spec_compose"`                     //规格组合类型 0=自定义 1=Isbn 2=书名 3=货号
 	IsFolt                      bool        `json:"is_fotl"`                          //是否支持假一赔十，false-不支持，true-支持
+	SpecPrefix                  string      `json:"spec_prefix"`                      //规格前缀
+	SpecSuffix                  string      `json:"spec_suffix"`                      //规格后缀
+	PublishType                 string      `json:"publish_type"`                     //发布方式 0=24（图书类目） 1=99（其他类目）【限闲鱼店铺使用】
+	CategoryId                  string      `json:"category_id"`                      //类目 ID【限闲鱼店铺使用】
 	IsPreSale                   bool        `json:"is_pre_sale"`                      //是否预售,true-预售商品，false-非预售商品
 	IsRefundable                bool        `json:"is_refundable"`                    //是否7天无理由退换货，true-支持，false-不支持
 	IsSecondHand                bool        `json:"is_second_hand"`                   //是否二手 true -二手商品 ，false-全新商品
@@ -137,7 +143,7 @@ type TaskDetail struct {
 	GoodsId    int64  `json:"goods_id"`     // 商品 ID
 	ReturnId   int64  `json:"return_id"`    // 拼多多返回 ID
 	SkuCode    string `json:"sku_code"`     // 规格编码（sku维度）
-	SkuId      int64  `json:"sku_id"`       // sku 编码
+	SkuId      int64  `json:"sku_id"`       // sku 编码（货号）
 	Img        string `json:"img"`          // 图片
 	OutGoodsId string `json:"out_goods_id"` // 商品编码
 	GoodsName  string `json:"goods_name"`   // 商品名称

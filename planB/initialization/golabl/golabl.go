@@ -39,10 +39,10 @@ const (
 
 // 任务类型
 const (
-	TaskTypeAddGoodsTask string = "AddGoodsTask" // 添加商品
-	TaskTypeGetGoodsTask string = "GetGoodsTask" // 获取商品
-	TaskTypeSetGoodsTask string = "SetGoodsTask" // 修改商品
-	TaskTypeDelGoodsTask string = "DelGoodsTask" // 删除商品
+	TaskTypeAddGoodsTask       string = "AddGoodsTask"       // 添加商品
+	TaskTypeGetGoodsTask       string = "GetGoodsTask"       // 获取商品
+	TaskTypeSetGoodsTask       string = "SetGoodsTask"       // 修改商品
+	TaskTypeOperationGoodsTask string = "OperationGoodsTask" // 操作商品
 )
 
 // 错误集

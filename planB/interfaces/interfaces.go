@@ -15,6 +15,6 @@ type GoodsTask interface {
 	// GetGoodsTask 获取商品任务
 	GetGoodsTask() (string, error)
 
-	// DelGoodsTask 删除商品任务
-	DelGoodsTask() string
+	// OperationGoodsTask 操作商品任务
+	OperationGoodsTask(bodyWait planAType.TaskBody) (string, error)
 }

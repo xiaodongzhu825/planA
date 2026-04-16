@@ -63,6 +63,8 @@ type ShopDetail struct {
 	GoodsDetailFirstImgUrlArray []string `json:"goods_detail_first_img_url_array"` //商品详情首图 URL 数组
 	GoodsDetailLastImgUrlArray  []string `json:"goods_detail_last_img_url_array"`  //商品详情最后图片 URL 数组
 	SkuWatermarkImgUrl          string   `json:"sku_watermark_img_url"`            //sku 水印图片链接
+	PublishType                 string   `json:"publish_type"`                     //发布方式 0=24（图书类目） 1=99（其他类目）【限闲鱼店铺使用】
+	CategoryId                  string   `json:"category_id"`                      //类目 ID【限闲鱼店铺使用】
 }
 
 // ShopContext 店铺上下文
@@ -82,6 +84,8 @@ type Spec struct {
 	SpecTypeID      string `json:"spec_type_id"`
 	SpecTypeName    string `json:"spec_type_name"`
 	SpecCompose     string `json:"spec_compose"`
+	SpecPrefix      string `json:"spec_prefix"`
+	SpecSuffix      string `json:"spec_suffix"`
 	SpecCodeCompose string `json:"spec_code_compose"`
 	CreateTime      string `json:"create_time"`
 	UpdateTime      string `json:"update_time"`

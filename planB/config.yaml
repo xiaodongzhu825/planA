@@ -45,7 +45,7 @@ redis_config:
     addr: "127.0.0.1:6379"
     password: ""
   - db_name: "书品库"
-    db: 1
+    db: 7
     addr: "36.212.12.247:6379"
     password: "long6166@@"
   - db_name: "店铺信息"
@@ -87,3 +87,5 @@ file_url:
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
   pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
   pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
+  #pdd_add_goods_url: "http://119.45.237.193:14003/task/putShopGoods" #添加拼多多商品接口
+  backup_url: "D:\\file\\backup" #备份文件路径

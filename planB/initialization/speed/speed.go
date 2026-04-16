@@ -21,7 +21,7 @@ func Init() {
 		speed = 18
 	}
 	//如果需要打水印，则速率下降为10
-	if golabl.Task.Header.ShopMsg.WatermarkImgUrl != "" {
+	if golabl.Task.Header.ShopMsg.WatermarkImgUrl != "" && golabl.Task.Header.ShopType == "1" {
 		speed = golabl.Config.Speed.Watermark
 		if speed == 0 {
 			speed = 10

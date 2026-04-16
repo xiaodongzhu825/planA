@@ -23,6 +23,10 @@ func NewXianYu() *XianYu {
 	return &XianYu{}
 }
 
+// AddGoodsTask 添加商品
+// @param taskMsg 任务内容
+// @return string body 信息
+// @return error 错误
 func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	//生成唯一请求标识（用于出错精准查询日志）
 	logUuid, generateUUIDErr := tool.GenerateUUID()
@@ -109,14 +113,24 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 
 	// 一级类目 ID
 	spBizType := 24
+	fmt.Println("golabl.Task.Header.ShopMsg.PublishType", golabl.Task.Header.ShopMsg.PublishType)
+	fmt.Println("golabl.Task.Header.ShopMsg.CategoryId", golabl.Task.Header.ShopMsg.CategoryId)
+	if golabl.Task.Header.ShopMsg.PublishType == "1" {
+		spBizType = 99
+	}
 
 	// 类目 ID
+	goodsAdd.CatIds = "c3c6e8d1d63c0618b108d382c4e6ea42"
 	goodsAdd.CatIds = string(taskMsg.BookInfo.CatIdObject.XianYuCatId)
 	if goodsAdd.CatIds == "" {
-		//如果类目ID为空，则使用默认类目ID（文学，小说）
-		goodsAdd.CatIds = "c3c6e8d1d63c0618b108d382c4e6ea42"
-		spBizType = 99 //（其他）
+		goodsAdd.CatIds = golabl.Task.Header.ShopMsg.CategoryId
 	}
+
+	//if goodsAdd.CatIds == "" {
+	//	//如果类目ID为空，则使用默认类目ID（文学，小说）
+	//	goodsAdd.CatIds = "c3c6e8d1d63c0618b108d382c4e6ea42"
+	//	spBizType = 99 //（其他）
+	//}
 
 	if len(taskMsg.BookInfo.ImageObject.CarouselUrlArray) == 0 {
 		// 无图片信息 isbn计次
@@ -270,7 +284,7 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	taskMsg.Detail.OutGoodsId = outGoodsId
 	taskMsg.Detail.Img = refactorCarouselGallery[0]
 
-	return tool.GoodsAddReturnSuccess(taskMsg)
+	return tool.ReturnSuccess(taskMsg)
 }
 func (xianYu *XianYu) SetGoodsTask() string {
 	return "闲鱼商品修改任务"
@@ -278,116 +292,119 @@ func (xianYu *XianYu) SetGoodsTask() string {
 }
 
 func (xianYu *XianYu) GetGoodsTask() (string, error) {
-	//	// 生成唯一请求标识（用于出错精准查询日志）
-	//	logUuid, generateUUIDErr := tool.GenerateUUID()
-	//	if generateUUIDErr != nil {
-	//		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
-	//	}
-	//
-	//	const pageSize = 100
-	//	const maxPage = 100
-	//	const maxRecordsPerRange = 10000 // 每个时间范围最多获取10000条
-	//	var lastUpdateTime int64 = 0
-	//	//
-	//	// 统计变量
-	//	totalFetched := 0   // 总共获取到的商品数（包括重复）
-	//	duplicateCount := 0 // 重复商品数量
-	//	uniqueCount := 0    // 不重复商品数量
-	//
-	//	// 解析应用 id与应用秘钥
-	//	var token planBTypeXianyu.Token
-	//	unmarshalErr := json.Unmarshal([]byte(golabl.Task.Header.ShopMsg.Token), &token)
-	//	if unmarshalErr != nil {
-	//		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, fmt.Errorf("解析应用id与应用秘钥失败: %v", unmarshalErr))
-	//	}
-	//
-	//	// 第一阶段：只拉取任务数据，更新总数，不写入wait
-	//	firstTimeGoodsErr := xianYu.phaseOneGoodsOnlyCount(token, pageSize, maxPage)
-	//	if firstTimeGoodsErr != nil {
-	//		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, firstTimeGoodsErr)
-	//	}
-	//
-	//	// 查询body_wait是否存在，确定第二阶段的开始时间
-	//	exist, isTaskBodyWaitExistErr := service.IsTaskBodyWaitExist()
-	//	if isTaskBodyWaitExistErr != nil {
-	//		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, isTaskBodyWaitExistErr)
-	//	}
-	//
-	//	if exist {
-	//		// 获取最后一条数据的更新时间作为开始时间
-	//		lastBodyWaitDataJson, getLastGoodsUpdateTimeErr := service.GetTaskBodyWaitLast()
-	//		if getLastGoodsUpdateTimeErr != nil {
-	//			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, getLastGoodsUpdateTimeErr)
-	//		}
-	//		// 解析 lastBodyWaitData 到结构体
-	//		var lastBodyWaitData planAType.TaskBody
-	//		unmarshalErr := json.Unmarshal([]byte(lastBodyWaitDataJson), &lastBodyWaitData)
-	//		if unmarshalErr != nil {
-	//			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, unmarshalErr)
-	//		}
-	//		lastUpdateTime = lastBodyWaitData.BookInfo.Price - (86400 * 30) //wait中最后一条数据的更新时间-30天作为下次的开始时间
-	//		// 将数据的更新时间给到 lastUpdateTime
-	//		fmt.Println("使用wait中最后一条数据的时间作为开始时间: ", lastUpdateTime)
-	//	} else {
-	//		// 如果没有wait数据，使用当前时间180天前的时间戳作为开始时间
-	//		lastUpdateTime = time.Now().Unix() - 180*24*60*60
-	//		fmt.Println("没有wait数据，使用180天前的时间作为开始时间: ", lastUpdateTime, time.Unix(lastUpdateTime, 0).Format("2006-01-02 15:04:05"))
-	//	}
-	//
-	//	// 第二阶段：获取商品（写入wait）
-	//	phaseTwoGoodsErr := xianYu.phaseTwoGoods(token, pageSize, &totalFetched, &lastUpdateTime, maxRecordsPerRange)
-	//	if phaseTwoGoodsErr != nil {
-	//		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
-	//	}
-	//
-	//	// 更新状态为推送中
-	//	updateTaskStatusErr := service.UpdateTaskStatus(planAType.TaskStatusPushTaskStatus)
-	//	if updateTaskStatusErr != nil {
-	//		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskStatusErr)
-	//	}
-	//
-	//	fmt.Println("golabl.Task.Footer.TaskCountTrue :", golabl.Task.Footer.TaskCountTrue)
-	//	// 重新设置任务进度
-	//	if updateTaskHeaderErr := service.SetTaskCount(strconv.FormatInt(golabl.Task.Footer.TaskCountTrue, 10)); updateTaskHeaderErr != nil {
-	//		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskHeaderErr)
-	//	}
-	//
-	//	// 去重复与保存
-	//	deduplicateToBodyOverErr := xianYu.deduplicateToBodyOver(&duplicateCount, &uniqueCount)
-	//	if deduplicateToBodyOverErr != nil {
-	//		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, deduplicateToBodyOverErr)
-	//	}
-	//
-	//	// 输出统计信息
-	//	statsLogMsg := fmt.Sprintf(`
-	//════════════════════════════════════════════════════════════════
-	//【闲鱼店铺拉取】
-	//请求ID：%s
-	//时间: %s
-	//店铺ID：%v
-	//店铺名称：%v
-	//总共获取商品数（含重复）: %d
-	//不重复商品数: %d
-	//重复商品数: %d
-	//重复率: %.2f%%
-	//════════════════════════════════════════════════════════════════`,
-	//		logUuid,
-	//		time.Now().Format("2006-01-02 15:04:05.000"),
-	//		golabl.Task.TaskId,
-	//		golabl.Task.Header.ShopName,
-	//		totalFetched,
-	//		uniqueCount,
-	//		duplicateCount,
-	//		float64(duplicateCount)/float64(totalFetched)*100)
-	//	fmt.Println(statsLogMsg)
-	//	tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, statsLogMsg)
-	//
-	//	return tool.GoodsAddReturnSuccess(planAType.TaskBody{})
-	return "闲鱼商品获取任务", nil
+	// 生成唯一请求标识（用于出错精准查询日志）
+	logUuid, generateUUIDErr := tool.GenerateUUID()
+	if generateUUIDErr != nil {
+		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
+	}
+
+	const pageSize = 100
+	const maxPage = 100
+	const maxRecordsPerRange = 10000 // 每个时间范围最多获取10000条
+	var lastUpdateTime int64 = 0
+
+	// 统计变量
+	totalFetched := 0   // 总共获取到的商品数（包括重复）
+	duplicateCount := 0 // 重复商品数量
+	uniqueCount := 0    // 不重复商品数量
+
+	// 解析应用 id与应用秘钥
+	var token planBTypeXianyu.Token
+	unmarshalErr := json.Unmarshal([]byte(golabl.Task.Header.ShopMsg.Token), &token)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, fmt.Errorf("解析应用id与应用秘钥失败: %v", unmarshalErr))
+	}
+
+	// 第一阶段：只拉取任务数据，更新总数，不写入wait
+	firstTimeGoodsErr := xianYu.phaseOneGoodsOnlyCount(token, pageSize, maxPage)
+	if firstTimeGoodsErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, firstTimeGoodsErr)
+	}
+
+	// 查询body_wait是否存在，确定第二阶段的开始时间
+	exist, isTaskBodyWaitExistErr := service.IsTaskBodyWaitExist()
+	if isTaskBodyWaitExistErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, isTaskBodyWaitExistErr)
+	}
+
+	if exist {
+		// 获取最后一条数据的更新时间作为开始时间
+		lastBodyWaitDataJson, getLastGoodsUpdateTimeErr := service.GetTaskBodyWaitLast()
+		if getLastGoodsUpdateTimeErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, getLastGoodsUpdateTimeErr)
+		}
+		// 解析 lastBodyWaitData 到结构体
+		var lastBodyWaitData planAType.TaskBody
+		unmarshalErr := json.Unmarshal([]byte(lastBodyWaitDataJson), &lastBodyWaitData)
+		if unmarshalErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, unmarshalErr)
+		}
+		lastUpdateTime = lastBodyWaitData.BookInfo.Price - (86400 * 30) //wait中最后一条数据的更新时间-30天作为下次的开始时间
+		// 将数据的更新时间给到 lastUpdateTime
+		fmt.Println("使用wait中最后一条数据的时间作为开始时间: ", lastUpdateTime)
+	} else {
+		// 如果没有wait数据，使用当前时间180天前的时间戳作为开始时间
+		lastUpdateTime = time.Now().Unix() - 180*24*60*60
+		fmt.Println("没有wait数据，使用180天前的时间作为开始时间: ", lastUpdateTime, time.Unix(lastUpdateTime, 0).Format("2006-01-02 15:04:05"))
+	}
+
+	// 第二阶段：获取商品（写入wait）
+	phaseTwoGoodsErr := xianYu.phaseTwoGoods(token, pageSize, &totalFetched, &lastUpdateTime, maxRecordsPerRange)
+	if phaseTwoGoodsErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
+	}
+
+	// 更新状态为推送中
+	updateTaskStatusErr := service.UpdateTaskStatus(planAType.TaskStatusPushTaskStatus)
+	if updateTaskStatusErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskStatusErr)
+	}
+
+	fmt.Println("golabl.Task.Footer.TaskCountTrue :", golabl.Task.Footer.TaskCountTrue)
+	// 重新设置任务进度
+	if updateTaskHeaderErr := service.SetTaskCount(strconv.FormatInt(golabl.Task.Footer.TaskCountTrue, 10)); updateTaskHeaderErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskHeaderErr)
+	}
+
+	// 去重复与保存
+	deduplicateToBodyOverErr := xianYu.deduplicateToBodyOver(&duplicateCount, &uniqueCount)
+	if deduplicateToBodyOverErr != nil {
+		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, deduplicateToBodyOverErr)
+	}
+
+	// 输出统计信息
+	statsLogMsg := fmt.Sprintf(`
+	════════════════════════════════════════════════════════════════
+	【闲鱼店铺拉取】
+	请求ID：%s
+	时间: %s
+	店铺ID：%v
+	店铺名称：%v
+	总共获取商品数（含重复）: %d
+	不重复商品数: %d
+	重复商品数: %d
+	重复率: %.2f%%
+	════════════════════════════════════════════════════════════════`,
+		logUuid,
+		time.Now().Format("2006-01-02 15:04:05.000"),
+		golabl.Task.TaskId,
+		golabl.Task.Header.ShopName,
+		totalFetched,
+		uniqueCount,
+		duplicateCount,
+		float64(duplicateCount)/float64(totalFetched)*100)
+	fmt.Println(statsLogMsg)
+	tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, statsLogMsg)
+
+	return tool.ReturnSuccess(planAType.TaskBody{})
 }
 
-func (xianYu *XianYu) DelGoodsTask() string {
-	return "闲鱼商品删除任务"
+// OperationGoodsTask 操作商品
+// @param taskMsg 任务内容
+// @return string body 信息
+// @return string error 错误
+func (xianYu *XianYu) OperationGoodsTask(taskMsg planAType.TaskBody) (string, error) {
+	return "闲鱼商品操作任务", nil
 }
 
 // *******************************私有方法************************************ //
@@ -740,7 +757,7 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 // deduplicateToBodyOver 拉取任务读取body_wait去重复后写入到body_over中
 func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 	page := 1
-	pageSize := 1000
+	pageSize := 500
 
 	// 按店铺存储去重后的商品数据
 	shopGoodsMap := make(map[string][]planBTypeXianyu.GoodsDetailRet)
@@ -757,13 +774,13 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 		return deleteTaskBodyBackupErr
 	}
 
-	//num := 0
+	num := 0
 	// 获取body_wait总数量
-	//bodyWaitCount, getTaskBodyWaitCountErr := service.GetTaskBodyWaitCount()
-	//if getTaskBodyWaitCountErr != nil {
-	//	return getTaskBodyWaitCountErr
-	//}
-	//pageTotal := (bodyWaitCount + int64(pageSize) - 1) / int64(pageSize)
+	bodyWaitCount, getTaskBodyWaitCountErr := service.GetTaskBodyWaitCount()
+	if getTaskBodyWaitCountErr != nil {
+		return getTaskBodyWaitCountErr
+	}
+	pageTotal := (bodyWaitCount + int64(pageSize) - 1) / int64(pageSize)
 
 	// 调试计数器
 	debugCount := 0
@@ -791,6 +808,16 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 			jsonUnmarshalErr = json.Unmarshal([]byte(goods.Detail.Error), &goodsItem)
 			if jsonUnmarshalErr != nil {
 				return fmt.Errorf("将json转为结构体失败: %v\n", jsonUnmarshalErr)
+			}
+
+			//提取 Isbn
+			if goodsItem.BookData.ISBN == "" {
+				goodsItem.BookData.ISBN = tool.ExtractISBN978(goodsItem.Title)
+			}
+			//Isbn 为空则跳过
+			if goodsItem.BookData.ISBN == "" {
+				fmt.Println("####################商品无法获取 Isbn，跳过：", goodsItem.Title)
+				continue
 			}
 
 			// 使用 ProductID 作为唯一标识（int64类型）
@@ -827,9 +854,9 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 				// 检查每个店铺的商品数量，达到batchSize则推送
 				if len(shopGoodsMap[username]) >= pageSize {
 					fmt.Println("推送 username ", username, " 长度 ", len(shopGoodsMap[username]))
-					//if err := pushShopGoodsData(username, shopGoodsMap[username], int64(page), pageTotal, &num); err != nil {
-					//	return err
-					//}
+					if err := pushShopGoodsData(username, shopGoodsMap[username], int64(page), pageTotal, &num); err != nil {
+						return err
+					}
 					// 清空该店铺的数据
 					shopGoodsMap[username] = []planBTypeXianyu.GoodsDetailRet{}
 				}
@@ -865,10 +892,16 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 	for shopId, goodsList := range shopGoodsMap {
 		if len(goodsList) > 0 {
 			fmt.Println("最后一次 推送 username ", shopId, " 长度 ", len(goodsList))
-			//if err := pushShopGoodsData(shopId, goodsList, int64(pageTotal), int64(pageTotal), &num); err != nil {
-			//	return err
-			//}
+			if err := pushShopGoodsData(shopId, goodsList, pageTotal, pageTotal, &num); err != nil {
+				return err
+			}
 		}
+	}
+
+	// 删除body_wait
+	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
+	if deleteTaskBodyWaitErr != nil {
+		return deleteTaskBodyWaitErr
 	}
 
 	fmt.Printf("[去重完成] 总处理: %d, 唯一: %d, 重复: %d\n",
@@ -906,10 +939,6 @@ func (xianYu *XianYu) processGoodsDetail(goodsItem planBTypeXianyu.GoodsListRetP
 		AppSecret: token.AppSecret,
 		ProductId: goodsItem.ProductID,
 	}
-
-	//生成一个2秒的延迟
-	url := "http://127.0.0.1:8095"
-	tool.HttpGetRequest(url)
 
 	detailJson, err := xianYu.getGoodsDetail(xianYuDetailReq)
 	if err != nil {
@@ -958,7 +987,7 @@ func (xianYu *XianYu) processGoodsDetail(goodsItem planBTypeXianyu.GoodsListRetP
 		},
 	}
 
-	// 验证商品ID不为空
+	// 验证商品 ID不为空
 	if bodyWait.Detail.GoodsId == 0 {
 		fmt.Printf("[警告] 商品 %s 的GoodsId为0\n", goodsItem.ProductID)
 	}
@@ -988,16 +1017,15 @@ func (xianYu *XianYu) sendGoodsListRequest(req planBTypeXianyu.GoodsListReq) (st
 
 // 获取商品详情
 func (xianYu *XianYu) getGoodsDetail(req planBTypeXianyu.GoodsDetailReq) (string, error) {
-	//reqJson, marshalErr := json.Marshal(req)
-	//if marshalErr != nil {
-	//	return "", marshalErr
-	//}
+	reqJson, marshalErr := json.Marshal(req)
+	if marshalErr != nil {
+		return "", marshalErr
+	}
 
-	//detailJson, err := golabl.XianYuDll.XianYuGetGoodsDetail(string(reqJson), golabl.Config.FileUrl.XianYuDll)
-	//if err != nil {
-	//	return "", err
-	//}
-	detailJson := `{"code":0,"msg":"OK","data":{"product_id":1336224303269445,"product_status":22,"publish_status":3,"item_biz_type":2,"sp_biz_type":99,"flash_sale_type":0,"channel_cat_id":"11c38799bd389b3828d88a08a19453dc","title":"正版二手九州· 缥缈录V·一生之盟9787510403958江南","price":1940,"original_price":2500,"express_fee":0,"stock":10,"sold":0,"outer_id":"","stuff_status":0,"specify_publish_time":"","publish_shop":[{"user_name":"tb50095877","item_id":995158559724,"province":420000,"city":420100,"district":420111,"title":"正版二手九州·缥缈录V·一生之盟9787510403958江南","content":"正版二手书｜8.5 成新闭眼入，正品速发不踩坑！\n✅ 严选正版！支持验货辨真，若遇盗版直接退 / 补发，购物零风险～ 8.5 成新实拍质感，可能含少量笔记划线，核心保障：无缺页、不掉页、无影响阅读的破损，高性价比闭眼冲！\n⚡️ 发货超极速\n24 小时内优先发货，超时必发不超过 48 小时\n多仓就近调配，缩短运输时效，收货更快一步\n新疆、西藏等偏远地区需补运费，下单前可咨询具体金额\n 商品 \u0026 增值服务\n默认不含光盘、小册子、激活码及限定印次附赠内容，细节可提前咨询\n全网代找稀缺书！未上架书籍可私信书名 + 作者，全力帮你挖掘库存～\n 售后有保障\n签收前请务必查验外包装，完好无损再签收哦\n若出现缺页、破损、发霉等质量问题，拍照联系客服，极速处理售后\n已发货后因个人原因取消订单，需承担往返运费（薄利运营，感谢理解）\n 暖心小期许收到书籍若满意，不妨留下好评鼓励～你的认可，是我们坚持精选好书、用心服务的最大动力","images":["https://img.pddpic.com/open-gw/2025-07-25/51a192646c9017f8b898705002d14670.jpeg"],"status":1,"white_images":"","service_support":""}],"spec_type":1,"online_time":1763735943,"offline_time":0,"sold_time":0,"update_time":1769089438,"create_time":1763735859,"is_tax_included":false}}`
+	detailJson, err := golabl.XianYuDll.XianYuGetGoodsDetail(string(reqJson), golabl.Config.FileUrl.XianYuDll)
+	if err != nil {
+		return "", err
+	}
 	return detailJson, nil
 }
 

@@ -436,7 +436,7 @@ func parseHeaderMap(headerMap map[string]string) (_type.TaskHeader, error) {
 		switch key {
 		case "last_index", "shop_id", "task_count", "task_count_error",
 			"task_count_over", "task_count_success", "task_count_true",
-			"task_count_wait", "task_create_at", "task_over_at", "task_qpm", "task_type", "img_type":
+			"task_count_wait", "task_create_at", "task_over_at", "task_qpm", "task_type", "img_type", "update_type":
 			parseIntField(&info, key, value)
 
 		case "price_mod":
@@ -493,6 +493,9 @@ func parseIntField(info *_type.TaskHeader, key, value string) {
 			info.TaskType = v
 		case "img_type":
 			info.ImgType = v
+		case "update_type":
+			info.UpdateType = v
+
 		}
 	}
 }

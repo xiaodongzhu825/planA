@@ -244,3 +244,94 @@ func (m *PddDLL) PddGoodsListGet(clientId, clientSecret, accessToken string, par
 	result := cStr(resultPtr)
 	return result, nil
 }
+
+// PddGoodsSaleStatusSet 设置上下架状态
+func (m *PddDLL) PddGoodsSaleStatusSet(clientId, clientSecret, accessToken, params string) (string, error) {
+
+	proc, err := m.Dll.FindProc("PddGoodsSaleStatusSet")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 PddGoodsSaleStatusSet: %v", err)
+	}
+
+	clientIdPtr, _ := syscall.BytePtrFromString(clientId)
+	clientSecretPtr, _ := syscall.BytePtrFromString(clientSecret)
+	accessTokenPtr, _ := syscall.BytePtrFromString(accessToken)
+	paramsPtr, _ := syscall.BytePtrFromString(params)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(clientIdPtr)),
+		uintptr(unsafe.Pointer(clientSecretPtr)),
+		uintptr(unsafe.Pointer(accessTokenPtr)),
+		uintptr(unsafe.Pointer(paramsPtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// PddDeleteGoodsCommit 删除商品
+func (m *PddDLL) PddDeleteGoodsCommit(clientId, clientSecret, accessToken, params string) (string, error) {
+
+	proc, err := m.Dll.FindProc("PddDeleteGoodsCommit")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 PddDeleteGoodsCommit: %v", err)
+	}
+
+	clientIdPtr, _ := syscall.BytePtrFromString(clientId)
+	clientSecretPtr, _ := syscall.BytePtrFromString(clientSecret)
+	accessTokenPtr, _ := syscall.BytePtrFromString(accessToken)
+	paramsPtr, _ := syscall.BytePtrFromString(params)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(clientIdPtr)),
+		uintptr(unsafe.Pointer(clientSecretPtr)),
+		uintptr(unsafe.Pointer(accessTokenPtr)),
+		uintptr(unsafe.Pointer(paramsPtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// PddGoodsQuantityUpdate 更新库存
+func (m *PddDLL) PddGoodsQuantityUpdate(clientId, clientSecret, accessToken, params string) (string, error) {
+
+	proc, err := m.Dll.FindProc("PddGoodsQuantityUpdate")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 PddGoodsQuantityUpdate: %v", err)
+	}
+
+	clientIdPtr, _ := syscall.BytePtrFromString(clientId)
+	clientSecretPtr, _ := syscall.BytePtrFromString(clientSecret)
+	accessTokenPtr, _ := syscall.BytePtrFromString(accessToken)
+	paramsPtr, _ := syscall.BytePtrFromString(params)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(clientIdPtr)),
+		uintptr(unsafe.Pointer(clientSecretPtr)),
+		uintptr(unsafe.Pointer(accessTokenPtr)),
+		uintptr(unsafe.Pointer(paramsPtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// PddGoodsSkuPriceUpdate 更新价格
+func (m *PddDLL) PddGoodsSkuPriceUpdate(clientId, clientSecret, accessToken, params string) (string, error) {
+	proc, err := m.Dll.FindProc("PddGoodsSkuPriceUpdate")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 PddGoodsSkuPriceUpdate: %v", err)
+	}
+
+	clientIdPtr, _ := syscall.BytePtrFromString(clientId)
+	clientSecretPtr, _ := syscall.BytePtrFromString(clientSecret)
+	accessTokenPtr, _ := syscall.BytePtrFromString(accessToken)
+	paramsPtr, _ := syscall.BytePtrFromString(params)
+
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(clientIdPtr)),
+		uintptr(unsafe.Pointer(clientSecretPtr)),
+		uintptr(unsafe.Pointer(accessTokenPtr)),
+		uintptr(unsafe.Pointer(paramsPtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}

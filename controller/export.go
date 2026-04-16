@@ -134,7 +134,7 @@ func ExportTaskDetail(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	if taskRecord.IsExport == 1 {
-		errMsg := "任务已导出过"
+		errMsg := "任务已导出过，请在下载中心查看"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -254,7 +254,7 @@ func ExportTaskDetail(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	go ExportCSV(dataVal.TaskID, total)
+	go ExportCSV(dataVal.TaskID, total, taskRecord.TaskType)
 	tool.Session(httpMsg, "")
 }
 
@@ -285,7 +285,7 @@ func ExportTaskDetailByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	if task.IsExport == 1 {
-		errMsg := "任务已导出过"
+		errMsg := "任务已导出过，请在下载中心查看"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -387,17 +387,18 @@ func ExportTaskDetailByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	go ExportCSV(dataVal.TaskID, total)
+	go ExportCSV(dataVal.TaskID, total, task.TaskType)
 	tool.Session(httpMsg, "")
 }
 
 // ExportCSV 导出CSV
 // taskId 任务id
 // total 总数
+// taskType 任务类型
 // ExportCSV 导出CSV
 // taskId 任务id
 // total 总数
-func ExportCSV(taskId string, total int64) {
+func ExportCSV(taskId string, total int64, taskType int64) {
 	// 定义每次获取的数量
 	batchSize := 1000
 	csvFileName := fmt.Sprintf("%v.csv", taskId)
@@ -491,7 +492,7 @@ func ExportCSV(taskId string, total int64) {
 
 		// 追加写入CSV文件
 		// 注意：AppendToCSV函数需要修改以支持文件存在时的追加模式
-		if writeErr := AppendToCSV(fullPath, dataBatch, isFirstWrite, taskId); writeErr != nil {
+		if writeErr := AppendToCSV(fullPath, dataBatch, isFirstWrite, taskId, taskType); writeErr != nil {
 			errMsg := fmt.Sprintf("写入CSV文件失败 page:%d, err:%v", page, writeErr)
 			fmt.Println(errMsg)
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)

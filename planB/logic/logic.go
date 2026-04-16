@@ -128,6 +128,7 @@ func taskExecute() {
 	//初始化 变量
 	status := golabl.BodyStatusSuccess //默认的书籍执行状态·
 	errorStr := "执行成功"                 //默认的书籍执行描述
+
 	// 获取任务信息
 	taskMsg, taskMsgErr := service.GetTaskToPopFromBodyWait()
 	if errors.Is(taskMsgErr, redis.Nil) {
@@ -139,6 +140,23 @@ func taskExecute() {
 	} else if taskMsgErr != nil {
 		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取任务信息失败-原因来自:%v", taskMsgErr))
 		return
+	}
+
+	//设置混合任务成功状态
+	if golabl.Task.Header.TaskType == 5 {
+		switch taskMsg.Detail.Status {
+		case 1:
+			errorStr = "设置商品上架 " + errorStr
+		case 2:
+			errorStr = "设置商品下架 " + errorStr
+		case 3:
+			errorStr = "删除商品 " + errorStr
+		case 4:
+			errorStr = "修改商品库存 " + errorStr
+		case 5:
+			errorStr = "修改商品价格 " + errorStr
+		default:
+		}
 	}
 
 	// 任务调度

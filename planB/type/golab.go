@@ -15,6 +15,7 @@ type Redis struct {
 	RedisDbB *redis.Client // 出版社数据库
 	RedisDbC *redis.Client // 地区数据库
 	RedisDbD *redis.Client // 没有书籍的 isbn数据库
+	RedisDbE *redis.Client // 店铺库
 }
 
 // Task 任务结构

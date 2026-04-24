@@ -58,6 +58,15 @@ func Init() {
 		return
 	}
 
+	// 启动删除任务
+	_, executeDelTaskErr := c.AddFunc("0/10 * * * * ?", func() {
+		ExecuteDelTask()
+	})
+	if executeDelTaskErr != nil {
+		logs.LoggingMiddleware("error", "定时任务 启动删除任务 启动失败")
+		return
+	}
+
 	//// 备份 body_backup到硬盘 - 每分钟执行一次，使用锁防止并发（挪到C.exe）
 	//_, backupBodyBackupErr := c.AddFunc("0 * * * * ?", func() {
 	//	BackupBodyBackup()

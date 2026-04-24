@@ -7,6 +7,7 @@ import (
 	"planA/planB/initialization/dll"
 	"planA/planB/initialization/golabl"
 	"planA/planB/initialization/minIo"
+	"planA/planB/initialization/mysql"
 	"planA/planB/initialization/platform"
 	"planA/planB/initialization/pool"
 	"planA/planB/initialization/redis"
@@ -33,6 +34,11 @@ func Init(taskId string) error {
 	// 初始化 redis
 	if redisErr := redis.LinkRedisSetToG(); redisErr != nil {
 		return fmt.Errorf("初始化redis失败: %v", redisErr)
+	}
+
+	// 初始化 mysql
+	if mysqlErr := mysql.LikeMysqlSetToG(); mysqlErr != nil {
+		return fmt.Errorf("初始化mysql失败: %v", mysqlErr)
 	}
 
 	// 初始化 task

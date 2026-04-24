@@ -111,19 +111,12 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	// 分类类型
 	goodsAdd.TypeClass = ""
 
-	// 一级类目 ID
-	spBizType := 24
-	fmt.Println("golabl.Task.Header.ShopMsg.PublishType", golabl.Task.Header.ShopMsg.PublishType)
-	fmt.Println("golabl.Task.Header.ShopMsg.CategoryId", golabl.Task.Header.ShopMsg.CategoryId)
-	if golabl.Task.Header.ShopMsg.PublishType == "1" {
-		spBizType = 99
-	}
-
 	// 类目 ID
-	goodsAdd.CatIds = "c3c6e8d1d63c0618b108d382c4e6ea42"
-	goodsAdd.CatIds = string(taskMsg.BookInfo.CatIdObject.XianYuCatId)
-	if goodsAdd.CatIds == "" {
-		goodsAdd.CatIds = golabl.Task.Header.ShopMsg.CategoryId
+	spBizType := 24                                      //默认 图书类目
+	goodsAdd.CatIds = "c3c6e8d1d63c0618b108d382c4e6ea42" //默认类目ID（文学，小说）
+	if golabl.Task.Header.ShopMsg.PublishType == "1" {
+		spBizType = 99                                          //其他
+		goodsAdd.CatIds = golabl.Task.Header.ShopMsg.CategoryId //根据用户选择
 	}
 
 	//if goodsAdd.CatIds == "" {
@@ -218,7 +211,6 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
 	}
 
-	//生成一个2秒的延迟
 	url := "http://127.0.0.1:8095"
 	tool.HttpGetRequest(url)
 
@@ -269,9 +261,11 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 		UserName:           []string{token.Username},
 	}
 	//商品上架
-	_, _, err = launchGoods(logUuid, launchGoodsInfo)
-	if err != nil {
-		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品提交 %v", err))
+	if taskMsg.Detail.IsOnsale == 0 {
+		_, _, err = launchGoods(logUuid, launchGoodsInfo)
+		if err != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品提交 %v", err))
+		}
 	}
 	// 构建商品编码
 	outGoodsId := ""
@@ -360,7 +354,6 @@ func (xianYu *XianYu) GetGoodsTask() (string, error) {
 		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskStatusErr)
 	}
 
-	fmt.Println("golabl.Task.Footer.TaskCountTrue :", golabl.Task.Footer.TaskCountTrue)
 	// 重新设置任务进度
 	if updateTaskHeaderErr := service.SetTaskCount(strconv.FormatInt(golabl.Task.Footer.TaskCountTrue, 10)); updateTaskHeaderErr != nil {
 		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, updateTaskHeaderErr)
@@ -757,7 +750,7 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 // deduplicateToBodyOver 拉取任务读取body_wait去重复后写入到body_over中
 func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 	page := 1
-	pageSize := 500
+	pageSize := 100
 
 	// 按店铺存储去重后的商品数据
 	shopGoodsMap := make(map[string][]planBTypeXianyu.GoodsDetailRet)
@@ -963,8 +956,8 @@ func (xianYu *XianYu) processGoodsDetail(goodsItem planBTypeXianyu.GoodsListRetP
 	}
 
 	// 调试：打印商品ID信息
-	fmt.Printf("[商品处理] ProductID: %s, 详情ProductID: %d, Title: %s\n",
-		goodsItem.ProductID, goodDetailRet.Data.ProductID, goodDetailRet.Data.Title)
+	//fmt.Printf("[商品处理] ProductID: %v, 详情ProductID: %d, Title: %s\n",
+	//	goodsItem.ProductID, goodDetailRet.Data.ProductID, goodDetailRet.Data.Title)
 
 	// 构建任务数据
 	bodyWait := planAType.TaskBody{
@@ -1048,7 +1041,7 @@ func writeXianyuGoodsData(goodsListStr []planBTypeXianyu.GoodsDetailRet, usernam
 		"allNum":       strconv.FormatInt(pageTotal, 10),
 		"num":          strconv.Itoa(page),
 	}
-	retStr, submitFormDataErr := tool.SubmitFormData(golabl.Config.FileUrl.PddAddGoodsUrl, params)
+	retStr, submitFormDataErr := tool.SubmitFormData(golabl.Config.FileUrl.XianYuAddGoodsUrl, params)
 	if submitFormDataErr != nil {
 		return ret, retStr, submitFormDataErr
 	}

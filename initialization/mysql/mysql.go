@@ -89,5 +89,9 @@ func Migrate(db *gorm.DB) error {
 	if err := mysqlModle.MigrateTaskExport(db); err != nil {
 		return err
 	}
+	// del_task表
+	if err := mysqlModle.MigrateDelTask(db); err != nil {
+		return err
+	}
 	return nil
 }

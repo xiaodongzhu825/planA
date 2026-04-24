@@ -12,6 +12,7 @@ import (
 	planAType "planA/type"
 
 	"golang.org/x/time/rate"
+	"gorm.io/gorm"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 	ImageDll  *image.ImageDLL        // 全局 ImageDll
 	XianYuDll *xianYuDll.XianYuDLL   // 全局 闲鱼 DLL
 	LogDll    *logs.LoggerDLL        // 全局日志 DLL
+	MysqlDb   *gorm.DB               // 全局 mysql
 )
 
 // 任务 body 状态

@@ -10,4 +10,5 @@ func Init() {
 	router.StaticInit()
 	router.AdmiinInir()
 	router.Alive()
+	router.DelTaskInit()
 }

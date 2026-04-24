@@ -6,6 +6,7 @@ import (
 	"planA/planB/initialization/golabl"
 	planAType "planA/type"
 	"strconv"
+	"strings"
 )
 
 // GetTaskHeader 获取任务头
@@ -495,4 +496,44 @@ func parseTaskBody(taskBodyStr string) (planAType.TaskBody, error) {
 
 	// 返回结果
 	return body, nil
+}
+
+// ============================================
+// 店铺信息操作
+// 数据结构: 支持String/List/Hash多种类型
+// 键格式: {shopID}
+// ============================================
+
+// GetTaskShop 获取店铺信息
+// @param shopID 店铺ID
+// @return string 店铺信息字符串
+// @return error 错误信息
+func GetTaskShop(shopID string) (string, error) {
+	// 检查键类型
+	keyType, err := golabl.Redis.RedisDbE.Type(golabl.Ctx, shopID).Result()
+	if err != nil {
+		return "", fmt.Errorf("检查Redis key类型失败: %w", err)
+	}
+	switch keyType {
+	case "string":
+		return golabl.Redis.RedisDbE.Get(golabl.Ctx, shopID).Result()
+
+	case "list":
+		items, err := golabl.Redis.RedisDbE.LRange(golabl.Ctx, shopID, 0, -1).Result()
+		if err != nil {
+			return "", fmt.Errorf("获取list数据失败: %w", err)
+		}
+		return "[" + strings.Join(items, ",") + "]", nil
+
+	case "hash":
+		hashData, err := golabl.Redis.RedisDbE.HGetAll(golabl.Ctx, shopID).Result()
+		if err != nil {
+			return "", fmt.Errorf("获取hash数据失败: %w", err)
+		}
+		jsonData, _ := json.Marshal(hashData)
+		return string(jsonData), nil
+
+	default:
+		return "", fmt.Errorf("不支持的数据类型: %s", keyType)
+	}
 }

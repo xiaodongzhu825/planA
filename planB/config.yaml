@@ -74,18 +74,21 @@ pdd_config:
 http_url:
   task_url: "http://127.0.0.1:8080"  #A 程序接口地址
 file_url:
-  xian_yu_dll: "D:\\www\\wwwroot\\planA_dev\\planB\\modules\\xianYu"  #闲鱼 DLL库路径
-  pdd_dll: "D:\\www\\wwwroot\\planA_dev\\planB\\modules\\pdd"  #拼多多 DLL库路径
-  log_dll: "D:\\www\\wwwroot\\planA_dev\\planB\\modules\\logs"  #日志 DLL库路径
-  image_dll: "D:\\www\\wwwroot\\planA_dev\\planB\\modules\\image"  #水印 DLL库路径
-  b_file_name: "D:\\www\\wwwroot\\planA_dev\\planB\\planB.exe"   #B 程序文件路径
+  xian_yu_dll: "D:\\www\\wwwroot\\planA\\planB\\modules\\xianYu"  #闲鱼 DLL库路径
+  pdd_dll: "D:\\www\\wwwroot\\planA\\planB\\modules\\pdd"  #拼多多 DLL库路径
+  log_dll: "D:\\www\\wwwroot\\planA\\planB\\modules\\logs"  #日志 DLL库路径
+  image_dll: "D:\\www\\wwwroot\\planA\\planB\\modules\\image"  #水印 DLL库路径
+  b_file_name: "D:\\www\\wwwroot\\planA\\planB\\planB.exe"   #B 程序文件路径
   create_task_url: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   create_task_notice_url: "http://36.212.1.63:8055/task" #核价软件提交数据通知接口
+  create_operation_task_notice_url: "http://192.168.101.127:8055/taskV2" #操作商品任务核价软件提交数据通知接口
   banned_word_substitution_url : "http://36.212.16.27:13001/task/getFilterSetNew" #违禁词替换接口
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deduction_url: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
   pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
+  #pdd_get_goods_detail_url: "http://192.168.101.127:8085/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
   pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
-  #pdd_add_goods_url: "http://119.45.237.193:14003/task/putShopGoods" #添加拼多多商品接口
+  xianyu_add_goods_url: "http://119.45.237.193:14008/task/putShopGoods" #添加闲鱼商品接口
   backup_url: "D:\\file\\backup" #备份文件路径
+  pdd_goods_details_url: "D:\\file\\pdd_goods_details" #保存拼多多详情路径

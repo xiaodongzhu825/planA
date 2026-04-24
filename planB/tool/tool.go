@@ -1,6 +1,7 @@
 package tool
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -508,4 +509,61 @@ func UpdateTaskProgress(con int64) error {
 func FenToYuan(fen int64) string {
 	yuan := float64(fen) / 100.0
 	return fmt.Sprintf("%.2f", yuan)
+}
+
+// IsShopIDExists 判断店铺ID是否存在于shopId.txt文件中
+func IsShopIDExists(targetShopID string) (bool, error) {
+	// 打开文件
+	file, err := os.Open("shopId.txt")
+	if err != nil {
+		return false, fmt.Errorf("无法打开文件: %w", err)
+	}
+	defer file.Close()
+
+	// 逐行扫描
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text()) // 去除空格和换行符
+		// 忽略空行
+		if line == "" {
+			continue
+		}
+		if line == targetShopID {
+			return true, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, fmt.Errorf("读取文件出错: %w", err)
+	}
+
+	return false, nil
+}
+
+// AppendTextToFile 在文件中追加文本
+// @param filePath 文件路径
+// @param text 要追加的文本
+// @return error 错误信息
+func AppendTextToFile(filePath string, text string) error {
+	// 获取文件所在的目录
+	dir := filepath.Dir(filePath)
+
+	// 创建目录（如果不存在）
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("创建目录失败: %v", err)
+	}
+
+	// 以追加模式打开文件，如果文件不存在则创建
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("打开文件失败: %v", err)
+	}
+	defer file.Close()
+
+	// 写入文本并添加换行符
+	if _, err := file.WriteString(text + "\n"); err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+
+	return nil
 }

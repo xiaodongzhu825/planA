@@ -12,6 +12,9 @@ import (
 	"planA/planB/service"
 	"planA/planB/tool"
 	planAType "planA/type"
+	planATypeMysql "planA/type/mysql"
+	redisType "planA/type/redis"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -131,6 +134,7 @@ func taskExecute() {
 
 	// 获取任务信息
 	taskMsg, taskMsgErr := service.GetTaskToPopFromBodyWait()
+
 	if errors.Is(taskMsgErr, redis.Nil) {
 		//redis 读nil空+1
 		fmt.Printf("第 %v 次读出 Redis Nil \n", atomic.LoadInt64(&golabl.Logic.RedisNilCon))
@@ -147,34 +151,95 @@ func taskExecute() {
 		switch taskMsg.Detail.Status {
 		case 1:
 			errorStr = "设置商品上架 " + errorStr
+			//执行任务
+			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		case 2:
 			errorStr = "设置商品下架 " + errorStr
+			//执行任务
+			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		case 3:
-			errorStr = "删除商品 " + errorStr
+			//删除商品的任务存储到 mysql中
+			//删除商品 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":935670364385,"status":3}}
+			delTask, isExistDelTask, delTaskErr := service.GetDelTaskByTaskId()
+			if !isExistDelTask && delTaskErr == nil {
+				taskCount := 0
+				taskCountOver := 0
+				sta := 0
+				//将header 转为json
+				headerByte, headerJsonErr := json.Marshal(golabl.Task.Header)
+				if headerJsonErr != nil {
+					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将header 转为json失败-原因来自:%v", headerJsonErr))
+					return
+				}
+				headerJson := string(headerByte)
+				currentTime := time.Now()
+				// 查询店铺数据
+				shopDataStr, getTaskShopErr := service.GetTaskShop(strconv.FormatInt(golabl.Task.Header.ShopId, 10))
+				if getTaskShopErr != nil {
+					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("查询店铺数据失败:%v", headerJsonErr))
+					return
+				}
+				// 解析 json数据
+				shopData, parseShopDataErr := parseShopData(shopDataStr)
+				if parseShopDataErr != nil {
+					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("解析店铺数据失败:%v", parseShopDataErr))
+					return
+				}
+				userId := strconv.FormatInt(shopData.Shop.CreateBy, 10)
+				//不存在 mysql任务则创建
+				createDelTask := planATypeMysql.DelTask{
+					UserID:        &userId,
+					ShopID:        &golabl.Task.Header.ShopId,
+					TaskID:        &golabl.Task.Header.TaskId,
+					ShopName:      &golabl.Task.Header.ShopName,
+					TaskCount:     &taskCount,
+					TaskCountOver: &taskCountOver,
+					Status:        &sta,
+					Header:        &headerJson,
+					CreateAt:      &currentTime,
+				}
+				var err error
+				delTask, err = service.CreateDelTask(createDelTask)
+				if err != nil {
+					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("创建删除任务失败-原因来自:%v", err))
+					return
+				}
+			} else if delTaskErr != nil {
+				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取删除任务失败-原因来自:%v", delTaskErr))
+				return
+			}
+
+			//将任务状态修改为执行中
+			updateDelTaskStatusToDoingErr := service.UpdateDelTaskStatusToDoing()
+			if updateDelTaskStatusToDoingErr != nil {
+				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将删除任务状态修改为执行中失败-原因来自:%v", updateDelTaskStatusToDoingErr))
+				return
+			}
+			// 将明细的删除任务转移到 mysql中
+			insertDelTaskDetailErr := service.InsertDelTaskDetail(delTask.ID, taskMsg)
+			if insertDelTaskDetailErr != nil {
+				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将明细的删除任务转移到 mysql中失败-原因来自:%v", insertDelTaskDetailErr))
+				return
+			}
+			// 添加删除任务数量
+			addDelTaskDetailCountErr := service.AddDelTaskDetailCount()
+			if addDelTaskDetailCountErr != nil {
+				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("添加删除任务数量失败-原因来自:%v", addDelTaskDetailCountErr))
+				return
+			}
+			errorStr = "删除商品 已转转移至删除中心"
 		case 4:
 			errorStr = "修改商品库存 " + errorStr
+			//执行任务
+			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		case 5:
 			errorStr = "修改商品价格 " + errorStr
+			//执行任务
+			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		default:
+			//执行任务
+			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		}
-	}
-
-	// 任务调度
-	bodyOverJson, err := dispatcher.Go(taskMsg)
-	if err != nil {
-		//任务调度失败
-		status = golabl.BodyStatusError
-		errorStr = fmt.Sprintf("任务调度失败-原因来自:%v", err)
-		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务调度失败-原因来自:%v", err))
-	} else {
-		//任务调度成功
-		var bodyOver planAType.TaskBody
-		unmarshalErr := json.Unmarshal([]byte(bodyOverJson), &bodyOver)
-		if unmarshalErr != nil {
-			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("bodyOver json.Unmarshal错误-原因:%v", unmarshalErr))
-		}
-		//更新 taskMsg
-		taskMsg = bodyOver
 	}
 
 	// 更新任务信息
@@ -206,4 +271,95 @@ func taskExecute() {
 	}
 
 	fmt.Println(errorStr)
+}
+
+//****************************工具**************************************//
+
+// parseShopData 解析店铺数据
+// @param shopData 店铺数据
+// @return *_type.ShopInfo 店铺信息
+func parseShopData(shopData string) (*planAType.ShopInfo, error) {
+	shopData = strings.TrimSpace(shopData)
+
+	// 直接解析为 RedisData数组
+	var redisData []redisType.RedisData
+	err := json.Unmarshal([]byte(shopData), &redisData)
+	if err != nil {
+		// 尝试另一种格式：可能是单对象而不是数组
+		var singleData redisType.RedisData
+		if singleErr := json.Unmarshal([]byte(shopData), &singleData); singleErr == nil {
+			redisData = []redisType.RedisData{singleData}
+		} else {
+			return nil, fmt.Errorf("JSON解析失败: %v, 原始数据: %s", err, shopData[:min(100, len(shopData))])
+		}
+	}
+
+	shopInfo := &planAType.ShopInfo{}
+
+	// 遍历所有数据，根据source_table分类
+	for _, item := range redisData {
+		switch item.SourceTable {
+		case "t_shop":
+			var shop planAType.Shop
+			if err := json.Unmarshal(item.Data, &shop); err == nil {
+				shopInfo.Shop = &shop
+			} else {
+				fmt.Printf("解析t_shop失败: %v\n", err)
+			}
+		case "t_shop_detail":
+			var detail planAType.ShopDetail
+			if err := json.Unmarshal(item.Data, &detail); err == nil {
+				shopInfo.ShopDetail = &detail
+			} else {
+				fmt.Printf("解析t_shop_detail失败: %v\n", err)
+			}
+		case "t_shop_context":
+			var context planAType.ShopContext
+			if err := json.Unmarshal(item.Data, &context); err == nil {
+				shopInfo.ShopContext = &context
+			} else {
+				fmt.Printf("解析t_shop_context失败: %v\n", err)
+			}
+		case "t_spec":
+			var spec planAType.Spec
+			if err := json.Unmarshal(item.Data, &spec); err == nil {
+				shopInfo.Spec = &spec
+			} else {
+				fmt.Printf("解析t_spec失败: %v\n", err)
+			}
+		case "t_price_template":
+			var template planAType.PriceTemplate
+			if err := json.Unmarshal(item.Data, &template); err == nil {
+				shopInfo.PriceTemplate = &template
+			} else {
+				fmt.Printf("解析t_price_template失败: %v\n", err)
+			}
+		default:
+			fmt.Printf("未知的source_table: %s\n", item.SourceTable)
+		}
+	}
+
+	return shopInfo, nil
+}
+
+// 调度任务
+func exeTask(taskMsg planAType.TaskBody, status int64, errorStr string) (int64, string, planAType.TaskBody) {
+	// 任务调度
+	bodyOverJson, err := dispatcher.Go(taskMsg)
+	if err != nil {
+		//任务调度失败
+		status = golabl.BodyStatusError
+		errorStr = fmt.Sprintf("任务调度失败-原因来自:%v", err)
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务调度失败-原因来自:%v", err))
+	} else {
+		//任务调度成功
+		var bodyOver planAType.TaskBody
+		unmarshalErr := json.Unmarshal([]byte(bodyOverJson), &bodyOver)
+		if unmarshalErr != nil {
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("bodyOver json.Unmarshal错误-原因:%v", unmarshalErr))
+		}
+		//更新 taskMsg
+		taskMsg = bodyOver
+	}
+	return status, errorStr, taskMsg
 }

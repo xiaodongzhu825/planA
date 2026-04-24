@@ -147,6 +147,7 @@ type TaskDetail struct {
 	Img        string `json:"img"`          // 图片
 	OutGoodsId string `json:"out_goods_id"` // 商品编码
 	GoodsName  string `json:"goods_name"`   // 商品名称
+	IsOnsale   int64  `json:"is_onsale"`    // 是否上架 0=上架状态，1=下架状态
 }
 
 // ImageObject 图片对象结构

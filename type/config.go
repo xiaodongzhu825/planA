@@ -117,19 +117,25 @@ type HttpUrl struct {
 }
 
 type FileUrl struct {
-	PddDll                    string `json:"pdd_dll"`
-	XianYuDll                 string `json:"xian_yu_dll"`
-	LogDll                    string `json:"log_dll"`
-	ImageDll                  string `json:"image_dll"`
-	BFileName                 string `json:"b_file_name"`
-	CFileName                 string `json:"c_file_name"`
-	CreateTaskUrl             string `json:"create_task_url"`
-	BannedWordSubstitutionUrl string `json:"banned_word_substitution_url"`
-	CreateTaskNoticeUrl       string `json:"create_task_notice_url"`
-	PddTokenUrl               string `json:"pdd_token_url"`
-	DeductionUrl              string `json:"deduction_url"`
-	PddGetGoodsUrl            string `json:"pdd_get_goods_url"`
-	PddGetGoodsDetailUrl      string `json:"pdd_get_goods_detail_url"`
-	PddAddGoodsUrl            string `json:"pdd_add_goods_url"`
-	BackupUrl                 string `json:"backup_url"`
+	PddDll                       string `json:"pdd_dll"`
+	XianYuDll                    string `json:"xian_yu_dll"`
+	LogDll                       string `json:"log_dll"`
+	ImageDll                     string `json:"image_dll"`
+	BFileName                    string `json:"b_file_name"`
+	CFileName                    string `json:"c_file_name"`
+	DFileName                    string `json:"d_file_name"`
+	CreateTaskUrl                string `json:"create_task_url"`
+	BannedWordSubstitutionUrl    string `json:"banned_word_substitution_url"`
+	CreateTaskNoticeUrl          string `json:"create_task_notice_url"`
+	CreateOperationTaskNoticeUrl string `json:"create_operation_task_notice_url"`
+	PddTokenUrl                  string `json:"pdd_token_url"`
+	DeductionUrl                 string `json:"deduction_url"`
+	PddGetGoodsUrl               string `json:"pdd_get_goods_url"`
+	PddGetGoodsDetailUrl         string `json:"pdd_get_goods_detail_url"`
+	PddAddGoodsUrl               string `json:"pdd_add_goods_url"`
+	XianYuAddGoodsUrl            string `json:"xianyu_add_goods_url"`
+	PddGetSkuId                  string `json:"pdd_get_sku_id"`
+	DelTaskUrl                   string `json:"del_task_url"`
+	BackupUrl                    string `json:"backup_url"`
+	PddGoodsDetailsUrl           string `json:"pdd_goods_details_url"`
 }

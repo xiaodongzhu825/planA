@@ -26,6 +26,7 @@ type GoodsItem struct {
 	Price                int64             `json:"price"`
 	SkuCode              string            `json:"skuCode"`
 	SkuPropertyList      []SkuPropertyList `json:"skuPropertyList"`
+	BigImg               string            `json:"bigImg"`
 }
 type SkuPropertyList struct {
 	Punit  string `json:"punit"`

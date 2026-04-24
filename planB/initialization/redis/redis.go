@@ -41,6 +41,13 @@ func LinkRedisSetToG() error {
 	}
 	golabl.Redis.RedisDbD = redisClientD
 
+	// Redis E - Redis实例
+	redisClientE, redisErr := NewRedisClient(redisConfig[2])
+	if redisErr != nil {
+		return fmt.Errorf("初始化 redis %v db%v 失败: %v\n", redisConfig[2].Addr, redisConfig[2].DB, redisErr)
+	}
+	golabl.Redis.RedisDbE = redisClientE
+
 	return nil
 }
 

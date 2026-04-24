@@ -130,6 +130,14 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		}
 	}
 
+	//请求创建任务接口并获取任务 id
+	taskId, err := CreateTaskRequest(dataVal.ShopID, dataVal.TaskType)
+	if err != nil {
+		errMsg := "请求创建任务接口失败: " + err.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+
 	//如果是拉取任务则校验是否已有在执行的  taskType == 3(拉取任务) || (taskType == 4 && dataVal.ShopType == "1")(拼多多拉取详情任务)
 	if taskType == 3 || (taskType == 4 && dataVal.ShopType == "1") {
 		//查询店铺拉取商品或者拉取商品详情所有任务
@@ -183,29 +191,21 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 
-		//验证店铺规格信息是否正确
-		if dataVal.ShopType == "1" && dataVal.TaskType == "1" {
-			pddDll, initPddSOErr := pdd.InitPddDll()
-			if initPddSOErr != nil {
-				errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
-				tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-				return
-			}
-			_, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(pddDll, shop.Token, spec.SpecTypeID, spec.SpecName)
-			if buildPddGoodsSpecIdErr != nil {
-				errMsg := "构建规格ID失败: " + buildPddGoodsSpecIdErr.Error()
-				tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-				return
-			}
-		}
-	}
-
-	//请求创建任务接口并获取任务 id
-	taskId, err := CreateTaskRequest(dataVal.ShopID, dataVal.TaskType)
-	if err != nil {
-		errMsg := "请求创建任务接口失败: " + err.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
+		////验证店铺规格信息是否正确
+		//if dataVal.ShopType == "1" && dataVal.TaskType == "1" {
+		//	pddDll, initPddSOErr := pdd.InitPddDll()
+		//	if initPddSOErr != nil {
+		//		errMsg := "初始化pdd.so失败: " + initPddSOErr.Error()
+		//		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		//		return
+		//	}
+		//	_, buildPddGoodsSpecIdErr := buildPddGoodsSpecId(pddDll, shop.Token, spec.SpecTypeID, spec.SpecName)
+		//	if buildPddGoodsSpecIdErr != nil {
+		//		errMsg := "构建规格ID失败: " + buildPddGoodsSpecIdErr.Error()
+		//		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		//		return
+		//	}
+		//}
 	}
 
 	fmt.Printf("店铺ID: %s, 店铺类型: %s, 任务类型: %s, 更新方式: %s, 任务数量: %s 任务id: %s \n", dataVal.ShopID, dataVal.ShopType, dataVal.TaskType, dataVal.UpdateType, dataVal.TaskCount, taskId)
@@ -559,7 +559,7 @@ func DelTask(httpMsg http.ResponseWriter, data *http.Request) {
 	//删除 mysql中TaskRecords指定数据
 	mysqlDeleteTaskRecordsByTaskIdErr := mysqlWrite.DeleteTaskRecordsByTaskId(dataVal.TaskID)
 	if mysqlDeleteTaskRecordsByTaskIdErr != nil {
-		errMsg := "删除任务失败: " + delTaskErr.Error()
+		errMsg := "删除任务失败: " + mysqlDeleteTaskRecordsByTaskIdErr.Error()
 		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 		return
 	}
@@ -609,15 +609,35 @@ func OverTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, updateTaskStatusValidatorErr.Error(), http.StatusInternalServerError)
 		return
 	}
-	//推送 redis
-	status := int64(_type.TaskStatusOver)
-	err := service.UpdateHeaderStatus(dataVal.TaskID, status)
-	if err != nil {
-		errMsg := err.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+
+	//查询 header 信息
+	header, getTaskHeaderErr := service.GetTaskHeader(dataVal.TaskID)
+	if getTaskHeaderErr != nil {
+		fmt.Printf("获取footer 信息失败 %v", getTaskHeaderErr)
 		return
 	}
-	lock.DestroyLock(dataVal.TaskID) //销毁锁
+	if header.Status != _type.TaskStatusStopped {
+		//推送 redis
+		status := int64(_type.TaskStatusOver)
+		err := service.UpdateHeaderStatus(dataVal.TaskID, status)
+		if err != nil {
+			errMsg := err.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		lock.DestroyLock(dataVal.TaskID) //销毁锁
+	}
+	if header.TaskType == 5 {
+		taskNoticeRequestErr := OperationGoodsTaskNoticeRequest(header.TaskId, strconv.FormatInt(header.ShopId, 10))
+		if taskNoticeRequestErr != nil {
+			return
+		}
+	} else {
+		taskNoticeRequestErr := TaskNoticeRequest(header.TaskId)
+		if taskNoticeRequestErr != nil {
+			return
+		}
+	}
 	// 返回成功响应
 	tool.Session(httpMsg, "")
 }
@@ -771,7 +791,7 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 		//获取 body_over 信息
 		bodyOver, _, GetTaskBodyOverErr := service.GetTaskBodyOver(v.TaskId, 0, 10)
 		if GetTaskBodyOverErr != nil {
-			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", getTaskFooterErr)
+			errMsg := fmt.Sprintf("获取body_over 信息失败 %v", GetTaskBodyOverErr)
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 			return
 		}
@@ -1129,7 +1149,7 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 			TaskCountSuccess: 0,                       //任务成功数量
 			TaskCountError:   0,                       //任务失败数量
 			Status:           _type.TaskStatusRunning, //任务状态 1=运行中 2=暂停中 3=完成
-			TaskQpm:          0,                       //任务QPM
+			TaskQpm:          0,                       //任务 QPM
 			TaskCreateAt:     createAt,                //任务创建时间
 			TaskOverAt:       0,                       //任务完成时间
 			LastIndex:        0,                       //最后索引
@@ -1191,6 +1211,53 @@ func AddTask(taskId string, bodyData []string) int {
 			return 0
 		}
 	}
+	//// 遍历 bodyData 获取skuId与goodsId
+	//if header.TaskType == 5 {
+	//	var bodyDataArr []_type.TaskBody
+	//	//先转换成数组结构体
+	//	for _, v := range bodyData {
+	//		var taskBody _type.TaskBody
+	//		// 清理JSON字符串（去除可能的空格和换行）
+	//		jsonStr := strings.TrimSpace(v)
+	//		if err := json.Unmarshal([]byte(jsonStr), &taskBody); err != nil {
+	//			fmt.Printf("解析失败: %v %v\n", err, jsonStr)
+	//			continue
+	//		}
+	//		bodyDataArr = append(bodyDataArr, taskBody)
+	//	}
+	//	//转换成 Json字符串
+	//	bodyDataJSON, marshalErr := json.Marshal(bodyDataArr)
+	//	if marshalErr != nil {
+	//		fmt.Printf("转换成 Json字符串失败: %v\n", marshalErr)
+	//		return 0
+	//	}
+	//	getSkuIdMap := map[string]string{
+	//		"shopId": strconv.FormatInt(header.ShopId, 10),
+	//		"data":   string(bodyDataJSON),
+	//	}
+	//	// 发送请求批量获取 skuID
+	//	dataRetStr, submitFormDataErr := tool.SubmitFormData(golabl.Config.FileUrl.PddGetSkuId, getSkuIdMap)
+	//	if submitFormDataErr != nil {
+	//		fmt.Printf("获取 skuId 提交表单数据失败: %v\n", submitFormDataErr)
+	//		return 0
+	//	}
+	//	var dataRetStrArr []_type.TaskBody
+	//	err := json.Unmarshal([]byte(dataRetStr), &dataRetStrArr)
+	//	if err != nil {
+	//		fmt.Printf("解析失败: %v\n", err)
+	//		return 0
+	//	}
+	//	// 转回[]string
+	//	var newBodyData []string
+	//	for _, v := range dataRetStrArr {
+	//		vStr, marshalErr := json.Marshal(v)
+	//		if marshalErr != nil {
+	//			return 0
+	//		}
+	//		newBodyData = append(newBodyData, string(vStr))
+	//	}
+	//	bodyData = newBodyData
+	//}
 	// 遍历 bodyData 写入redis
 	var num atomic.Int64
 	for _, v := range bodyData {
@@ -1203,48 +1270,66 @@ func AddTask(taskId string, bodyData []string) int {
 		}
 		var bookInfo _type.BookInfo
 		var GetTaskBookErr error
-		//核价发布、表格发布
-		if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 6 {
-			// 连接DB[b] 获取书品信息
-			bookInfo, GetTaskBookErr = service.GetTaskBook(taskBody.BookInfo.Isbn)
-			if GetTaskBookErr != nil {
-				if errors.Is(GetTaskBookErr, _redis.Nil) {
-					setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
-					if setNoBookCountErr != nil {
-						fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+		// 书品处理
+		if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 5 || header.TaskType == 6 {
+			// 连接DB[b] 获取书品信息,#操作商品的isbn13个0则不查询isbn
+			if !(header.TaskType == 5 && taskBody.BookInfo.Isbn == "0000000000000") {
+				bookInfo, GetTaskBookErr = service.GetTaskBook(taskBody.BookInfo.Isbn)
+				if GetTaskBookErr != nil {
+					if errors.Is(GetTaskBookErr, _redis.Nil) {
+						setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
+						if setNoBookCountErr != nil {
+							fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+						}
+					}
+					fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
+					continue
+				}
+			}
+			// 图片处理
+			if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 6 {
+				//处理图片 仅官图不处理
+				if header.ImgType == 2 { //仅实拍图，使用传递过来的图片
+					bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
+				} else if header.ImgType == 3 { // 优先官图，优先使用 bookInfo中的图片，如果没有使用传递过来的图片
+					if len(bookInfo.ImageObject.CarouselUrlArray) == 0 {
+						bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
+					}
+				} else if header.ImgType == 4 { //优先实拍，优先使用 传递过来的图片，如果没有使用bookInfo中的图片
+					if len(taskBody.BookInfo.ImageObject.CarouselUrlArray) > 0 {
+						bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
 					}
 				}
-				fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
-				continue
-			}
-			//处理图片 仅官图不处理
-			if header.ImgType == 2 { //仅实拍图，使用传递过来的图片
-				bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
-			} else if header.ImgType == 3 { // 优先官图，优先使用 bookInfo中的图片，如果没有使用传递过来的图片
-				if len(bookInfo.ImageObject.CarouselUrlArray) == 0 {
-					bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
+
+				// 类目 Id处理
+				var catId string
+				pinDuoDuoCatIdArr := tool.StringToArray(bookInfo.CatIdObject.PinDuoDuoCatId.String())
+				if len(pinDuoDuoCatIdArr) == 3 {
+					catId = pinDuoDuoCatIdArr[2]
+				} else if len(pinDuoDuoCatIdArr) == 4 {
+					catId = pinDuoDuoCatIdArr[3]
 				}
-			} else if header.ImgType == 4 { //优先实拍，优先使用 传递过来的图片，如果没有使用bookInfo中的图片
+				if header.ShopType == "1" {
+					bookInfo.CatIdObject.PinDuoDuoCatId = _type.FlexibleStr(catId)
+				} else if header.ShopType == "5" {
+					bookInfo.CatIdObject.XianYuCatId = _type.FlexibleStr(bookInfo.CatIdObject.XianYuCatId.String())
+				}
+			}
+			//表格上传处理
+			if header.TaskType == 2 {
+				// 书名处理，如果表格上传存在，则使用表格中的
+				if taskBody.BookInfo.BookName != "" {
+					bookInfo.BookName = taskBody.BookInfo.BookName
+				}
+				// 图片处理，如果表格上传存在，则使用表格中的
 				if len(taskBody.BookInfo.ImageObject.CarouselUrlArray) > 0 {
 					bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
 				}
 			}
-			var catId string
-			pinDuoDuoCatIdArr := tool.StringToArray(bookInfo.CatIdObject.PinDuoDuoCatId.String())
-			if len(pinDuoDuoCatIdArr) == 3 {
-				catId = pinDuoDuoCatIdArr[2]
-			} else if len(pinDuoDuoCatIdArr) == 4 {
-				catId = pinDuoDuoCatIdArr[3]
-			}
-			if header.ShopType == "1" {
-				bookInfo.CatIdObject.PinDuoDuoCatId = _type.FlexibleStr(catId)
-			} else if header.ShopType == "5" {
-				bookInfo.CatIdObject.XianYuCatId = _type.FlexibleStr(bookInfo.CatIdObject.XianYuCatId.String())
-			}
+			// 更新 BookInfo
+			taskBody.BookInfo = bookInfo
 		}
 
-		// 更新 BookInfo
-		taskBody.BookInfo = bookInfo
 		// 更新 BodyWait
 		err := service.UpdateTaskBodyWait(taskId, taskBody)
 		if err != nil {
@@ -1255,9 +1340,16 @@ func AddTask(taskId string, bodyData []string) int {
 		num.Add(1)
 		err = service.UpdateTaskCountTrue(taskId, 1)
 	}
-	taskNoticeRequestErr := TaskNoticeRequest(taskId)
-	if taskNoticeRequestErr != nil {
-		return 0
+	if header.TaskType == 5 {
+		taskNoticeRequestErr := OperationGoodsTaskNoticeRequest(taskId, strconv.FormatInt(header.ShopId, 10))
+		if taskNoticeRequestErr != nil {
+			return 0
+		}
+	} else {
+		taskNoticeRequestErr := TaskNoticeRequest(taskId)
+		if taskNoticeRequestErr != nil {
+			return 0
+		}
 	}
 	return int(num.Load())
 }
@@ -1329,6 +1421,24 @@ func TaskNoticeRequest(taskId string) error {
 		"taskId": taskId,
 	}
 	_, submitFormDataErr := tool.SubmitFormData(fileUrlConfig.CreateTaskNoticeUrl, data)
+	if submitFormDataErr != nil {
+		return fmt.Errorf("提交表单数据失败: %v", submitFormDataErr)
+	}
+	return nil
+}
+
+// OperationGoodsTaskNoticeRequest 操作商品任务有等待数据通知接口
+func OperationGoodsTaskNoticeRequest(taskId string, shopId string) error {
+
+	fileUrlConfig, getFileUrlConfigErr := config.GetFileUrlConfig()
+	if getFileUrlConfigErr != nil {
+		return fmt.Errorf("获取文件路径配置失败: %v", getFileUrlConfigErr)
+	}
+	data := map[string]string{
+		"taskId": taskId,
+		"shopId": shopId,
+	}
+	_, submitFormDataErr := tool.SubmitFormData(fileUrlConfig.CreateOperationTaskNoticeUrl, data)
 	if submitFormDataErr != nil {
 		return fmt.Errorf("提交表单数据失败: %v", submitFormDataErr)
 	}

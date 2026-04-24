@@ -622,3 +622,55 @@ func DeleteZipFile() {
 
 	fmt.Printf("共删除 %d 个%d天前的zip文件\n", deletedCount, day)
 }
+
+// ExecuteDelTask 查询del_task 表中待执行
+func ExecuteDelTask() {
+	delTask, err := mysql.GetDelTask()
+	if err != nil {
+		fmt.Println("查询del_task 表中待执行失败：", err)
+	}
+	for _, v := range delTask {
+		//如果是暂停中的任务,将任务状态修改为执行中
+		if *v.Status == 2 {
+			// 要求 v.PauseAt 不能等于 nil 并且 v.PauseAt 必须大于当前时间24小时
+			if v.PauseAt != nil && !time.Now().After(v.PauseAt.Add(24*time.Hour)) {
+				continue
+			}
+			//修改任务状态
+			err := mysql.UpdateDelTaskStatus(v.ID)
+			if err != nil {
+				fmt.Println("修改任务状态失败：", err)
+				continue
+			}
+		}
+		//启动任务
+		_, err := process.RunDprogram(*v.TaskID)
+		if err != nil {
+			fmt.Println("启动任务失败：", err)
+			continue
+		}
+	}
+}
+
+// DeleteDelTaskAndDelTaskDetails 清理删除任务与删除任务详情过期的数据
+func DeleteDelTaskAndDelTaskDetails() {
+	task, getExpiredDelTaskErr := mysql.GetExpiredDelTask()
+	if getExpiredDelTaskErr != nil {
+		fmt.Println("查询过期的删除任务失败：", getExpiredDelTaskErr)
+		return
+	}
+	for _, v := range task {
+		// 删除删除任务明细表
+		deleteDelTaskDetailErr := mysql.DeleteDelTaskDetail(*v.TaskID)
+		if deleteDelTaskDetailErr != nil {
+			fmt.Println("删除删除任务明细表失败：", deleteDelTaskDetailErr)
+			return
+		}
+		//删除任务
+		deleteDelTaskByIdErr := mysql.DeleteDelTaskById(v.ID)
+		if deleteDelTaskByIdErr != nil {
+			fmt.Println("删除任务失败：", deleteDelTaskByIdErr)
+			return
+		}
+	}
+}

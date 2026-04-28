@@ -28,6 +28,7 @@ type GoodsItem struct {
 	SkuPropertyList      []SkuPropertyList `json:"skuPropertyList"`
 	BigImg               string            `json:"bigImg"`
 }
+
 type SkuPropertyList struct {
 	Punit  string `json:"punit"`
 	RefPid int    `json:"ref_pid"`

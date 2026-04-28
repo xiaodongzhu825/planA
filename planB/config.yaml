@@ -88,7 +88,7 @@ file_url:
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
   pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
   #pdd_get_goods_detail_url: "http://192.168.101.127:8085/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
-  pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
+  pdd_add_goods_url: "http://119.45.237.193:14003/task/putShopGoods" #添加拼多多商品接口
   xianyu_add_goods_url: "http://119.45.237.193:14008/task/putShopGoods" #添加闲鱼商品接口
   backup_url: "D:\\file\\backup" #备份文件路径
   pdd_goods_details_url: "D:\\file\\pdd_goods_details" #保存拼多多详情路径

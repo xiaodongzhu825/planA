@@ -218,6 +218,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
+
 	//推送 redis
 	err = service.UpdateTaskHeader(taskId, task.Header)
 	if err != nil {

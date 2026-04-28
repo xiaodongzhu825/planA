@@ -260,6 +260,8 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 		SpecifyPublishTime: "",
 		UserName:           []string{token.Username},
 	}
+	//延迟1分钟
+	time.Sleep(time.Minute)
 	//商品上架
 	if taskMsg.Detail.IsOnsale == 0 {
 		_, _, err = launchGoods(logUuid, launchGoodsInfo)

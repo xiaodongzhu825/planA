@@ -240,6 +240,9 @@ func taskExecute() {
 			//执行任务
 			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		}
+	} else {
+		//执行任务
+		status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 	}
 
 	// 更新任务信息

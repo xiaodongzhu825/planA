@@ -133,7 +133,7 @@ func GetExpiredDelTask() ([]mysqlType.DelTask, error) {
 	var delTask []mysqlType.DelTask
 	// 假设过期时间是7天前，根据实际需求调整
 	expireTime := time.Now().Add(-7 * 24 * time.Hour)
-	err := golabl.MysqlDb.Where("create_at < ?", expireTime).Find(&delTask).Error
+	err := golabl.MysqlDb.Where("status = 3 and create_at < ?", expireTime).Find(&delTask).Error
 	return delTask, err
 }
 
@@ -148,4 +148,9 @@ func DeleteDelTaskDetail(taskId string) error {
 func DeleteDelTaskById(id int64) error {
 	err := golabl.MysqlDb.Where("id = ?", id).Delete(&mysqlType.DelTask{}).Error
 	return err
+}
+
+// CreateDelTask 创建task 删除任务
+func CreateDelTask(data mysqlType.DelTask) error {
+	return golabl.MysqlDb.Create(&data).Error
 }

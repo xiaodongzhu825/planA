@@ -13,7 +13,7 @@ type ShopInfo struct {
 
 // Shop 店铺基本信息
 type Shop struct {
-	ID             int64       `json:"id"`
+	ID             string      `json:"id"`
 	ShopKey        string      `json:"shop_key"`
 	ShopName       string      `json:"shop_name"`
 	ShopAliasName  string      `json:"shop_alias_name"`
@@ -30,18 +30,19 @@ type Shop struct {
 	SkuSpec        string      `json:"sku_spec"`
 	StartUpdatedAt int64       `json:"start_updated_at"`
 	TenantID       string      `json:"tenant_id"`
-	CreateBy       int64       `json:"create_by" db:"create_by"` // 创建人
+	DelFlag        string      `json:"del_flag"`                 // 逻辑删
+	CreateBy       string      `json:"create_by" db:"create_by"` // 创建人
 }
 
 // ShopDetail 店铺详情
 type ShopDetail struct {
-	ID                          int64    `json:"id"`
-	ShopID                      int64    `json:"shop_id"`                          //店铺 ID
-	SaleTemplateID              int64    `json:"sale_template_id"`                 //运费模版 ID
+	ID                          string   `json:"id"`
+	ShopID                      string   `json:"shop_id"`                          //店铺 ID
+	SaleTemplateID              string   `json:"sale_template_id"`                 //运费模版 ID
 	LowPrice                    int      `json:"low_price"`                        //最低价格
 	HighPrice                   int      `json:"high_price"`                       //最高价格
 	StockDeff                   int      `json:"stock_deff"`                       //库存
-	TemplateId                  int      `json:"template_id"`                      //物流运费模版 ID
+	TemplateId                  string   `json:"template_id"`                      //物流运费模版 ID
 	TitlePrefix                 string   `json:"title_prefix"`                     //标题前缀
 	TitleSuffix                 string   `json:"title_suffix"`                     //标题后缀
 	TitleConsistOf              string   `json:"title_consist_of"`                 //标题包含信息
@@ -69,8 +70,8 @@ type ShopDetail struct {
 
 // ShopContext 店铺上下文
 type ShopContext struct {
-	ID         int64  `json:"id"`
-	ShopID     int64  `json:"shop_id"`
+	ID         string `json:"id"`
+	ShopID     string `json:"shop_id"`
 	Context    string `json:"context"`
 	CreateTime string `json:"create_time"`
 	UpdateTime string `json:"update_time"`
@@ -78,8 +79,8 @@ type ShopContext struct {
 
 // Spec 规格信息
 type Spec struct {
-	ID              int64  `json:"id"`
-	ShopID          int64  `json:"shop_id"`
+	ID              string `json:"id"`
+	ShopID          string `json:"shop_id"`
 	SpecName        string `json:"spec_name"`
 	SpecTypeID      string `json:"spec_type_id"`
 	SpecTypeName    string `json:"spec_type_name"`
@@ -96,7 +97,7 @@ type PriceTemplate struct {
 	AddAmount    int    `json:"add_amount"`
 	DelFlag      string `json:"del_flag"`
 	HighPrice    int64  `json:"high_price"`
-	ID           int64  `json:"id"`
+	ID           string `json:"id"`
 	LowPrice     int64  `json:"low_price"`
 	PriceType    string `json:"price_type"`
 	Proportion   int    `json:"proportion"`

@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"planA/initialization/golabl"
 	"planA/tool"
+	toolPdd "planA/tool/pdd"
 	_type "planA/type"
 	"strconv"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -434,7 +436,7 @@ func parseHeaderMap(headerMap map[string]string) (_type.TaskHeader, error) {
 
 	for key, value := range headerMap {
 		switch key {
-		case "last_index", "shop_id", "task_count", "task_count_error",
+		case "last_index", "task_count", "task_count_error",
 			"task_count_over", "task_count_success", "task_count_true",
 			"task_count_wait", "task_create_at", "task_over_at", "task_qpm", "task_type", "img_type", "update_type":
 			parseIntField(&info, key, value)
@@ -456,7 +458,7 @@ func parseHeaderMap(headerMap map[string]string) (_type.TaskHeader, error) {
 				info.Status = _type.TaskStatus(v)
 			}
 
-		case "ship_price_mod", "shop_name", "shop_type", "task_id":
+		case "shop_id", "ship_price_mod", "shop_name", "shop_type", "task_id":
 			setStringField(&info, key, value)
 		}
 	}
@@ -469,8 +471,6 @@ func parseIntField(info *_type.TaskHeader, key, value string) {
 		switch key {
 		case "last_index":
 			info.LastIndex = v
-		case "shop_id":
-			info.ShopId = v
 		case "task_count":
 			info.TaskCount = v
 		case "task_count_error":
@@ -511,6 +511,8 @@ func setStringField(info *_type.TaskHeader, key, value string) {
 		info.ShopType = value
 	case "task_id":
 		info.TaskId = value
+	case "shop_id":
+		info.ShopId = value
 	}
 }
 
@@ -594,4 +596,70 @@ func parseTaskFooter(taskFooter map[string]string, footer *_type.TaskFooter) err
 func executePipeline(pipe redis.Pipeliner) error {
 	_, err := pipe.Exec(golabl.Ctx)
 	return err
+}
+
+// ============================================
+// 其他
+// ============================================
+
+// GetPddTokenList 获取token列表
+// @return []string token列表
+// @return error 错误信息
+func GetPddTokenList() ([]_type.Shop, error) {
+	var shopList []_type.Shop
+	//获取 店铺列表中所有的key
+	iter := golabl.RedisDbC.Scan(golabl.Ctx, 0, "*", 0).Iterator()
+	for iter.Next(golabl.Ctx) {
+		key := iter.Val()
+		//获取店铺信息
+		shopInfo, getTaskShopErr := GetTaskShop(key)
+		if getTaskShopErr != nil {
+			return shopList, fmt.Errorf("获取店铺信息失败:" + getTaskShopErr.Error())
+		}
+		// 解析 json数据
+		fmt.Println("解析店铺的key:", key)
+		shopData, err := toolPdd.ParseShopData(shopInfo)
+		if err != nil {
+			return shopList, fmt.Errorf("解析店铺数据失败:" + err.Error())
+		}
+		if shopData.Shop == nil {
+			// 没有店铺数据
+			continue
+		}
+		if shopData.Shop.ExpirationTime == "" {
+			// 过期时间为空
+			continue
+		}
+		// 筛选出拼多多的店铺并且订阅未到期的
+		expirationTime, err := parseTime(shopData.Shop.ExpirationTime)
+		if err != nil {
+			return shopList, fmt.Errorf("时间解析失败: %s, 原始值: %s", err.Error(), shopData.Shop.ExpirationTime)
+		}
+
+		now := time.Now()
+		if shopData.Shop.ShopType == "1" && expirationTime.After(now) && shopData.Shop.DelFlag == "0" {
+			shopList = append(shopList, *shopData.Shop)
+		}
+	}
+	return shopList, nil
+}
+
+// parseTime 解析时间字符串，支持多种格式
+func parseTime(timeStr string) (time.Time, error) {
+	// 定义支持的时间格式列表
+	layouts := []string{
+		time.RFC3339,                // "2006-01-02T15:04:05Z07:00"
+		"2006-01-02T15:04:05-07:00", // "2026-03-27T21:31:17+08:00"
+		"2006-01-02 15:04:05",       // "2026-04-05 23:59:59"
+		"2006-01-02 15:04:05 -0700", // 带时区但空格分隔的格式
+		"2006-01-02T15:04:05",       // 不带时区的T分隔格式
+	}
+
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, timeStr); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("无法解析时间字符串")
 }

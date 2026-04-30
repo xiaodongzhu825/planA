@@ -42,7 +42,7 @@ func WritePddGoodsData(goodsListStr []planBTypePinduoduo.GoodsItem, page int, pa
 	}
 	params := map[string]string{
 		"taskId":       golabl.Task.TaskId,
-		"shopId":       strconv.FormatInt(golabl.Task.Header.ShopId, 10),
+		"shopId":       golabl.Task.Header.ShopId,
 		"goodsListStr": string(marshal),
 		"allNum":       strconv.FormatInt(pageTotal, 10),
 		"num":          strconv.Itoa(page),

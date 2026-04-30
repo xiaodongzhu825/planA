@@ -24,6 +24,25 @@ func UpdateTaskCountOver() error {
 		}).Error
 }
 
+// UpdateTaskCount 根据task_id 将 task_count +1
+func UpdateTaskCount() error {
+	return golabl.MysqlDb.Model(&planAType.DelTask{}).
+		Where("task_id = ?", golabl.TaskId).
+		Updates(map[string]interface{}{
+			"task_count": gorm.Expr("task_count + 1"),
+		}).Error
+}
+
+// UpdateTaskCountAndTaskCountOver 根据task_id 将 task_count与task_count_over 设置为0
+func UpdateTaskCountAndTaskCountOver() error {
+	return golabl.MysqlDb.Model(&planAType.DelTask{}).
+		Where("task_id = ?", golabl.TaskId).
+		Updates(map[string]interface{}{
+			"task_count":      0,
+			"task_count_over": 0,
+		}).Error
+}
+
 // UpdateTaskStatus 根据task_id 修改 status
 func UpdateTaskStatus(status int) error {
 	updateData := map[string]interface{}{

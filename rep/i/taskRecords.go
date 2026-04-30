@@ -13,6 +13,6 @@ type TaskRecords interface {
 	DeleteTaskRecordsOldData() error                                                               //删除任务记录旧数据
 	DeleteTaskRecordsByTaskId(taskId string) error                                                 //根据任务 ID删除任务记录
 	GetTaskRecords24Hour() ([]*_type.TaskRecordsDTO, error)                                        //获取24小时内的数据
-	GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]*_type.TaskRecordsDTO, error)      //根据 shopId和 taskType获取任务记录
+	GetTaskByShopIdAndTaskType(taskId string, taskType int64) ([]*_type.TaskRecordsDTO, error)     //根据 shopId和 taskType获取任务记录
 	GetAllTask() ([]*_type.TaskRecordsDTO, error)                                                  //获取所有任务
 }

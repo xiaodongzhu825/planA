@@ -21,7 +21,7 @@ type Task struct {
 type TaskHeader struct {
 	TaskId           string     `json:"task_id"`            // 任务 ID
 	TaskType         int64      `json:"task_type"`          // 任务类型
-	ShopId           int64      `json:"shop_id"`            // 店铺 ID
+	ShopId           string     `json:"shop_id"`            // 店铺 ID
 	ShopName         string     `json:"shop_name"`          // 店铺名称
 	ShopType         string     `json:"shop_type"`          // 店铺类型
 	ShopMsg          ShopMsg    `json:"shop_msg"`           // 店铺信息
@@ -80,7 +80,7 @@ type TaskFooter struct {
 
 // ShopMsg 店铺信息结构体
 type ShopMsg struct {
-	ID                          int64       `json:"id"`
+	ID                          string      `json:"id"`
 	ShopAliasName               string      `json:"shop_alias_name"`
 	ShopName                    string      `json:"shop_name"`
 	Token                       string      `json:"token"`                            //店铺 token 店铺类型=拼多多店铺，此token则是常规token 店铺类型=咸鱼店铺，此token则是【应用Id:应用密钥】
@@ -106,7 +106,7 @@ type ShopMsg struct {
 	IsRefundable                bool        `json:"is_refundable"`                    //是否7天无理由退换货，true-支持，false-不支持
 	IsSecondHand                bool        `json:"is_second_hand"`                   //是否二手 true -二手商品 ，false-全新商品
 	ShipmentLimitSecond         int64       `json:"shipment_limit_second"`            //承诺发货时间（秒）
-	CostTemplateId              int64       `json:"cost_template_id"`                 //物流运费模板 ID
+	CostTemplateId              string      `json:"cost_template_id"`                 //物流运费模板 ID
 	DefStock                    int64       `json:"def_stock"`                        // 默认库存
 	TwoDiscount                 int64       `json:"two_discount"`                     // 两件折扣
 	DistrictMsg                 DistrictMsg `json:"district_msg"`                     // 地区信息【限闲鱼使用】

@@ -14,7 +14,6 @@ import (
 	planAType "planA/type"
 	planATypeMysql "planA/type/mysql"
 	redisType "planA/type/redis"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -174,7 +173,7 @@ func taskExecute() {
 				headerJson := string(headerByte)
 				currentTime := time.Now()
 				// 查询店铺数据
-				shopDataStr, getTaskShopErr := service.GetTaskShop(strconv.FormatInt(golabl.Task.Header.ShopId, 10))
+				shopDataStr, getTaskShopErr := service.GetTaskShop(golabl.Task.Header.ShopId)
 				if getTaskShopErr != nil {
 					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("查询店铺数据失败:%v", headerJsonErr))
 					return
@@ -185,7 +184,8 @@ func taskExecute() {
 					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("解析店铺数据失败:%v", parseShopDataErr))
 					return
 				}
-				userId := strconv.FormatInt(shopData.Shop.CreateBy, 10)
+				userId := shopData.Shop.CreateBy
+				taskType := 1
 				//不存在 mysql任务则创建
 				createDelTask := planATypeMysql.DelTask{
 					UserID:        &userId,
@@ -195,6 +195,7 @@ func taskExecute() {
 					TaskCount:     &taskCount,
 					TaskCountOver: &taskCountOver,
 					Status:        &sta,
+					TaskType:      &taskType,
 					Header:        &headerJson,
 					CreateAt:      &currentTime,
 				}

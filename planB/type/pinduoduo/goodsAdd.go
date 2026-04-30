@@ -13,7 +13,7 @@ type GoodsAdd struct {
 	IsPreSale           bool              `json:"is_pre_sale"`           // 是否预售,true-预售商品，false-非预售商品
 	IsRefundable        bool              `json:"is_refundable"`         // 是否7天无理由退换货，true-支持，false-不支持
 	SecondHand          bool              `json:"second_hand"`           // 是否二手商品， true -二手商品 ，false-全新商品
-	CostTemplateId      int64             `json:"cost_template_id"`      // 物流运费模板ID
+	CostTemplateId      string            `json:"cost_template_id"`      // 物流运费模板ID
 	CountryId           int64             `json:"country_id"`            // 国家ID
 	ShipmentLimitSecond int64             `json:"shipment_limit_second"` // 承诺发货时间（秒），普通、进口商品可选48小时或24小时；直邮商品（goods_type=4）只可入参120小时，直供商品（goods_type=3）只可入参96小时；is_pre_sale为true时不必传
 	TwoPiecesDiscount   int64             `json:"two_pieces_discount"`   // 满2件折扣，可选范围0-100, 0表示取消，95表示95折，设置需先查询规则接口获取实际可填范围

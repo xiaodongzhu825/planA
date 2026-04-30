@@ -1157,7 +1157,7 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 				}
 
 				//将指定店铺信息记录到本地
-				isFileShopId, isShopIDExistsErr := tool.IsShopIDExists(strconv.FormatInt(golabl.Task.Header.ShopId, 10))
+				isFileShopId, isShopIDExistsErr := tool.IsShopIDExists(golabl.Task.Header.ShopId)
 				if isShopIDExistsErr != nil {
 					return isShopIDExistsErr
 				}

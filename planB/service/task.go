@@ -350,7 +350,7 @@ func parseTaskHeader(taskHeader map[string]string) error {
 		return fmt.Errorf("参数错误: %s", "task_id 为 空")
 	}
 	// 解析 header shop_id
-	if golabl.Task.Header.ShopId, _ = strconv.ParseInt(taskHeader["shop_id"], 10, 64); golabl.Task.Header.ShopId == 0 {
+	if golabl.Task.Header.ShopId = taskHeader["shop_id"]; golabl.Task.Header.ShopId == "" {
 		return fmt.Errorf("参数错误: %s", "shop_id 为 空")
 	}
 	// 解析 header shop_name

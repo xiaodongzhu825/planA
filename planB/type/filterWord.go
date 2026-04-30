@@ -14,7 +14,7 @@ type HttpFilterWordRes struct {
 
 // MatchRule 匹配规则结构体
 type MatchRule struct {
-	CreateBy       int64  `json:"createBy"`       // 创建人ID
+	//CreateBy       string `json:"createBy"`       // 创建人ID
 	MatchType      string `json:"matchType"`      // 匹配类型：ISBN匹配/书名匹配
 	AddTxt         string `json:"addTxt"`         // 匹配文本
 	ID             int64  `json:"id"`             // 规则ID

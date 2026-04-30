@@ -19,6 +19,8 @@ func CreateTaskValidator(data *http.Request) (taskValidator.CreateTask, error) {
 		TaskType:   data.FormValue("task_type"),
 		ImgType:    data.FormValue("img_type"),
 		UpdateType: data.FormValue("update_type"),
+		DelNum:     data.FormValue("del_num"),
+		DelTime:    data.FormValue("del_time"),
 	}
 	fieldCN := map[string]string{"ShopID": "店铺ID", "ShopType": "店铺类型", "TaskCount": "任务数量", "TaskType": "任务类型", "ImgType": "图片类型"}
 	if err := golabl.Validator.Struct(form); err != nil {

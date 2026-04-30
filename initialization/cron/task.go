@@ -18,6 +18,7 @@ import (
 	"planA/service"
 	"planA/service/mysql"
 	"planA/tool"
+	toolPdd "planA/tool/pdd"
 	"planA/tool/process"
 	"regexp"
 	"strings"
@@ -660,6 +661,14 @@ func DeleteDelTaskAndDelTaskDetails() {
 		return
 	}
 	for _, v := range task {
+		if *v.TaskType == 2 || *v.TaskType == 3 {
+			//删除header 与 footer
+			delTaskErr := service.DelTask(*v.TaskID)
+			if delTaskErr != nil {
+				fmt.Println("删除任务失败：", delTaskErr)
+				return
+			}
+		}
 		// 删除删除任务明细表
 		deleteDelTaskDetailErr := mysql.DeleteDelTaskDetail(*v.TaskID)
 		if deleteDelTaskDetailErr != nil {
@@ -671,6 +680,38 @@ func DeleteDelTaskAndDelTaskDetails() {
 		if deleteDelTaskByIdErr != nil {
 			fmt.Println("删除任务失败：", deleteDelTaskByIdErr)
 			return
+		}
+	}
+}
+
+// VerifyToken 验证token过期
+
+func VerifyToken() {
+	list, getPddTokenListErr := service.GetPddTokenList()
+	if getPddTokenListErr != nil {
+		fmt.Println("获取token列表失败：", getPddTokenListErr)
+		return
+	}
+	pddDll, initPddSOErr := pdd.InitPddDll()
+	if initPddSOErr != nil {
+		fmt.Println("初始化pdd.so失败：", initPddSOErr)
+		return
+	}
+	for _, v := range list {
+		//使用类目预测接口测试Token 是否有效
+		buildPddGoodsOuterCatMappingGetErr := toolPdd.BuildPddGoodsOuterCatMappingGet(pddDll, v.Token)
+		if buildPddGoodsOuterCatMappingGetErr != nil {
+			if buildPddGoodsOuterCatMappingGetErr.Error() == "拼多多Token已过期" {
+				fmt.Printf("token 过期的店铺 %v 店铺id %v\n", v.ShopName, v.ID)
+				reqData := map[string]string{
+					"shopId": v.ID,
+				}
+				_, submitFormDataErr := tool.SubmitFormData(golabl.Config.FileUrl.UpdateTokenUrl, reqData)
+				if submitFormDataErr != nil {
+					fmt.Println("提交表单数据失败：", submitFormDataErr)
+					return
+				}
+			}
 		}
 	}
 }

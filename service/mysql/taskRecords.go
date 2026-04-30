@@ -132,7 +132,7 @@ func GetTaskRecordsOldList() ([]*mysqlType.TaskRecords, error) {
 // @param taskType 任务类型
 // @return []mysqlType.TaskRecords 任务列表
 // @return error 错误信息
-func GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]*mysqlType.TaskRecords, error) {
+func GetTaskByShopIdAndTaskType(taskId string, taskType int64) ([]*mysqlType.TaskRecords, error) {
 	var task []*mysqlType.TaskRecords
 	err := golabl.MysqlDb.Model(&mysqlType.TaskRecords{}).Where("shop_id = ? AND task_type = ?", taskId, taskType).Find(&task).Error
 	return task, err

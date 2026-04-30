@@ -12,6 +12,7 @@ func main() {
 		fmt.Println("初始化失败:", err)
 		return
 	}
+	//cron.VerifyToken()
 	//启动服务
 	initialization.Server()
 }

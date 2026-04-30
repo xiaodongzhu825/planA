@@ -309,7 +309,7 @@ func GetTaskRecordsOldList() ([]sqLiteType.TaskRecords, error) {
 // @param taskType 任务类型
 // @return []sqLiteType.TaskRecords 任务列表
 // @return error 错误信息
-func GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]sqLiteType.TaskRecords, error) {
+func GetTaskByShopIdAndTaskType(taskId string, taskType int64) ([]sqLiteType.TaskRecords, error) {
 	query := `SELECT id, user_id, shop_id, task_id, shop_name, task_type, create_at 
               FROM task_records 
               WHERE shop_id = ? AND task_type = ?`

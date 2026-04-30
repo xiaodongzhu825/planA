@@ -16,13 +16,16 @@ type DelTask struct {
 	UserID *string `gorm:"column:user_id;type:varchar(64);index:idx_user_shop_task;comment:用户ID" json:"user_id,omitempty"`
 
 	// ShopID 店铺ID
-	ShopID *int64 `gorm:"column:shop_id;type:bigint(64);index:idx_user_shop_task;comment:店铺ID" json:"shop_id,omitempty"`
+	ShopID *string `gorm:"column:shop_id;type:bigint(64);index:idx_user_shop_task;comment:店铺ID" json:"shop_id,omitempty"`
 
 	// TaskID 任务ID
 	TaskID *string `gorm:"column:task_id;type:varchar(64);index:idx_user_shop_task;comment:任务ID" json:"task_id,omitempty"`
 
 	// pid pid
 	Pid *string `gorm:"column:pid;type:varchar(64);index:idx_user_shop_task;comment:pid" json:"pid,omitempty"`
+
+	// TaskType 任务类型
+	TaskType *int `gorm:"column:task_type;type:int(11);index:idx_user_shop_task;comment:任务类型 1=常规删除 2=数量删除 3=时间删除" json:"task_type,omitempty"`
 
 	// ShopName 店铺名称
 	ShopName *string `gorm:"column:shop_name;type:varchar(128);index:idx_user_shop_task;comment:店铺名称" json:"shop_name,omitempty"`
@@ -41,6 +44,9 @@ type DelTask struct {
 
 	// pauseAt 暂停时间
 	PauseAt *time.Time `gorm:"column:pause_at;type:datetime;comment:暂停时间" json:"pause_at"`
+
+	// StopAt 终止时间
+	StopAt *time.Time `gorm:"column:stop_at;type:datetime;comment:终止时间（时间删除任务）" json:"stop_at"`
 
 	// CreateAt 创建时间（GORM会自动维护创建时间）
 	CreateAt *time.Time `gorm:"column:create_at;type:datetime;autoCreateTime;comment:创建时间" json:"create_at,omitempty"`

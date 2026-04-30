@@ -138,4 +138,5 @@ type FileUrl struct {
 	DelTaskUrl                   string `json:"del_task_url"`
 	BackupUrl                    string `json:"backup_url"`
 	PddGoodsDetailsUrl           string `json:"pdd_goods_details_url"`
+	UpdateTokenUrl               string `json:"update_token_url"`
 }

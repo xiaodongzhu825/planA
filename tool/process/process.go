@@ -298,21 +298,24 @@ func ResumeProcess(taskId string) error {
 		return fmt.Errorf("PID必须为正整数")
 	}
 
-	// 4. 打开进程
-	hProcess, _, err := procOpenProcess.Call(
-		PROCESS_SUSPEND_RESUME,
-		uintptr(0),
-		uintptr(pid),
-	)
-	if hProcess == 0 {
-		return fmt.Errorf("打开进程失败: %v", err)
-	}
-	defer procCloseHandle.Call(hProcess)
+	//验证进程是否真实存在
+	if IsProcessExistWindows(processId) {
+		// 4. 打开进程
+		hProcess, _, err := procOpenProcess.Call(
+			PROCESS_SUSPEND_RESUME,
+			uintptr(0),
+			uintptr(pid),
+		)
+		if hProcess == 0 {
+			return fmt.Errorf("打开进程失败: %v", err)
+		}
+		defer procCloseHandle.Call(hProcess)
 
-	// 5. 恢复进程
-	callStatus, _, _ := procNtResumeProcess.Call(hProcess)
-	if callStatus != 0 {
-		return fmt.Errorf("NtResumeProcess 失败: 0x%X", callStatus)
+		// 5. 恢复进程
+		callStatus, _, _ := procNtResumeProcess.Call(hProcess)
+		if callStatus != 0 {
+			return fmt.Errorf("NtResumeProcess 失败: 0x%X", callStatus)
+		}
 	}
 
 	// 6. 修改Header中的状态

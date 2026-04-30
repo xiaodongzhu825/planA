@@ -106,7 +106,7 @@ func (g *GormAdapter) GetTaskRecords24Hour() ([]*_type.TaskRecordsDTO, error) {
 // @param taskType 任务类型
 // @return []*_type.TaskRecordsDTO 任务列表
 // @return error 错误信息
-func (g *GormAdapter) GetTaskByShopIdAndTaskType(taskId int64, taskType int64) ([]*_type.TaskRecordsDTO, error) {
+func (g *GormAdapter) GetTaskByShopIdAndTaskType(taskId string, taskType int64) ([]*_type.TaskRecordsDTO, error) {
 	list, err := mysqlServer.GetTaskByShopIdAndTaskType(taskId, taskType)
 	listDTO := convertMysqlTaskRecordsToDTO(list)
 	return listDTO, err

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"planA/planB/initialization/golabl"
 	planBType "planA/planB/type"
-	"strconv"
 )
 
 // HttpFilterWord 违禁词处理
@@ -24,7 +23,7 @@ func HttpFilterWord(isbn, bookName, author, publishing string) (planBType.HttpFi
 		"bookName":    fmt.Sprintf("%v", bookName),
 		"author":      fmt.Sprintf("%v", author),
 		"publisher":   fmt.Sprintf("%v", publishing),
-		"shopId":      strconv.FormatInt(golabl.Task.Header.ShopId, 10),
+		"shopId":      golabl.Task.Header.ShopId,
 		"replaceMark": golabl.Config.Server.ReplaceMark,
 	}
 	// 构建带参数的 URL

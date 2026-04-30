@@ -330,6 +330,34 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 			fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
 			return
 		}
+		mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
+
+		//写入 mysql数据
+		mysqlCreateTaskRecordsErr := mysqlWrite.CreateTaskRecords(_type.TaskRecordsDTO{
+			UserId:   shopData.Shop.CreateBy,
+			ShopId:   shopData.Shop.ID,
+			TaskId:   taskId,
+			ShopName: shop.ShopName,
+			TaskType: taskType,
+		})
+		if mysqlCreateTaskRecordsErr != nil {
+			errMsg := "插入任务用户失败: " + mysqlCreateTaskRecordsErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		//写入 sqlite数据
+		sqliteTaskExportErr := sqliteWrite.CreateTaskRecords(_type.TaskRecordsDTO{
+			UserId:   shopData.Shop.CreateBy,
+			ShopId:   shopData.Shop.ID,
+			TaskId:   taskId,
+			ShopName: shop.ShopName,
+			TaskType: taskType,
+		})
+		if sqliteTaskExportErr != nil {
+			errMsg := "插入任务用户失败: " + sqliteTaskExportErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
 	} else {
 		mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
 

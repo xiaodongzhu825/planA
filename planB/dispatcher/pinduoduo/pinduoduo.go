@@ -264,6 +264,10 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		// 前缀+货号+后缀
 		specChildName = golabl.Task.Header.ShopMsg.SpecPrefix + strconv.FormatInt(taskMsg.Detail.SkuId, 10) + golabl.Task.Header.ShopMsg.SpecSuffix
 	}
+	// 如果规格名称超过30个字符，截取前30个字符
+	if tool.StringLength(specChildName) > 30 {
+		specChildName = tool.SubstringByWidth(specChildName, 30)
+	}
 
 	//构建 sku信息
 	sku, err := buildSkuList(price, skuThumbnail, taskMsg.Detail.Stock, taskMsg.Detail.SkuCode, specChildName, taskMsg.Detail.IsOnsale)

@@ -41,7 +41,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("价格不能小于等于0"))
 	}
 
-	//获取出版社信息并解析
+	//获取出版社信息并解析1
 	if getPublishingErr := service.GetPublishingVid(&taskMsg); getPublishingErr != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取出版社信息失败-原因来自:%v", getPublishingErr))
 	}

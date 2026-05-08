@@ -46,7 +46,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取出版社信息失败-原因来自:%v", getPublishingErr))
 	}
 
-	//违规词处理
+	//违规词处理1
 	if golabl.Config.Server.Filter == 1 {
 		//开启违规词处理
 		if taskMsgErr := tool.FilterWord(&taskMsg); taskMsgErr != nil {

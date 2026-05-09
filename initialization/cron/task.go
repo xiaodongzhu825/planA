@@ -655,32 +655,64 @@ func ExecuteDelTask() {
 
 // DeleteDelTaskAndDelTaskDetails 清理删除任务与删除任务详情过期的数据
 func DeleteDelTaskAndDelTaskDetails() {
+	defer func() {
+		if r := recover(); r != nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("DeleteDelTaskAndDelTaskDetails panic: %v", r))
+		}
+	}()
+
 	task, getExpiredDelTaskErr := mysql.GetExpiredDelTask()
 	if getExpiredDelTaskErr != nil {
-		fmt.Println("查询过期的删除任务失败：", getExpiredDelTaskErr)
+		errMsg := fmt.Sprintf("查询过期的删除任务失败：%v", getExpiredDelTaskErr)
+		logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+		fmt.Println(errMsg)
 		return
 	}
+
 	for _, v := range task {
+		// 检查必要字段是否为 nil
+		if v.TaskType == nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_WARNING, fmt.Sprintf("任务记录中 TaskType 为 nil，跳过处理 ID: %d", v.ID))
+			continue
+		}
+
+		if v.TaskID == nil {
+			logs.LoggingMiddleware(logs.LOG_LEVEL_WARNING, fmt.Sprintf("任务记录中 TaskID 为 nil，跳过处理 ID: %d", v.ID))
+			continue
+		}
+
+		// 处理任务类型 2 或 3
 		if *v.TaskType == 2 || *v.TaskType == 3 {
-			//删除header 与 footer
+			// 删除 header 与 footer
 			delTaskErr := service.DelTask(*v.TaskID)
 			if delTaskErr != nil {
-				fmt.Println("删除任务失败：", delTaskErr)
-				return
+				errMsg := fmt.Sprintf("删除任务失败 TaskID: %s, Error: %v", *v.TaskID, delTaskErr)
+				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+				fmt.Println(errMsg)
+				// 注意：这里用 continue 而不是 return，避免一个任务失败影响其他任务
+				continue
 			}
 		}
+
 		// 删除删除任务明细表
 		deleteDelTaskDetailErr := mysql.DeleteDelTaskDetail(*v.TaskID)
 		if deleteDelTaskDetailErr != nil {
-			fmt.Println("删除删除任务明细表失败：", deleteDelTaskDetailErr)
-			return
+			errMsg := fmt.Sprintf("删除删除任务明细表失败 TaskID: %s, Error: %v", *v.TaskID, deleteDelTaskDetailErr)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			fmt.Println(errMsg)
+			continue
 		}
-		//删除任务
+
+		// 删除任务
 		deleteDelTaskByIdErr := mysql.DeleteDelTaskById(v.ID)
 		if deleteDelTaskByIdErr != nil {
-			fmt.Println("删除任务失败：", deleteDelTaskByIdErr)
-			return
+			errMsg := fmt.Sprintf("删除任务失败 ID: %d, Error: %v", v.ID, deleteDelTaskByIdErr)
+			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
+			fmt.Println(errMsg)
+			continue
 		}
+
+		logs.LoggingMiddleware(logs.LOG_LEVEL_INFO, fmt.Sprintf("成功清理任务 ID: %d, TaskID: %s", v.ID, *v.TaskID))
 	}
 }
 

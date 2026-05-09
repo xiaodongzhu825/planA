@@ -118,6 +118,7 @@ type HttpUrl struct {
 
 type FileUrl struct {
 	PddDll                       string `json:"pdd_dll"`
+	KfzDll                       string `json:"kfz_dll"`
 	XianYuDll                    string `json:"xian_yu_dll"`
 	LogDll                       string `json:"log_dll"`
 	ImageDll                     string `json:"image_dll"`

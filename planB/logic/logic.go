@@ -192,6 +192,7 @@ func taskExecute() {
 					ShopID:        &golabl.Task.Header.ShopId,
 					TaskID:        &golabl.Task.Header.TaskId,
 					ShopName:      &golabl.Task.Header.ShopName,
+					ShopType:      &shopData.Shop.ShopType,
 					TaskCount:     &taskCount,
 					TaskCountOver: &taskCountOver,
 					Status:        &sta,
@@ -250,8 +251,16 @@ func taskExecute() {
 	taskMsg.Detail.Status = status
 	taskMsg.Detail.Error = errorStr
 
-	//isbn 不为空的添加到body中，比如拉取店铺信息isbn可以返回空的
-	if taskMsg.BookInfo.Isbn != "" {
+	//isbn 不为空的添加到body中，比如拉取店铺商品信息isbn可以返回空的
+	if taskMsg.BookInfo.Isbn != "" && (golabl.TaskType == "3" || golabl.TaskType == "4") {
+		// 添加任务到bodyOver、bodyData、bodyBackup
+		if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg, []string{}); addTaskToBodyOverErr != nil {
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))
+		}
+	} else {
+		if taskMsg.BookInfo.Isbn == "" && taskMsg.BookInfo.BookName == "" {
+			taskMsg.BookInfo.BookName = "暂无书品信息"
+		}
 		// 添加任务到bodyOver、bodyData、bodyBackup
 		if addTaskToBodyOverErr := service.AddTaskToBodyOver(taskMsg, []string{}); addTaskToBodyOverErr != nil {
 			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("任务失败 添加到BodyOver失败-原因:%v", addTaskToBodyOverErr))

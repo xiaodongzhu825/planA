@@ -79,6 +79,7 @@ http_url:
 file_url:
   xian_yu_dll: "D:\\source\\planA\\planB\\modules\\xianYu"  #闲鱼 DLL库路径
   pdd_dll: "D:\\source\\planA\\planD\\modules\\pdd"  #拼多多 DLL库路径
+  kfz_dll: "D:\\source\\planA\\planB\\modules\\kfz"  #孔夫子 DLL库路径
   log_dll: "D:\\source\\planA\\planB\\modules\\logs"  #日志 DLL库路径
   image_dll: "D:\\source\\planA\\planB\\modules\\image"  #水印 DLL库路径
   b_file_name: "D:\\source\\planA\\planB\\planB.exe"   #B 程序文件路径
@@ -94,6 +95,6 @@ file_url:
   pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
   pdd_get_sku_id: "http://192.168.101.127:18099/shopGoods/getShopGoods" #批量获取 skuId接口
   xianyu_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加闲鱼商品接口
-  del_task_url: "http://192.168.101.127:18099/shopGoods/delShopGoods" #删除任务通知接口
+  del_task_url: "http://119.45.237.193:14008/shopGoods/delShopGoods" #删除任务通知接口
   backup_url: "C:\\file\\backup" #备份文件路径
   pdd_goods_details_url: "D:\\file\\pdd_goods_details" #保存拼多多详情路径

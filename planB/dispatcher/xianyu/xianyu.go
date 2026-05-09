@@ -206,7 +206,7 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	}
 
 	//库存
-	if taskMsg.Detail.Stock == 0 && golabl.Task.Header.TaskType == 1 {
+	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
 		//如果库存为0 则给默认库存
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
 	}
@@ -399,7 +399,23 @@ func (xianYu *XianYu) GetGoodsTask() (string, error) {
 // @return string body 信息
 // @return string error 错误
 func (xianYu *XianYu) OperationGoodsTask(taskMsg planAType.TaskBody) (string, error) {
-	return "闲鱼商品操作任务", nil
+	//生成唯一请求标识（用于出错精准查询日志）
+	logUuid, generateUUIDErr := tool.GenerateUUID()
+	if generateUUIDErr != nil {
+		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
+	}
+	switch taskMsg.Detail.Status {
+	case 1:
+		return executeGoodsLaunch(logUuid, taskMsg) //上架 {"book_info":{"isbn":"9787115600387"},"detail":{"goods_id":1562238986012229,"status":1}}
+	case 2:
+		return executeGoodsDownShelf(logUuid, taskMsg) // 下架 {"book_info":{"isbn":"9787115600387"},"detail":{"goods_id":1562238986012229,"status":2}}
+	case 4:
+		return executeGoodsUpdateStock(logUuid, taskMsg) //修改商品库存 {"book_info":{"isbn":"9787115600387"},"detail":{"goods_id":1562238986012229,"status":4,"stock":2}}
+	case 5:
+		return executeGoodsUpdatePrice(logUuid, taskMsg) //修改商品价格 {"book_info":{"isbn":"9787115600387"},"detail":{"goods_id":1562238986012229,"status":5,"price":5000}}
+	default:
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("未知操作类型"))
+	}
 }
 
 // *******************************私有方法************************************ //
@@ -890,6 +906,9 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 			if err := pushShopGoodsData(shopId, goodsList, pageTotal, pageTotal, &num); err != nil {
 				return err
 			}
+
+			//打印每个店铺的商品数量
+			fmt.Println("推送 username ", shopId, " 长度 ", len(goodsList))
 		}
 	}
 
@@ -1052,4 +1071,149 @@ func writeXianyuGoodsData(goodsListStr []planBTypeXianyu.GoodsDetailRet, usernam
 		return ret, retStr, unmarshalErr
 	}
 	return ret, retStr, nil
+}
+
+// executeGoodsLaunch 上架商品
+// @param logUuid 日志ID
+// @param taskMsg 任务内容
+// @return error 错误信息
+func executeGoodsLaunch(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	// 解析应用 id与应用秘钥
+	var token planBTypeXianyu.Token
+	unmarshalErr := json.Unmarshal([]byte(golabl.Task.Header.ShopMsg.Token), &token)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("解析应用id与应用秘钥 taskHeader.ShopMsg.Token = %v %w", golabl.Task.Header.ShopMsg.Token, unmarshalErr))
+	}
+
+	// 上架商品
+	launchGoodsInfo := planBTypeXianyu.Product{
+		AppId:              token.AppId,
+		AppSecret:          token.AppSecret,
+		ProductID:          taskMsg.Detail.GoodsId,
+		SpecifyPublishTime: "",
+		UserName:           []string{token.Username},
+	}
+	//转为json
+	jsonData, marshalErr := json.Marshal(launchGoodsInfo)
+	if marshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, marshalErr)
+	}
+	var launchGoods planBTypeXianyu.XianYuAddGoodsResponse
+	launchGoodsStr, xianYuLaunchGoodsAddErr := golabl.XianYuDll.XianYuLaunchGoods(string(jsonData), golabl.Config.FileUrl.XianYuDll)
+	if xianYuLaunchGoodsAddErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, xianYuLaunchGoodsAddErr)
+	}
+	unmarshalErr = json.Unmarshal([]byte(launchGoodsStr), &launchGoods)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, unmarshalErr)
+	}
+	if launchGoods.Code != 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("上架商品失败 %s", launchGoods.Msg))
+	}
+	return tool.ReturnSuccess(taskMsg)
+}
+
+// executeGoodsDownShelf 下架商品
+// @param logUuid 日志ID
+// @param taskMsg 任务内容
+// @return error 错误信息
+func executeGoodsDownShelf(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	var downShelf planBTypeXianyu.DownShelf
+
+	// 解析应用 id与应用秘钥
+	var token planBTypeXianyu.Token
+	unmarshalErr := json.Unmarshal([]byte(golabl.Task.Header.ShopMsg.Token), &token)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("解析应用id与应用秘钥 taskHeader.ShopMsg.Token = %v %w", golabl.Task.Header.ShopMsg.Token, unmarshalErr))
+	}
+	downShelf.AppId = token.AppId
+	downShelf.AppSecret = token.AppSecret
+	downShelf.ProductID = taskMsg.Detail.GoodsId
+	//转为json
+	jsonData, marshalErr := json.Marshal(downShelf)
+	if marshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, marshalErr)
+	}
+	shelf, xianYuExecuteGoodsDownShelfErr := golabl.XianYuDll.XianYuExecuteGoodsDownShelf(string(jsonData), golabl.Config.FileUrl.XianYuDll)
+	if xianYuExecuteGoodsDownShelfErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, xianYuExecuteGoodsDownShelfErr)
+	}
+	var downShelfRes planBTypeXianyu.XianYuAddGoodsResponse
+	unmarshalErr = json.Unmarshal([]byte(shelf), &downShelfRes)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, unmarshalErr)
+	}
+	if downShelfRes.Code != 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("下架商品失败 %s", downShelfRes.Msg))
+	}
+	return tool.ReturnSuccess(taskMsg)
+}
+
+// executeGoodsUpdateStock 修改库存
+func executeGoodsUpdateStock(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	var updateStock planBTypeXianyu.UpdateStock
+
+	// 解析应用 id与应用秘钥
+	var token planBTypeXianyu.Token
+	unmarshalErr := json.Unmarshal([]byte(golabl.Task.Header.ShopMsg.Token), &token)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("解析应用id与应用秘钥 taskHeader.ShopMsg.Token = %v %w", golabl.Task.Header.ShopMsg.Token, unmarshalErr))
+	}
+	updateStock.AppId = token.AppId
+	updateStock.AppSecret = token.AppSecret
+	updateStock.ProductID = taskMsg.Detail.GoodsId
+	updateStock.Stock = taskMsg.Detail.Stock
+	//转为json
+	jsonData, marshalErr := json.Marshal(updateStock)
+	if marshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, marshalErr)
+	}
+	updateStockStr, xianYuExecuteGoodsUpdateStockErr := golabl.XianYuDll.XianYuExecuteGoodsUpdateStock(string(jsonData), golabl.Config.FileUrl.XianYuDll)
+	if xianYuExecuteGoodsUpdateStockErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, xianYuExecuteGoodsUpdateStockErr)
+	}
+	var updateStockRes planBTypeXianyu.XianYuAddGoodsResponse
+	unmarshalErr = json.Unmarshal([]byte(updateStockStr), &updateStockRes)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, unmarshalErr)
+	}
+	if updateStockRes.Code != 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("修改商库存品失败 %s", updateStockRes.Msg))
+	}
+	return tool.ReturnSuccess(taskMsg)
+}
+
+// 修改价格
+func executeGoodsUpdatePrice(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	var updatePrice planBTypeXianyu.UpdatePrice
+
+	// 解析应用 id与应用秘钥
+	var token planBTypeXianyu.Token
+	unmarshalErr := json.Unmarshal([]byte(golabl.Task.Header.ShopMsg.Token), &token)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("解析应用id与应用秘钥 taskHeader.ShopMsg.Token = %v %w", golabl.Task.Header.ShopMsg.Token, unmarshalErr))
+	}
+	updatePrice.AppId = token.AppId
+	updatePrice.AppSecret = token.AppSecret
+	updatePrice.ProductID = taskMsg.Detail.GoodsId
+	updatePrice.Price = taskMsg.Detail.Price
+	updatePrice.OriginalPrice = tool.BuildGoodsPrice(taskMsg.Detail.Price)
+	//转为json
+	jsonData, marshalErr := json.Marshal(updatePrice)
+	if marshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, marshalErr)
+	}
+	updatePriceStr, xianYuExecuteGoodsUpdatePrice := golabl.XianYuDll.XianYuExecuteGoodsUpdatePrice(string(jsonData), golabl.Config.FileUrl.XianYuDll)
+	if xianYuExecuteGoodsUpdatePrice != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, xianYuExecuteGoodsUpdatePrice)
+	}
+	var updatePriceRes planBTypeXianyu.XianYuAddGoodsResponse
+	unmarshalErr = json.Unmarshal([]byte(updatePriceStr), &updatePriceRes)
+	if unmarshalErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, unmarshalErr)
+	}
+	if updatePriceRes.Code != 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("修改商品价格失败 %s", updatePriceRes.Msg))
+	}
+	return tool.ReturnSuccess(taskMsg)
 }

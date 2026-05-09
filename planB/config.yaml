@@ -76,6 +76,7 @@ http_url:
 file_url:
   xian_yu_dll: "D:\\source\\planA\\planB\\modules\\xianYu"  #闲鱼 DLL库路径
   pdd_dll: "D:\\source\\planA\\planB\\modules\\pdd"  #拼多多 DLL库路径
+  kfz_dll: "D:\\source\\planA\\planB\\modules\\kfz"  #孔夫子 DLL库路径
   log_dll: "D:\\source\\planA\\planB\\modules\\logs"  #日志 DLL库路径
   image_dll: "D:\\source\\planA\\planB\\modules\\image"  #水印 DLL库路径
   b_file_name: "D:\\source\\planA\\planB\\planB.exe"   #B 程序文件路径

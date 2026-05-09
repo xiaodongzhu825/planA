@@ -26,22 +26,22 @@ func Logic() error {
 		return fmt.Errorf("查询任务失败: %w", err)
 	}
 
-	switch *task.TaskType {
-	case 1:
-		if err := RegularTask(task); err != nil {
+	if *task.ShopType == "1" {
+		if err := PddLogic(task); err != nil {
 			return err
 		}
-	case 2:
-		if err := CountTask(task); err != nil {
+	} else if *task.ShopType == "2" {
+		if err := KongFiZLogic(); err != nil {
 			return err
 		}
-	case 3:
-		if err := TimeTask(task); err != nil {
+	} else if *task.ShopType == "5" {
+		if err := XianYuLogic(); err != nil {
 			return err
 		}
-	default:
+	} else {
 		return errors.New("任务类型错误")
 	}
+
 	//重新查询数据库，判断任务是否完成
 	task, err = service.GetDelTask()
 	if err != nil {
@@ -53,6 +53,35 @@ func Logic() error {
 	if *task.TaskCountOver >= *task.TaskCount {
 		return service.UpdateTaskStatus(3)
 	}
+	return nil
+}
+
+func PddLogic(task mysql.DelTask) error {
+	switch *task.TaskType {
+	case 1:
+		if err := PddRegularTask(task); err != nil {
+			return err
+		}
+	case 2:
+		if err := PddCountTask(task); err != nil {
+			return err
+		}
+	case 3:
+		if err := PddTimeTask(task); err != nil {
+			return err
+		}
+	default:
+		return errors.New("任务类型错误")
+	}
+	return nil
+}
+
+func KongFiZLogic() error {
+	return nil
+}
+
+func XianYuLogic() error {
+	//闲鱼没有删除
 	return nil
 }
 
@@ -168,7 +197,9 @@ func updateTaskProgress() (bool, error) {
 	return false, nil
 }
 
-func RegularTask(task mysql.DelTask) error {
+///////////////////////////////////////////////////////////拼多多/////////////////////////////////////////////////////////////////////////////////
+
+func PddRegularTask(task mysql.DelTask) error {
 	delTask, err := service.GetMax5000WaitDelTask()
 	if err != nil {
 		return err
@@ -303,7 +334,7 @@ func processDeletions(task mysql.DelTask, goodsList []planBTypePinduoduo.GoodsIt
 	return nil
 }
 
-func CountTask(task mysql.DelTask) error {
+func PddCountTask(task mysql.DelTask) error {
 	var header planAType.TaskHeader
 	if err := json.Unmarshal([]byte(*task.Header), &header); err != nil {
 		return err
@@ -324,7 +355,7 @@ func CountTask(task mysql.DelTask) error {
 	return processDeletions(task, goodsList, header.ShopMsg.Token)
 }
 
-func TimeTask(task mysql.DelTask) error {
+func PddTimeTask(task mysql.DelTask) error {
 	var header planAType.TaskHeader
 	if err := json.Unmarshal([]byte(*task.Header), &header); err != nil {
 		return err
@@ -362,3 +393,5 @@ func TimeTask(task mysql.DelTask) error {
 	}
 	return nil
 }
+
+///////////////////////////////////////////////////////////闲鱼/////////////////////////////////////////////////////////////////////////////////

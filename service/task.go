@@ -617,7 +617,6 @@ func GetPddTokenList() ([]_type.Shop, error) {
 			return shopList, fmt.Errorf("获取店铺信息失败:" + getTaskShopErr.Error())
 		}
 		// 解析 json数据
-		fmt.Println("解析店铺的key:", key)
 		shopData, err := toolPdd.ParseShopData(shopInfo)
 		if err != nil {
 			return shopList, fmt.Errorf("解析店铺数据失败:" + err.Error())

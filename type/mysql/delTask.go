@@ -21,6 +21,9 @@ type DelTask struct {
 	// TaskID 任务ID
 	TaskID *string `gorm:"column:task_id;type:varchar(64);index:idx_user_shop_task;comment:任务ID" json:"task_id,omitempty"`
 
+	// ShopType 任务类型
+	ShopType *string `gorm:"column:shop_type;type:varchar(1);index:idx_user_shop_task;comment:店铺类型 1=拼多多店铺 2=孔夫子 5=闲鱼" json:"shop_type,omitempty"`
+
 	// pid pid
 	Pid *string `gorm:"column:pid;type:varchar(64);index:idx_user_shop_task;comment:pid" json:"pid,omitempty"`
 

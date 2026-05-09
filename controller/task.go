@@ -278,6 +278,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 				ShopID:        &shop.ID,
 				TaskID:        &taskId,
 				TaskType:      &taskType,
+				ShopType:      &shop.ShopType,
 				Status:        &status,
 				ShopName:      &shop.ShopName,
 				TaskCountOver: &taskCountOver,
@@ -306,6 +307,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 				ShopID:        &shop.ID,
 				TaskID:        &taskId,
 				TaskType:      &taskType,
+				ShopType:      &shop.ShopType,
 				Status:        &status,
 				ShopName:      &shop.ShopName,
 				TaskCountOver: &taskCountOver,
@@ -1331,8 +1333,10 @@ func AddTask(taskId string, bodyData []string) int {
 							fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
 						}
 					}
-					fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
-					continue
+					if header.TaskType != 5 {
+						fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
+						continue
+					}
 				}
 			}
 			// 图片处理

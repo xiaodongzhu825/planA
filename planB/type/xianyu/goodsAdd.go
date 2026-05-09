@@ -103,3 +103,27 @@ type SuccessItem struct {
 	ProductID     int64  `json:"product_id"` // 注意：这个数字较大，使用 int64
 	ProductStatus int    `json:"product_status"`
 }
+
+// DownShelf 下架商品结构体
+type DownShelf struct {
+	AppId     int64  `json:"appId"`      // 应用 id
+	AppSecret string `json:"appSecret"`  // 应用密钥[选填，有些平台需要]
+	ProductID int64  `json:"product_id"` // 商品 ID
+}
+
+// UpdateStock 修改库存结构体
+type UpdateStock struct {
+	AppId     int64  `json:"appId"`      // 应用 id
+	AppSecret string `json:"appSecret"`  // 应用密钥[选填，有些平台需要]
+	ProductID int64  `json:"product_id"` // 商品 ID
+	Stock     int64  `json:"stock"`      // 库存
+}
+
+// UpdatePrice 修改价格结构体
+type UpdatePrice struct {
+	AppId         int64  `json:"appId"`         // 应用 id
+	AppSecret     string `json:"appSecret"`     // 应用密钥[选填，有些平台需要]
+	ProductID     int64  `json:"product_id"`    // 商品 ID
+	Price         int64  `json:"price"`         // 价格
+	OriginalPrice int64  `json:"originalPrice"` // 原价
+}

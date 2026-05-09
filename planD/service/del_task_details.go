@@ -75,6 +75,7 @@ func InsertDelTaskDetail(delTaskID int64, taskId string, token string, bookName 
 	}
 
 	now := time.Now()
+	status := int64(1)
 
 	delTaskDetail := &planBType.DelTaskDetail{
 		DelTaskID:     &delTaskID,
@@ -83,6 +84,7 @@ func InsertDelTaskDetail(delTaskID int64, taskId string, token string, bookName 
 		Token:         &token,
 		Isbn:          &isbn,
 		GoodsID:       &goodsId,
+		Status:        &status,
 		PddDeleteAt:   nil,
 		PddDeleteDate: nil,
 		CreateAt:      &now,

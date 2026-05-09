@@ -2,6 +2,7 @@ package dll
 
 import (
 	"planA/planB/initialization/dll/image"
+	"planA/planB/initialization/dll/kfz"
 	"planA/planB/initialization/dll/logs"
 	"planA/planB/initialization/dll/pdd"
 	"planA/planB/initialization/dll/xianYu"
@@ -28,6 +29,11 @@ func GetDllSetToG() error {
 	getLogrDllSetToGErr := logs.GetLogrDllSetToG()
 	if getLogrDllSetToGErr != nil {
 		return getLogrDllSetToGErr
+	}
+	// 获取KfzDll
+	getKfzDllSetToGErr := kfz.GetKfzDllSetToG()
+	if getKfzDllSetToGErr != nil {
+		return getKfzDllSetToGErr
 	}
 	return nil
 }

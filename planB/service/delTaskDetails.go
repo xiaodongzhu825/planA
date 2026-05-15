@@ -26,8 +26,8 @@ func CreateTableIfNotExists() error {
             json text COLLATE utf8_unicode_ci COMMENT '原始字符串',
     		status int(11) DEFAULT '0' COMMENT '状态: 1=正常 2=错误',
     		err  text COLLATE utf8_unicode_ci COMMENT '错误信息',
-            pdd_delete_at datetime DEFAULT NULL COMMENT '请求拼多多删除商品时间',
-            pdd_delete_date date DEFAULT NULL COMMENT '请求拼多多删除商品日期',
+            delete_at datetime DEFAULT NULL COMMENT '请求删除商品时间',
+            delete_date date DEFAULT NULL COMMENT '请求删除商品日期',
             create_at datetime DEFAULT NULL COMMENT '创建时间',
             PRIMARY KEY (id),
             KEY del_task_id (del_task_id, task_id, goods_id)
@@ -59,16 +59,16 @@ func InsertDelTaskDetail(delTaskID int64, detail planAType.TaskBody) error {
 	jsonStr := string(jsonByte)
 
 	delTaskDetail := &planBType.DelTaskDetail{
-		DelTaskID:     &delTaskID,
-		TaskID:        &golabl.Task.TaskId,
-		BookName:      &detail.BookInfo.BookName,
-		Token:         &golabl.Task.Header.ShopMsg.Token,
-		Isbn:          &detail.BookInfo.Isbn,
-		GoodsID:       &detail.Detail.GoodsId,
-		JSON:          &jsonStr,
-		PddDeleteAt:   nil,
-		PddDeleteDate: nil,
-		CreateAt:      &now,
+		DelTaskID:  &delTaskID,
+		TaskID:     &golabl.Task.TaskId,
+		BookName:   &detail.BookInfo.BookName,
+		Token:      &golabl.Task.Header.ShopMsg.Token,
+		Isbn:       &detail.BookInfo.Isbn,
+		GoodsID:    &detail.Detail.GoodsId,
+		JSON:       &jsonStr,
+		DeleteAt:   nil,
+		DeleteDate: nil,
+		CreateAt:   &now,
 	}
 
 	// 使用动态表名插入

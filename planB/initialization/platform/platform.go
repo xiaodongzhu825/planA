@@ -2,6 +2,7 @@ package platform
 
 import (
 	"errors"
+	"planA/planB/dispatcher/kongfuzi"
 	pinDuoDuo "planA/planB/dispatcher/pinduoduo"
 	"planA/planB/dispatcher/xianyu"
 	"planA/planB/initialization/golabl"
@@ -10,10 +11,11 @@ import (
 // GetPlatformSetToG 获取平台并保存到全局变量中
 func GetPlatformSetToG() error {
 	switch golabl.Task.Header.ShopType {
-	//case 2:
-	//	return kongFuZi.NewKongfuzi(), nil
 	case "1":
 		golabl.Platform = pinDuoDuo.NewPinDuoDuo()
+		return nil
+	case "2":
+		golabl.Platform = kongfuzi.NewKongFuZi()
 		return nil
 	case "5":
 		golabl.Platform = xianyu.NewXianYu()

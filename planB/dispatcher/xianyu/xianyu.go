@@ -347,6 +347,7 @@ func (xianYu *XianYu) GetGoodsTask() (string, error) {
 	// 第二阶段：获取商品（写入wait）
 	phaseTwoGoodsErr := xianYu.phaseTwoGoods(token, pageSize, &totalFetched, &lastUpdateTime, maxRecordsPerRange)
 	if phaseTwoGoodsErr != nil {
+		fmt.Println(phaseTwoGoodsErr.Error())
 		return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, phaseTwoGoodsErr)
 	}
 
@@ -570,18 +571,24 @@ func (xianYu *XianYu) phaseOneGoodsOnlyCount(token planBTypeXianyu.Token, pageSi
 }
 
 // phaseTwoGoods 第二阶段拉取商品信息（按时间范围分批）
+// 修改：结束时间固定为当前时间，开始时间为当前时间往前推30天
 func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, totalFetched *int, lastUpdateTime *int64, maxRecordsPerRange int) error {
-	// 第二阶段：使用时间范围分批次获取数据
-	// 设置结束时间为开始时间+30天
-	endTime := *lastUpdateTime + 30*24*60*60
-	fmt.Printf("第二阶段开始，开始时间: %d (%s), 结束时间设置为: %d (%s)\n",
-		*lastUpdateTime, time.Unix(*lastUpdateTime, 0).Format("2006-01-02 15:04:05"),
+	// 第二阶段：以当前时间为结束时间，开始时间为当前时间往前推30天
+	// 注意：lastUpdateTime 参数在此版本中不再使用，改为固定从"当前时间-30天"开始
+	now := time.Now().Unix()
+	endTime := now                             // 结束时间固定为当前时间
+	currentUpdateTimeFrom := now - 30*24*60*60 // 开始时间 = 当前时间 - 30天
+
+	fmt.Printf("第二阶段开始，开始时间: %d (%s), 结束时间: %d (%s) [当前时间]",
+		currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"),
 		endTime, time.Unix(endTime, 0).Format("2006-01-02 15:04:05"))
 
-	if *lastUpdateTime > 0 {
+	if currentUpdateTimeFrom > 0 {
 		currentUpdateTimeFrom := *lastUpdateTime
 		maxLoopCount := 100 // 最大循环次数保护
 		loopCount := 0
+
+		var currentUpdateTimeEnd int64 // 声明在循环外部，避免每次迭代重置
 
 		for loopCount < maxLoopCount {
 			loopCount++
@@ -592,8 +599,28 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 				break
 			}
 
-			// 每次循环都重新设置结束时间为开始时间+30天
-			currentUpdateTimeEnd := currentUpdateTimeFrom + 30*24*60*60
+			// 设置结束时间：首次循环用当前时间，后续循环由pageExceededThreshold或>=10000条件块设置
+			if loopCount == 1 {
+				currentUpdateTimeEnd = endTime // 首次循环赋值
+			}
+
+			// 检查结束时间是否已超过半年（180天），超过则停止获取
+			halfYearAgo := time.Now().Unix() - 180*24*60*60
+			fmt.Printf("[调试] loopCount=%d, currentUpdateTimeEnd=%d (%s), halfYearAgo=%d (%s), <halfYear=%v\n",
+				loopCount, currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02"),
+				halfYearAgo, time.Unix(halfYearAgo, 0).Format("2006-01-02"),
+				currentUpdateTimeEnd < halfYearAgo)
+			if currentUpdateTimeEnd < halfYearAgo {
+				fmt.Printf("结束时间 %d (%s) 已小于半年前时间 %d (%s)，停止获取\n",
+					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"),
+					halfYearAgo, time.Unix(halfYearAgo, 0).Format("2006-01-02 15:04:05"))
+				break
+			}
+
+			if loopCount >= maxLoopCount {
+				fmt.Printf("达到最大循环次数 %d，强制退出\n", maxLoopCount)
+				break
+			}
 
 			fmt.Printf("开始获取时间范围: %d (%s) 到 %d (%s)\n",
 				currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"),
@@ -603,8 +630,7 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 			batchGoodsCount := 0
 			lastItemUpdateTime := int64(0)
 			hasDataInRange := false
-			pageExceededThreshold := false           // 标记是否页码超过阈值
-			lastRangeEndTime := currentUpdateTimeEnd // 记录当前时间范围的结束时间
+			pageExceededThreshold := false // 标记是否页码超过阈值
 
 			// 在当前时间范围内分页获取数据
 			for {
@@ -659,7 +685,6 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 				// 收集商品数据并统计
 				for _, goods := range list.Data.List {
 					*totalFetched++
-
 					// 获取商品详情并写入数据库
 					err = xianYu.processGoodsDetail(goods, token)
 					if err != nil {
@@ -667,7 +692,7 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 						continue
 					}
 					//拉取后暂停0.01秒
-					//time.Sleep(10 * time.Millisecond)
+					time.Sleep(10 * time.Millisecond)
 				}
 
 				batchGoodsCount += len(list.Data.List)
@@ -701,47 +726,60 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 
 			// 处理页码超过阈值的情况
 			if pageExceededThreshold {
-				// 使用当前时间范围的结束时间作为新的开始时间
-				currentUpdateTimeFrom = lastRangeEndTime
-				fmt.Printf("页码超过100，使用当前时间范围的结束时间作为新开始时间: %d (%s)\n",
+				// 页码超过100时，使用本次最后一条商品的更新时间作为下一时间阶段的结束时间
+				currentUpdateTimeEnd = lastItemUpdateTime
+				// 开始时间 = 当前时间往前推30天
+				currentUpdateTimeFrom = time.Now().Unix() - 30*24*60*60
+				if currentUpdateTimeFrom > currentUpdateTimeEnd {
+					// 如果开始时间超过结束时间，说明时间范围无效，直接使用最后商品时间+1秒
+					currentUpdateTimeFrom = lastItemUpdateTime + 1
+				}
+				fmt.Printf("页码超过100，使用最后商品时间 %d (%s) 作为下一时间阶段结束时间，开始时间: %d (%s) [当前时间-30天]\n",
+					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"),
 					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
-				// 继续下一次循环，不需要更新其他状态
+				// 继续下一次循环
 				continue
 			}
 
-			// 新增逻辑：当获取数量等于10000条时，使用最后一条商品的更新时间作为新的开始时间
+			// 新增逻辑：当获取数量大于等于10000条时，使用最后一条商品的更新时间作为下一时间阶段的结束时间，开始时间则从当前时间往前推30天
 			const maxRecordsThreshold = 10000 // 定义阈值常量
-			if hasDataInRange && batchGoodsCount == maxRecordsThreshold {
-				// 使用最后一条商品的更新时间作为新的开始时间
-				if lastItemUpdateTime == currentUpdateTimeFrom {
+			if hasDataInRange && batchGoodsCount >= maxRecordsThreshold {
+				// 大于等于10000条：使用最后一条商品的更新时间作为下一时间阶段的结束时间
+				currentUpdateTimeEnd = lastItemUpdateTime
+				// 开始时间 = 当前时间往前推30天
+				currentUpdateTimeFrom = time.Now().Unix() - 30*24*60*60
+				if currentUpdateTimeFrom > currentUpdateTimeEnd {
+					// 如果开始时间超过结束时间，说明时间范围无效，直接使用最后商品时间+1秒
 					currentUpdateTimeFrom = lastItemUpdateTime + 1
-					fmt.Printf("获取到 %d 条数据（达到阈值），最后商品时间与开始时间相同，推进1秒: %d -> %d\n",
-						batchGoodsCount, lastItemUpdateTime, currentUpdateTimeFrom)
-				} else {
-					currentUpdateTimeFrom = lastItemUpdateTime
-					fmt.Printf("获取到 %d 条数据（达到阈值），使用最后商品时间作为新开始时间: %d (%s)\n",
-						batchGoodsCount, currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
 				}
-				// 注意：结束时间会在下一次循环开始时自动设置为 开始时间+30天
-				fmt.Printf("下一个时间范围将从 %d 开始，结束时间为该时间+30天\n", currentUpdateTimeFrom)
+				fmt.Printf("获取到 %d 条数据（达到阈值 %d），下一时间阶段结束时间: %d (%s)，开始时间: %d (%s) [当前时间-30天]\n",
+					batchGoodsCount, maxRecordsThreshold,
+					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"),
+					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
 			} else if !hasDataInRange {
 				// 情况1：当前时间范围完全没有数据
-				// 将结束时间作为新的开始时间，跳到下一个时间范围
-				currentUpdateTimeFrom = currentUpdateTimeEnd
-				fmt.Printf("时间范围内无数据，跳到下一个时间范围，新开始时间: %d (%s)\n",
-					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
+				// 时间窗口往前移动30天：结束时间 = 开始时间，开始时间 = 开始时间 - 30天
+				currentUpdateTimeEnd = currentUpdateTimeFrom
+				currentUpdateTimeFrom = currentUpdateTimeFrom - 30*24*60*60
+				fmt.Printf("时间范围内无数据，时间窗口往前移动30天\n")
+				fmt.Printf("下一时间范围: 开始时间 %d (%s), 结束时间 %d (%s)\n",
+					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"),
+					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"))
 			} else if batchGoodsCount < maxRecordsPerRange {
 				// 情况2：当前时间范围有数据，但数量少于100条
-				// 认为该时间范围内的数据已取完，将结束时间作为新的开始时间，跳到下一个时间范围
-				currentUpdateTimeFrom = currentUpdateTimeEnd
-				fmt.Printf("当前时间范围获取数据 %d 条，少于 %d 条，认为数据已取完，跳到下一个时间范围，新开始时间: %d (%s)\n",
-					batchGoodsCount, maxRecordsPerRange,
-					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
+				// 上一次的开始时间作为下一时间阶段的结束时间，结束时间-30天作为开始时间
+				currentUpdateTimeEnd = currentUpdateTimeFrom
+				currentUpdateTimeFrom = currentUpdateTimeEnd - 30*24*60*60
+				fmt.Printf("当前时间范围获取数据 %d 条，少于 %d 条，上一次开始时间作为下一阶段结束时间，结束时间-30天作为开始时间\n",
+					batchGoodsCount, maxRecordsPerRange)
+				fmt.Printf("下一时间范围: 开始时间 %d (%s), 结束时间 %d (%s)\n",
+					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"),
+					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"))
 			} else {
 				// 情况3：当前时间范围获取了100条或以上（但不足10000条），可能还有更多数据
 				// 使用最后一条商品的更新时间作为新的开始时间，继续在当前时间范围附近查询
 				if lastItemUpdateTime == currentUpdateTimeFrom {
-					currentUpdateTimeFrom = lastItemUpdateTime + 1
+					currentUpdateTimeFrom = lastItemUpdateTime
 					fmt.Printf("最后商品时间与开始时间相同，推进1秒: %d -> %d\n", lastItemUpdateTime, currentUpdateTimeFrom)
 				} else {
 					currentUpdateTimeFrom = lastItemUpdateTime
@@ -767,6 +805,167 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 
 // deduplicateToBodyOver 拉取任务读取body_wait去重复后写入到body_over中
 func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
+	page := 1
+	pageSize := 100
+
+	// 按店铺存储去重后的商品数据
+	shopGoodsMap := make(map[string][]planBTypeXianyu.GoodsDetailRet)
+
+	// 修改：使用复合key（店铺名+商品ID）进行去重，避免同一店铺重复相同商品
+	processedKeys := make(map[string]bool)
+
+	// 在循环前删除 body_over与body_backup，避免重复写入
+	deleteTaskBodyOverErr := service.DeleteTaskBodyOver()
+	if deleteTaskBodyOverErr != nil {
+		return deleteTaskBodyOverErr
+	}
+	deleteTaskBodyBackupErr := service.DeleteTaskBodyBackup()
+	if deleteTaskBodyBackupErr != nil {
+		return deleteTaskBodyBackupErr
+	}
+
+	num := 0
+	// 获取body_wait总数量
+	bodyWaitCount, getTaskBodyWaitCountErr := service.GetTaskBodyWaitCount()
+	if getTaskBodyWaitCountErr != nil {
+		return getTaskBodyWaitCountErr
+	}
+	pageTotal := (bodyWaitCount + int64(pageSize) - 1) / int64(pageSize)
+
+	// 调试计数器
+	debugCount := 0
+
+	for {
+		list, getTaskBodyOverListErr := service.GetTaskBodyWaitList(page, pageSize)
+		if getTaskBodyOverListErr != nil {
+			return getTaskBodyOverListErr
+		}
+		if len(list) <= 0 {
+			// 没有数据，结束循环
+			break
+		}
+
+		for _, v := range list {
+			// 解析v到结构体
+			goods := planAType.TaskBody{}
+			jsonUnmarshalErr := json.Unmarshal([]byte(v), &goods)
+			if jsonUnmarshalErr != nil {
+				return fmt.Errorf("将json转为结构体失败: %v\n", jsonUnmarshalErr)
+			}
+
+			// 解析商品详情获取真实的商品ID
+			var goodsItem planBTypeXianyu.GoodsDetailRet
+			jsonUnmarshalErr = json.Unmarshal([]byte(goods.Detail.Error), &goodsItem)
+			if jsonUnmarshalErr != nil {
+				return fmt.Errorf("将json转为结构体失败: %v\n", jsonUnmarshalErr)
+			}
+
+			//提取 Isbn
+			if goodsItem.BookData.ISBN == "" {
+				goodsItem.BookData.ISBN = tool.ExtractISBN978(goodsItem.Title)
+			}
+			//Isbn 为空则跳过
+			if goodsItem.BookData.ISBN == "" {
+				fmt.Println("####################商品无法获取 Isbn，跳过：", goodsItem.Title)
+				continue
+			}
+
+			// 使用 ProductID 作为唯一标识（int64类型）
+			goodsId := goodsItem.ProductID
+
+			// 获取闲鱼会员名
+			username := ""
+			if len(goodsItem.PublishShop) > 0 {
+				username = goodsItem.PublishShop[0].UserName
+			}
+
+			// 修改：使用店铺名+商品ID作为复合key进行去重
+			uniqueKey := fmt.Sprintf("%s_%d", username, goodsId)
+
+			// 调试：打印前10条数据的ID
+			if debugCount < 10 {
+				fmt.Printf("[去重调试] 第%d条 - 商品ID: %d, 店铺: %s, 复合Key: %s, Title: %s\n",
+					debugCount+1, goodsId, username, uniqueKey, goodsItem.Title)
+				debugCount++
+			}
+
+			if !processedKeys[uniqueKey] {
+				// 标记为已处理
+				processedKeys[uniqueKey] = true
+				*uniqueCount++
+
+				// 按店铺暂存数据
+				shopGoodsMap[username] = append(shopGoodsMap[username], goodsItem)
+
+				// 写入到body_over
+				goods.Detail.Status = 1
+				addTaskToBodyOverErr := service.AddTaskToBodyOver(goods, []string{"body_over", "body_backup"})
+				if addTaskToBodyOverErr != nil {
+					return addTaskToBodyOverErr
+				}
+
+				// 检查每个店铺的商品数量，达到batchSize则推送
+				if len(shopGoodsMap[username]) >= pageSize {
+					fmt.Println("推送 username ", username, " 长度 ", len(shopGoodsMap[username]))
+					if err := pushShopGoodsData(username, shopGoodsMap[username], int64(page), pageTotal, &num); err != nil {
+						return err
+					}
+					// 清空该店铺的数据
+					shopGoodsMap[username] = []planBTypeXianyu.GoodsDetailRet{}
+				}
+			} else {
+				// 重复数据 计次
+				*duplicateCount++
+				// 调试：打印前10条重复数据
+				if *duplicateCount <= 10 {
+					fmt.Printf("[去重调试] 发现重复商品: 店铺=%s, 商品ID=%d, 复合Key=%s\n", username, goodsId, uniqueKey)
+				}
+			}
+		}
+
+		page++
+
+		// 更新进度
+		if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
+			return getTaskFooterErr
+		}
+		con := int64(len(list))
+		if con >= golabl.Task.Footer.TaskCountTrue {
+			con = golabl.Task.Footer.TaskCountTrue - con
+		}
+		if updateTaskProgressErr := tool.UpdateTaskProgress(con); updateTaskProgressErr != nil {
+			return updateTaskProgressErr
+		}
+
+		// 暂停1秒
+		time.Sleep(1 * time.Second)
+	}
+
+	// 循环结束后，推送所有店铺剩余的数据（不足batchSize的部分）
+	for shopId, goodsList := range shopGoodsMap {
+		if len(goodsList) > 0 {
+			fmt.Println("最后一次 推送 username ", shopId, " 长度 ", len(goodsList))
+			if err := pushShopGoodsData(shopId, goodsList, pageTotal, pageTotal, &num); err != nil {
+				return err
+			}
+
+			//打印每个店铺的商品数量
+			fmt.Println("推送 username ", shopId, " 长度 ", len(goodsList))
+		}
+	}
+
+	// 删除body_wait
+	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
+	if deleteTaskBodyWaitErr != nil {
+		return deleteTaskBodyWaitErr
+	}
+
+	fmt.Printf("[去重完成] 总处理: %d, 唯一: %d, 重复: %d\n",
+		*uniqueCount+*duplicateCount, *uniqueCount, *duplicateCount)
+
+	return nil
+}
+func (xianYu *XianYu) deduplicateToBodyOver1(duplicateCount *int, uniqueCount *int) error {
 	page := 1
 	pageSize := 100
 

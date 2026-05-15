@@ -17,22 +17,23 @@ import (
 )
 
 var (
-	Ctx       context.Context        // 全局上下文
-	Speed     *rate.Limiter          // 全局令牌桶限速器
-	Config    planAType.Config       // 全局配置
-	Redis     planBType.Redis        // 全局 Redis
-	Task      *planBType.Task        // 全局任务
-	Pool      planBType.Pool         // 全局线程池
-	Logic     planBType.Logic        // 全局逻辑控制
-	Platform  interfaces.GoodsTask   // 全局平台对象
-	TaskType  string                 // 全局任务类型
-	MinIo     *planBType.MinIOClient // 全局 MinIO
-	PddDll    *pdd.PddDLL            // 全局拼多多 DLL
-	ImageDll  *image.ImageDLL        // 全局 ImageDll
-	XianYuDll *xianYuDll.XianYuDLL   // 全局 闲鱼 DLL
-	LogDll    *logs.LoggerDLL        // 全局日志 DLL
-	KfzDll    *kfz.KfzDLL            // 全局孔夫子 DLL
-	MysqlDb   *gorm.DB               // 全局 mysql
+	Ctx                  context.Context        // 全局上下文
+	Speed                *rate.Limiter          // 全局令牌桶限速器
+	Config               planAType.Config       // 全局配置
+	Redis                planBType.Redis        // 全局 Redis
+	Task                 *planBType.Task        // 全局任务
+	Pool                 planBType.Pool         // 全局线程池
+	Logic                planBType.Logic        // 全局逻辑控制
+	Platform             interfaces.GoodsTask   // 全局平台对象
+	TaskType             string                 // 全局任务类型
+	MinIo                *planBType.MinIOClient // 全局 MinIO
+	PddDll               *pdd.PddDLL            // 全局拼多多 DLL
+	ImageDll             *image.ImageDLL        // 全局 ImageDll
+	XianYuDll            *xianYuDll.XianYuDLL   // 全局 闲鱼 DLL
+	LogDll               *logs.LoggerDLL        // 全局日志 DLL
+	KfzDll               *kfz.KfzDLL            // 全局孔夫子 DLL
+	MysqlDb              *gorm.DB               // 全局 mysql
+	KfzGetCommonCategory map[string]int64       // 孔夫子商品分类列表
 )
 
 // 任务 body 状态

@@ -5,6 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"net/http"
 	"os"
@@ -17,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nfnt/resize"
 )
 
 // BuildPrice 价格处理
@@ -511,6 +516,13 @@ func FenToYuan(fen int64) string {
 	return fmt.Sprintf("%.2f", yuan)
 }
 
+// FenToYuanFloat64 将金额从分转换为元
+// 参数：fen - 金额（分），int64类型
+// 返回值：金额（元），float64类型
+func FenToYuanFloat64(fen int64) float64 {
+	return float64(fen) / 100.0
+}
+
 // IsShopIDExists 判断店铺ID是否存在于shopId.txt文件中
 func IsShopIDExists(targetShopID string) (bool, error) {
 	// 打开文件
@@ -566,4 +578,226 @@ func AppendTextToFile(filePath string, text string) error {
 	}
 
 	return nil
+}
+
+// UploadImageToKfz 将图片上传到孔夫子
+// @param watermarkFromURLExsBase64Arr 待上传的base64图片列表
+// @return []string 图片列表
+// @return error 错误信息
+func UploadImageToKfz(watermarkFromURLExsBase64Arr []planBTypeModules.ImageResult) ([]string, error) {
+
+	var imageUrlArr []string
+	for _, watermarkFromURLExsBase64 := range watermarkFromURLExsBase64Arr {
+		//将图片保存到本地
+		imgTempUrl, saveBase64ImageByDateErr := SaveBase64ImageByDate(watermarkFromURLExsBase64.Data)
+		if saveBase64ImageByDateErr != nil {
+			return nil, saveBase64ImageByDateErr
+		}
+		fmt.Println(imgTempUrl)
+		//将图片上传到孔夫子
+		upload, kfzGoodsImageUploadErr := golabl.KfzDll.KfzGoodsImageUpload(golabl.Config.KfzConfig.AppId, golabl.Config.KfzConfig.AppSecret, golabl.Task.Header.ShopMsg.Token, imgTempUrl)
+		if kfzGoodsImageUploadErr != nil {
+			return nil, kfzGoodsImageUploadErr
+		}
+		fmt.Println(upload)
+		//var pddImg planBTypeModules.GoodsImageUploadResponse
+		//imageUrl, pddGoodsImageUploadErr := golabl.PddDll.PddGoodsImageUpload(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, watermarkFromURLExsBase64.Data)
+		//if pddGoodsImageUploadErr != nil {
+		//	return imageUrlArr, pddGoodsImageUploadErr
+		//}
+		//// 解析 JSON字符串
+		//unmarshalErr := json.Unmarshal([]byte(imageUrl), &pddImg)
+		//if unmarshalErr != nil {
+		//	return imageUrlArr, fmt.Errorf("解析拼多多 PddGoodsImageUpload 错误: %v [拼多多数据：%v]", unmarshalErr, imageUrl)
+		//}
+		//imageUrlArr = append(imageUrlArr, pddImg.GoodsImageUploadResponse.ImageURL)
+	}
+	return imageUrlArr, nil
+}
+
+// SaveBase64ImageByDate 保存base64图片或下载URL图片到按年月日组织的文件夹中
+// 参数1: input - base64编码的图片字符串 或 网络图片地址
+// 参数2: basePath - 基础路径（如 D:\\file\\kfzImg）
+// 返回: 保存的完整图片地址和错误信息
+func SaveBase64ImageByDate(input string) (string, error) {
+	// 去除首尾空格
+	input = strings.TrimSpace(input)
+
+	var imageData []byte
+	var err error
+
+	// 判断是否为URL（以http://或https://开头）
+	if strings.HasPrefix(strings.ToLower(input), "http://") ||
+		strings.HasPrefix(strings.ToLower(input), "https://") {
+		// 处理URL情况：下载图片
+		imageData, err = downloadImage(input)
+		if err != nil {
+			return "", fmt.Errorf("下载图片失败: %v", err)
+		}
+	} else {
+		// 处理base64情况
+		imageData, err = decodeBase64Image(input)
+		if err != nil {
+			return "", fmt.Errorf("base64解码失败: %v", err)
+		}
+	}
+
+	// 生成按年月日的文件夹路径
+	now := time.Now()
+	dateFolder := now.Format("2006-01-02") // 格式: 2026-05-11
+	saveDir := filepath.Join(golabl.Config.FileUrl.KfzImgTempUrl, dateFolder)
+
+	// 创建目录（如果不存在）
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		return "", fmt.Errorf("创建目录失败: %v", err)
+	}
+
+	// 生成唯一文件名（使用时间戳+随机数避免重名）
+	timestamp := now.UnixNano()
+	filename := fmt.Sprintf("%d.png", timestamp)
+	savePath := filepath.Join(saveDir, filename)
+
+	// 写入文件
+	err = os.WriteFile(savePath, imageData, 0644)
+	if err != nil {
+		return "", fmt.Errorf("保存图片失败: %v", err)
+	}
+
+	return savePath, nil
+}
+
+// decodeBase64Image 解码base64图片
+func decodeBase64Image(base64Str string) ([]byte, error) {
+	// 去除可能存在的base64头部信息
+	if idx := strings.Index(base64Str, ","); idx != -1 {
+		base64Str = base64Str[idx+1:]
+	}
+
+	// 解码base64字符串
+	imageData, err := base64.StdEncoding.DecodeString(base64Str)
+	if err != nil {
+		return nil, err
+	}
+
+	return imageData, nil
+}
+
+// downloadImage 下载网络图片
+func downloadImage(url string) ([]byte, error) {
+	// 创建HTTP客户端（设置超时时间）
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// 发送GET请求
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查HTTP状态码
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP状态码异常: %d", resp.StatusCode)
+	}
+
+	// 检查Content-Type是否为图片
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		return nil, fmt.Errorf("非图片资源: Content-Type=%s", contentType)
+	}
+
+	// 读取图片数据
+	imageData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取图片数据失败: %v", err)
+	}
+
+	return imageData, nil
+}
+
+// ProcessImage 处理图片
+func ProcessImage(imageURL string, saveBase64 bool, saveImage bool) (string, error) {
+	img, format, err := GetImageFromURL(imageURL)
+	if err != nil {
+		return "", err
+	}
+
+	bounds := img.Bounds()
+	fmt.Printf("原始尺寸: %dx%d\n", bounds.Dx(), bounds.Dy())
+
+	var processedImg image.Image
+	if bounds.Dx() == 800 && bounds.Dy() == 800 {
+		fmt.Println("已经是800x800，无需缩放")
+		processedImg = img
+	} else {
+		fmt.Println("缩放到800x800")
+		processedImg = ResizeImageHighQuality(img, 800, 800)
+	}
+
+	// 转换为base64
+	base64Str, err := ImageToBase64(processedImg, format)
+	if err != nil {
+		return "", fmt.Errorf("转换为base64失败: %v", err)
+	}
+
+	return base64Str, nil
+}
+
+// ResizeImageHighQuality 高质量缩放图片
+func ResizeImageHighQuality(img image.Image, width, height uint) image.Image {
+	return resize.Resize(width, height, img, resize.Lanczos3)
+}
+
+// GetImageFromURL 从URL获取图片
+func GetImageFromURL(url string) (image.Image, string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// 尝试解码PNG
+	img, err := png.Decode(strings.NewReader(string(data)))
+	if err == nil {
+		return img, "png", nil
+	}
+
+	// 尝试解码JPEG
+	img, err = jpeg.Decode(strings.NewReader(string(data)))
+	if err == nil {
+		return img, "jpg", nil
+	}
+
+	return nil, "", fmt.Errorf("不支持的图片格式")
+}
+
+// ImageToBase64 将图片转换为base64
+func ImageToBase64(img image.Image, format string) (string, error) {
+	buf := new(strings.Builder)
+
+	if format == "png" {
+		err := png.Encode(buf, img)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		err := jpeg.Encode(buf, img, &jpeg.Options{Quality: 95})
+		if err != nil {
+			return "", err
+		}
+	}
+
+	base64Str := base64.StdEncoding.EncodeToString([]byte(buf.String()))
+	return fmt.Sprintf("data:image/%s;base64,%s", format, base64Str), nil
+}
+
+// 将base64的图片缩放到800*800
+func base64SizeTo800(img []string) {
+
 }

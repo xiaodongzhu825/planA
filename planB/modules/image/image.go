@@ -56,6 +56,9 @@ type WatermarkConfig struct {
 	Timeout         int     // 下载超时时间（秒），默认30秒
 	OutputFormat    string  // 输出格式: "jpeg", "png", "auto"（默认auto，根据源图片格式）auto
 	JPEGQuality     int     // JPEG质量 (1-100)，默认95
+	TargetWidth     int     // 目标宽度（0表示不缩放）
+	TargetHeight    int     // 目标高度（0表示不缩放）
+	ResizeMode      string  // 缩放模式: "fit"（适应，保持比例，可能有黑边）, "fill"（填充，裁剪）, "stretch"（拉伸）
 }
 
 // AddWatermarkFromURLExs 添加水印
@@ -70,6 +73,9 @@ func (m *ImageDLL) AddWatermarkFromURLExs(sourceImageUrl, watermarkUrl string) (
 		Timeout:         30,
 		OutputFormat:    "jpeg",
 		JPEGQuality:     95,
+		TargetWidth:     800,
+		TargetHeight:    800,
+		ResizeMode:      "fit",
 	}
 	watermarkConfigJson, err := json.Marshal(watermarkConfig)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"planA/planB/initialization/config"
 	"planA/planB/initialization/dll"
 	"planA/planB/initialization/golabl"
+	"planA/planB/initialization/kfz"
 	"planA/planB/initialization/minIo"
 	"planA/planB/initialization/mysql"
 	"planA/planB/initialization/platform"
@@ -80,6 +81,11 @@ func Init(taskId string) error {
 	// 初始化 DLL
 	if dllErr := dll.GetDllSetToG(); dllErr != nil {
 		return fmt.Errorf("初始化DLL失败: %v", dllErr)
+	}
+
+	// 初始化 孔夫子公共分类
+	if getKfzGoodsCategorySetToGErr := kfz.GetKfzGetCommonCategorySetToG(); getKfzGoodsCategorySetToGErr != nil {
+		return fmt.Errorf("初始化孔夫子公共分类失败: %v", getKfzGoodsCategorySetToGErr)
 	}
 
 	//设置窗口标题

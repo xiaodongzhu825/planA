@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // HttpGetRequest 发起 GET 请求
@@ -98,4 +99,38 @@ func BuildURLWithParams(baseURL string, params map[string]string) (string, error
 	parsedURL.RawQuery = query.Encode()
 
 	return parsedURL.String(), nil
+}
+
+// PostJSON 发送HTTP POST JSON请求
+// 参数:
+//
+//	url: 请求的URL地址
+//	jsonStr: 请求的JSON字符串
+//
+// 返回:
+//
+//	responseBody: 响应体内容
+//	statusCode: HTTP状态码
+//	error: 错误信息
+func PostJSON(url string, jsonStr string) (responseBody string, err error) {
+	var client = &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonStr)))
+	if err != nil {
+		return "", fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 设置 JSON 请求头
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取响应失败: %w", err)
+	}
+	return string(respBody), nil
 }

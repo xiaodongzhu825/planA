@@ -70,7 +70,7 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	if value, exists := golabl.KfzGetCommonCategory[string(taskMsg.BookInfo.CatIdObject.KongFuZiCatId)]; exists {
 		goodsAdd.CatId = strconv.FormatInt(value, 10)
 	} else {
-		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("商品分类不存在"))
+		goodsAdd.CatId = "43000000000000000"
 	}
 
 	//构建商品名称
@@ -83,8 +83,7 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	taskMsg.Detail.GoodsName = goodsAdd.ItemName
 
 	//售价
-	priceFen := tool.BuildGoodsPrice(taskMsg.Detail.Price)
-	goodsAdd.Price = tool.FenToYuanFloat64(priceFen)
+	goodsAdd.Price = tool.FenToYuanFloat64(taskMsg.Detail.Price)
 
 	//库存
 	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
@@ -213,7 +212,7 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	goodsAdd.WordNum = float64(taskMsg.BookInfo.WordsCount / 1000)
 
 	// 图书定价
-	goodsAdd.OriPrice = float64(tool.BuildGoodsPrice(price) / 100)
+	goodsAdd.OriPrice = float64(tool.BuildGoodsPrice(taskMsg.Detail.Price) / 100)
 
 	url := "http://127.0.0.1:8095"
 	tool.HttpGetRequest(url)

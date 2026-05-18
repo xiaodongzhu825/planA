@@ -107,6 +107,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
+	//dataVal.ShopType = dataVal.ShopType
 
 	//扣费
 	//userId := strconv.FormatInt(shop.CreateBy, 10)

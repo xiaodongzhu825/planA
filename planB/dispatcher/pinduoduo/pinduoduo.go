@@ -84,7 +84,7 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 		if setNoImgCountErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error()))
 		}
-		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("缺少官图"))
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("缺少轮播图"))
 	}
 
 	oldCarouselUrlArray := append([]string{}, taskMsg.BookInfo.ImageObject.CarouselUrlArray...) //原始轮播图，用于后续处理，不会被打上水印

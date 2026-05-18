@@ -89,7 +89,7 @@ file_url:
   c_file_name: "D:\\source\\planA\\planC\\planC.exe"   #C 程序文件路径
   d_file_name: "D:\\source\\planA\\planD\\planD.exe"   #D 程序文件路径
   create_task_url: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
-  create_task_notice_url: "http://36.212.12.63:8055/task" #核价软件提交数据通知接口
+  create_task_notice_url: "http://192.168.101.127:8055/task" #核价软件提交数据通知接口
   create_operation_task_notice_url: "http://192.168.101.127:8055/taskV2" #操作商品任务核价软件提交数据通知接口
   banned_word_substitution_url : "http://36.212.16.27:13001/task/getFilterSetNew" #违禁词替换接口
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token

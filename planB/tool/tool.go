@@ -593,7 +593,6 @@ func UploadImageToKfz(watermarkFromURLExsBase64Arr []planBTypeModules.ImageResul
 		if saveBase64ImageByDateErr != nil {
 			return nil, saveBase64ImageByDateErr
 		}
-		fmt.Println(imgTempUrl)
 		//将图片上传到孔夫子
 		upload, kfzGoodsImageUploadErr := golabl.KfzDll.KfzGoodsImageUpload(golabl.Config.KfzConfig.AppId, golabl.Config.KfzConfig.AppSecret, golabl.Task.Header.ShopMsg.Token, imgTempUrl)
 		if kfzGoodsImageUploadErr != nil {

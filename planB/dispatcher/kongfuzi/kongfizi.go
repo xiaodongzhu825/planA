@@ -361,7 +361,6 @@ func (kongFuZi *KongFuZi) GetGoodsTask() (string, error) {
 		uniqueCount,
 		duplicateCount,
 		float64(duplicateCount)/float64(totalFetched)*100)
-	fmt.Println(statsLogMsg)
 	tool.LoggingMiddleware(logs.LOG_LEVEL_INFO, statsLogMsg)
 
 	return tool.ReturnSuccess(planAType.TaskBody{})

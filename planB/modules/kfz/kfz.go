@@ -39,11 +39,6 @@ func (m *KfzDLL) PublishGoods(appId int, clientSecret, accessToken, goodsAddJson
 		return "", fmt.Errorf("找不到函数 KongfzShopItemAdd: %v", err)
 	}
 
-	fmt.Println("appId", appId)
-	fmt.Println("clientSecret", clientSecret)
-	fmt.Println("accessToken", accessToken)
-	fmt.Println("goodsAddJson", goodsAddJson)
-
 	clientSecretPtr, _ := syscall.BytePtrFromString(clientSecret)
 	accessTokenPtr, _ := syscall.BytePtrFromString(accessToken)
 	goodsAddJsonPtr, _ := syscall.BytePtrFromString(goodsAddJson)

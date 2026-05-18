@@ -50,7 +50,7 @@ type ShopDetail struct {
 	SevenDays                   string   `json:"seven_days"`                       //是否支持7天无理由退换货
 	Presale                     string   `json:"presale"`                          //是否预售
 	Fake                        string   `json:"fake"`                             //是否支持假一赔十，false-不支持，true-支持
-	IsPreSale                   bool     `json:"is_pre_sale"`                      //是否预售,true-预售商品，false-非预售商品
+	IsPreSale                   string   `json:"is_pre_sale"`                      //是否预售,true-预售商品，false-非预售商品
 	IsRefundable                bool     `json:"is_refundable"`                    //是否7天无理由退换货，true-支持，false-不支持
 	IsSecondHand                string   `json:"is_second_hand"`                   //是否二手 1 -二手商品 ，0-全新商品
 	ShipmentLimitSecond         string   `json:"shipment_limit_second"`            //承诺发货时间（秒）
@@ -66,6 +66,10 @@ type ShopDetail struct {
 	SkuWatermarkImgUrl          string   `json:"sku_watermark_img_url"`            //sku 水印图片链接
 	PublishType                 string   `json:"publish_type"`                     //发布方式 0=24（图书类目） 1=99（其他类目）【限闲鱼店铺使用】
 	CategoryId                  string   `json:"category_id"`                      //类目 ID【限闲鱼店铺使用】
+	IsParcel                    string   `json:"is_parcel"`                        //是否包邮 0不包邮 1 包邮
+	BookWeight                  int64    `json:"book_weight"`                      //图书重量【限孔夫子使用】
+	StandardNumber              int64    `json:"standard_number"`                  //商品标准本数【限孔夫子使用】
+	ConditionDef                int64    `json:"condition_def"`                    //品相【限孔夫子使用】
 }
 
 // ShopContext 店铺上下文

@@ -46,7 +46,7 @@ redis_config:
   - db_name: "任务池"
     db: 0
     addr: "127.0.0.1:6379"
-    password: ""
+    password: "123456"
   - db_name: "书品库"
     db: 7
     addr: "36.212.12.247:6379"
@@ -74,6 +74,9 @@ redis_config:
 pdd_config:
   client_id: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
   client_secret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret
+kfz_config:
+  app_id: 576  #孔夫子appid
+  app_secret: "256e10220c5b307f5172b1a49c11467a6cfa8038bbe2a7feccc42231852324f8"  #孔夫子appsecret
 http_url:
   task_url: "http://127.0.0.1:8080"  #A 程序接口地址
 file_url:
@@ -96,7 +99,10 @@ file_url:
   pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
   pdd_get_sku_id: "http://192.168.101.127:18099/shopGoods/getShopGoods" #批量获取 skuId接口
   xianyu_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加闲鱼商品接口
+  kfz_add_goods_url: "http://119.45.237.193:14009/task/kfzverifyPricePublishGoods" #添加孔夫子商品接口
   del_task_url: "http://119.45.237.193:14008/shopGoods/delShopGoodsk" #删除任务通知接口
   backup_url: "C:\\file\\backup" #备份文件路径
   pdd_goods_details_url: "D:\\file\\pdd_goods_details" #保存拼多多详情路径
   update_token_url: "http://146.56.227.42:9099/api/updateToken" #更新拼多多 token 到redis
+  kfz_img_temp_url: "D:\\file\\kfzImg" #孔夫子图片临时路径
+  kfz_img_http_url: "https://www0.kfzimg.com/"

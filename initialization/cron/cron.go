@@ -18,7 +18,7 @@ func Init() {
 		DeleteOldRecords()               //删除task_record过期记录
 		DeleteOldExport()                //删除task_export过期记录
 		DeleteZipFile()                  //删除 zip文件
-		DeleteDelTaskAndDelTaskDetails() //删除删除任务
+		DeleteDelTaskAndDelTaskDetails() //删除任务
 	})
 	if delSqlIteErr != nil {
 		logs.LoggingMiddleware("error", "定时任务 每日执行删除sqlite过期记录 失败")

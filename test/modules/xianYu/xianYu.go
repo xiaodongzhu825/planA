@@ -110,6 +110,57 @@ func (m *XianYuDLL) XianYuGetGoodsDetail(bodyJson string, configFile string) (st
 	return result, nil
 }
 
+// XianYuExecuteGoodsDownShelf 下架商品
+func (m *XianYuDLL) XianYuExecuteGoodsDownShelf(bodyJson string, configFile string) (string, error) {
+	proc, err := m.Dll.FindProc("ExecuteGoodsDownShelf")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 ExecuteGoodsDownShelf: %v", err)
+	}
+	bodyJsonPtr, _ := syscall.BytePtrFromString(bodyJson)
+	configFile = configFile + "\\config.ini"
+	configFilePtr, _ := syscall.BytePtrFromString(configFile)
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(bodyJsonPtr)),
+		uintptr(unsafe.Pointer(configFilePtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// XianYuExecuteGoodsUpdateStock 修改库存
+func (m *XianYuDLL) XianYuExecuteGoodsUpdateStock(bodyJson string, configFile string) (string, error) {
+	proc, err := m.Dll.FindProc("ExecuteGoodsEditStock")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 ExecuteGoodsEditStock: %v", err)
+	}
+	bodyJsonPtr, _ := syscall.BytePtrFromString(bodyJson)
+	configFile = configFile + "\\config.ini"
+	configFilePtr, _ := syscall.BytePtrFromString(configFile)
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(bodyJsonPtr)),
+		uintptr(unsafe.Pointer(configFilePtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
+// XianYuExecuteGoodsUpdatePrice 修改价格
+func (m *XianYuDLL) XianYuExecuteGoodsUpdatePrice(bodyJson string, configFile string) (string, error) {
+	proc, err := m.Dll.FindProc("ExecuteGoodsEditPrice")
+	if err != nil {
+		return "", fmt.Errorf("找不到函数 ExecuteGoodsEditPrice: %v", err)
+	}
+	bodyJsonPtr, _ := syscall.BytePtrFromString(bodyJson)
+	configFile = configFile + "\\config.ini"
+	configFilePtr, _ := syscall.BytePtrFromString(configFile)
+	resultPtr, _, _ := proc.Call(
+		uintptr(unsafe.Pointer(bodyJsonPtr)),
+		uintptr(unsafe.Pointer(configFilePtr)),
+	)
+	result := cStr(resultPtr)
+	return result, nil
+}
+
 // cStr 将 C 字符串指针转换为 Go 字符串
 func cStr(ptr uintptr) string {
 	if ptr == 0 {

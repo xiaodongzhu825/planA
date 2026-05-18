@@ -46,7 +46,7 @@ redis_config:
   - db_name: "任务池"
     db: 0
     addr: "127.0.0.1:6379"
-    password: ""
+    password: "123456"
   - db_name: "书品库"
     db: 1
     addr: "36.212.12.247:6379"

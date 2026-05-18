@@ -46,7 +46,7 @@ redis_config:
   - db_name: "任务池"
     db: 0
     addr: "127.0.0.1:6379"
-    password: ""
+    password: "123456"
   - db_name: "书品库"
     db: 7
     addr: "36.212.12.247:6379"
@@ -74,6 +74,9 @@ redis_config:
 pdd_config:
   client_id: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
   client_secret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret
+kfz_config:
+  app_id: 576  #孔夫子appid
+  app_secret: "256e10220c5b307f5172b1a49c11467a6cfa8038bbe2a7feccc42231852324f8"  #孔夫子appsecret
 http_url:
   task_url: "http://127.0.0.1:8080"  #A 程序接口地址
 file_url:

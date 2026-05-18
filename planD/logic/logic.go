@@ -8,6 +8,7 @@ import (
 	"planA/planD/initialization/golabl"
 	"planA/planD/service"
 	"planA/planD/tool"
+	planDTypeKfz "planA/planD/type/kfz"
 	planDTypePinduoduo "planA/planD/type/pinduoduo"
 	planAType "planA/type"
 	"planA/type/mysql"
@@ -31,7 +32,7 @@ func Logic() error {
 			return err
 		}
 	} else if *task.ShopType == "2" {
-		if err := KongFiZLogic(); err != nil {
+		if err := KongFiZLogic(task); err != nil {
 			return err
 		}
 	} else if *task.ShopType == "5" {
@@ -76,55 +77,21 @@ func PddLogic(task mysql.DelTask) error {
 	return nil
 }
 
-func KongFiZLogic() error {
+func KongFiZLogic(task mysql.DelTask) error {
+	switch *task.TaskType {
+	case 1:
+		if err := KfzRegularTask(task); err != nil {
+			return err
+		}
+	default:
+		return errors.New("任务类型错误")
+	}
 	return nil
 }
 
 func XianYuLogic() error {
 	//闲鱼没有删除
 	return nil
-}
-
-func deleteGoodsTask(goodsId int64, token string) error {
-	if goodsId == 0 {
-		return fmt.Errorf("商品Id不能为空")
-	}
-
-	reqDataInfo := planDTypePinduoduo.DeleteGoodsCommit{GoodsIds: []int64{goodsId}}
-	delGoodsRet, _, err := delGoods(reqDataInfo, token)
-	if err != nil {
-		return err
-	}
-	if !delGoodsRet.OpenAPIResponse {
-		return errors.New("删除商品失败")
-	}
-	return nil
-}
-
-func delGoods(reqDataInfo planDTypePinduoduo.DeleteGoodsCommit, token string) (planDTypePinduoduo.DeleteGoodsCommitResponse, string, error) {
-	var delGoods planDTypePinduoduo.DeleteGoodsCommitResponse
-	goodsInfoStr, err := json.Marshal(reqDataInfo)
-	if err != nil {
-		return delGoods, "", err
-	}
-
-	delGoodsStr, err := golabl.PddDll.PddDeleteGoodsCommit(
-		golabl.Config.PddConfig.ClientId,
-		golabl.Config.PddConfig.ClientSecret,
-		token,
-		string(goodsInfoStr),
-	)
-
-	if strings.Contains(delGoodsStr, "请求失败") || strings.Contains(delGoodsStr, "错误码") {
-		return delGoods, delGoodsStr, errors.New("拼多多 DelGoods 错误:" + delGoodsStr)
-	}
-	if err != nil {
-		return delGoods, "", err
-	}
-	if err := json.Unmarshal([]byte(delGoodsStr), &delGoods); err != nil {
-		return delGoods, "", fmt.Errorf("解析拼多多 DelGoods 接口返回json失败: %v", err)
-	}
-	return delGoods, delGoodsStr, nil
 }
 
 // 通用通知函数
@@ -210,7 +177,7 @@ func PddRegularTask(task mysql.DelTask) error {
 	for _, v := range delTask {
 		status := 1
 		errMsg := "执行成功"
-		deleteErr := deleteGoodsTask(*v.GoodsID, *v.Token)
+		deleteErr := PddDeleteGoodsTask(*v.GoodsID, *v.Token)
 
 		if deleteErr != nil && strings.Contains(deleteErr.Error(), "您当日所删除的商品已达上限") {
 			if err := handleLimitError(task, deleteGoodsId); err != nil {
@@ -302,7 +269,7 @@ func processDeletions(task mysql.DelTask, goodsList []planBTypePinduoduo.GoodsIt
 		if *currentTask.TaskCountOver > *currentTask.TaskCount {
 			break
 		}
-		deleteErr := deleteGoodsTask(v.GoodsId, token)
+		deleteErr := PddDeleteGoodsTask(v.GoodsId, token)
 
 		if deleteErr != nil && strings.Contains(deleteErr.Error(), "您当日所删除的商品已达上限") {
 			return handleLimitError(task, deleteGoodsId)
@@ -394,4 +361,116 @@ func PddTimeTask(task mysql.DelTask) error {
 	return nil
 }
 
-///////////////////////////////////////////////////////////闲鱼/////////////////////////////////////////////////////////////////////////////////
+func PddDeleteGoodsTask(goodsId int64, token string) error {
+	if goodsId == 0 {
+		return fmt.Errorf("商品Id不能为空")
+	}
+
+	reqDataInfo := planDTypePinduoduo.DeleteGoodsCommit{GoodsIds: []int64{goodsId}}
+	delGoodsRet, _, err := PddDelGoods(reqDataInfo, token)
+	if err != nil {
+		return err
+	}
+	if !delGoodsRet.OpenAPIResponse {
+		return errors.New("删除商品失败")
+	}
+	return nil
+}
+
+func PddDelGoods(reqDataInfo planDTypePinduoduo.DeleteGoodsCommit, token string) (planDTypePinduoduo.DeleteGoodsCommitResponse, string, error) {
+	var delGoods planDTypePinduoduo.DeleteGoodsCommitResponse
+	goodsInfoStr, err := json.Marshal(reqDataInfo)
+	if err != nil {
+		return delGoods, "", err
+	}
+
+	delGoodsStr, err := golabl.PddDll.PddDeleteGoodsCommit(
+		golabl.Config.PddConfig.ClientId,
+		golabl.Config.PddConfig.ClientSecret,
+		token,
+		string(goodsInfoStr),
+	)
+
+	if strings.Contains(delGoodsStr, "请求失败") || strings.Contains(delGoodsStr, "错误码") {
+		return delGoods, delGoodsStr, errors.New("拼多多 DelGoods 错误:" + delGoodsStr)
+	}
+	if err != nil {
+		return delGoods, "", err
+	}
+	if err := json.Unmarshal([]byte(delGoodsStr), &delGoods); err != nil {
+		return delGoods, "", fmt.Errorf("解析拼多多 DelGoods 接口返回json失败: %v", err)
+	}
+	return delGoods, delGoodsStr, nil
+}
+
+///////////////////////////////////////////////////////////孔夫子/////////////////////////////////////////////////////////////////////////////////
+
+func KfzRegularTask(task mysql.DelTask) error {
+	delTask, err := service.GetMax5000WaitDelTask()
+	if err != nil {
+		return err
+	}
+
+	var deleteGoodsId []int64
+
+	for _, v := range delTask {
+		status := 1
+		errMsg := "执行成功"
+		deleteErr := KfzDeleteGoodsTask(*v.GoodsID, *v.Token)
+
+		if deleteErr != nil {
+			status = 2
+			errMsg = deleteErr.Error()
+			fmt.Printf("商品id: %v Err %v\n", v.GoodsID, deleteErr.Error())
+		} else {
+			if err := handleDeleteSuccess(task, *v.GoodsID, "", "", *v.Token, &deleteGoodsId); err != nil {
+				return err
+			}
+		}
+
+		if err := service.UpdateDelTaskDetailStatus(v.ID, status, errMsg); err != nil {
+			return err
+		}
+
+		if _, err := updateTaskProgress(); err != nil {
+			return err
+		}
+	}
+
+	return notifyDeletedGoods(*task.ShopID, deleteGoodsId)
+}
+
+func KfzDeleteGoodsTask(goodsId int64, token string) error {
+	if goodsId == 0 {
+		return fmt.Errorf("商品Id不能为空")
+	}
+
+	reqDataInfo := planDTypeKfz.DeleteGoodsCommit{ItemId: strconv.FormatInt(goodsId, 10)}
+	delGoodsRet, _, err := KfzDelGoods(reqDataInfo, token)
+	if err != nil {
+		return err
+	}
+	if delGoodsRet.ErrorResponse != nil {
+		return errors.New("删除商品失败")
+	}
+	return nil
+}
+
+func KfzDelGoods(reqDataInfo planDTypeKfz.DeleteGoodsCommit, token string) (planDTypeKfz.DeleteGoodsCommitResponse, string, error) {
+	var delGoods planDTypeKfz.DeleteGoodsCommitResponse
+	goodsInfoStr, err := json.Marshal(reqDataInfo)
+	if err != nil {
+		return delGoods, "", err
+	}
+	delGoodsStr, err := golabl.KfzDll.DeleteGoods(golabl.Config.KfzConfig.AppId, golabl.Config.KfzConfig.AppSecret, token, string(goodsInfoStr))
+	if strings.Contains(delGoodsStr, "失败") || strings.Contains(delGoodsStr, "错误") {
+		return delGoods, delGoodsStr, errors.New("孔夫子 DelGoods 错误:" + delGoodsStr)
+	}
+	if err != nil {
+		return delGoods, "", err
+	}
+	if err := json.Unmarshal([]byte(delGoodsStr), &delGoods); err != nil {
+		return delGoods, "", fmt.Errorf("解析孔夫子 DelGoods 接口返回json失败: %v", err)
+	}
+	return delGoods, delGoodsStr, nil
+}

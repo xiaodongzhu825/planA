@@ -112,6 +112,11 @@ type ShopMsg struct {
 	DistrictMsg                 DistrictMsg `json:"district_msg"`                     // 地区信息【限闲鱼使用】
 	ShopContext                 string      `json:"shop_context"`                     // 店铺描述
 	SkuWatermarkImgUrl          string      `json:"sku_watermark_img_url"`            //sku 水印图片链接
+	IsParcel                    string      `json:"is_parcel"`                        //是否包邮 0不包邮 1 包邮【限孔夫子使用】
+	BookWeight                  int64       `json:"book_weight"`                      //图书重量【限孔夫子使用】
+	StandardNumber              int64       `json:"standard_number"`                  //商品标准本数【限孔夫子使用】
+	ConditionDef                int64       `json:"condition_def"`                    // 默认品相【限孔夫子使用】
+
 }
 
 // PriceMod 价格模版结构体
@@ -148,6 +153,7 @@ type TaskDetail struct {
 	OutGoodsId string `json:"out_goods_id"` // 商品编码
 	GoodsName  string `json:"goods_name"`   // 商品名称
 	IsOnsale   int64  `json:"is_onsale"`    // 是否上架 0=上架状态，1=下架状态
+	Msg        string `json:"msg"`          // 消息
 }
 
 // ImageObject 图片对象结构

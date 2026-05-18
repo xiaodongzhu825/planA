@@ -4,21 +4,21 @@
 # ============================================================
 # 基础服务
 # ============================================================
-base_url: "http://36.212.7.246:8283"         # planA 接口地址
+base_url: "http://127.0.0.1:8080"         # planA 接口地址
 
 # ============================================================
 # Redis 配置
 # ============================================================
 redis:
-  addr: "36.212.12.247:6379"
+  addr: "127.0.0.1:6379"
   db: 0                                    # 拼多多使用 DB 0
-  password: "long6166@@"
+  password: "123456"
 
 # ============================================================
 # 拼多多配置
 # ============================================================
 pdd:
-  shop_id: "2042843272765263874"
+  shop_id: "2031193954362281985"
   shop_type: "1"
   app_id: "203c5a7ba8bd4b8488d5e26f93052642"
   app_key: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"
@@ -35,6 +35,16 @@ xianyu:
   app_secret: "aq9gAwrwp6WGZkMRqKIXmnu2c2uCm82k"
   domain: "https://open.goofish.pro"
   dll_path: "modules/xianYu"               # DLL 模块路径
+
+# ============================================================
+# 孔夫子配置
+# ============================================================
+kfz:
+  shop_id: "576"
+  shop_type: "4"                              # 孔夫子 shop_type=4
+  app_id: 576
+  app_secret: "256e10220c5b307f5172b1a49c11467a6cfa8038bbe2a7feccc42231852324f8"
+  dll_path: "modules/kfz"                     # DLL 模块路径
 
 # ============================================================
 # 超时与等待配置
@@ -71,9 +81,58 @@ delays:
     after_wait_api_check: 10                 # 等待处理后 → 步骤2平台接口校验前
     wait_body_over_timeout: 120              # 等待 body_over 最少条数的超时（秒）
 
+  # 场景四（补充）：拼多多删除商品
+  pdd_goods_delete:
+    after_send_redis_check: 10               # 步骤1发送后 → 步骤2 Redis校验前
+    after_send_api_check: 10                  # 步骤2后 → 步骤3平台接口校验前
+
   # 场景七：闲鱼核价发布
   xy_price_publish:
+    after_send: 80                           # 步骤2发送后 → 步骤3校验前（1分20秒）
+
+  # 场景九：闲鱼改价格
+  xy_price_change:
+    after_create_query_detail: 20            # 创建任务后查询商品详情前
+    after_send_redis_check: 10               # 步骤3发送后 → 步骤4 Redis校验前
+    after_send_api_check: 10                 # 步骤4后 → 步骤5平台接口校验前
+
+  # 场景十：闲鱼改库存
+  xy_stock_change:
+    after_send_redis_check: 10               # 步骤1发送后 → 步骤2 Redis校验前
+    after_send_api_check: 10                 # 步骤2后 → 步骤3平台接口校验前
+
+  # 场景十一：闲鱼上下架
+  xy_shelf_on_off:
+    after_send_redis_check: 10               # 步骤1发送后 → 等待处理前
+    after_wait_api_check: 10                 # 等待处理后 → 步骤2平台接口校验前
+    wait_body_over_timeout: 120              # 等待 body_over 最少条数的超时（秒）
+
+  # 孔夫子核价发布
+  kfz_price_publish:
     after_send: 10                           # 步骤2发送后 → 步骤3校验前
+
+  # 孔夫子改价格
+  kfz_price_change:
+    after_create_query_detail: 20            # 创建任务后查询商品详情前
+    after_send_redis_check: 10               # 步骤3发送后 → 步骤4 Redis校验前
+    after_send_api_check: 10                 # 步骤4后 → 步骤5平台接口校验前
+
+  # 孔夫子改库存
+  kfz_stock_change:
+    after_send_redis_check: 10               # 步骤1发送后 → 步骤2 Redis校验前
+    after_send_api_check: 10                 # 步骤2后 → 步骤3平台接口校验前
+
+  # 孔夫子上下架
+  kfz_shelf_on_off:
+    after_send_redis_check: 10               # 步骤1发送后 → 等待处理前
+    after_wait_api_check: 10                 # 等待处理后 → 步骤2平台接口校验前
+    wait_body_over_timeout: 120              # 等待 body_over 最少条数的超时（秒）
+
+
+  # 孔夫子删除商品
+  kfz_goods_delete:
+    after_send_redis_check: 10               # 步骤1发送后 → 步骤2 Redis校验前
+    after_send_api_check: 10                  # 步骤2后 → 步骤3平台接口校验前
 
 # ============================================================
 # 测试数据配置
@@ -101,6 +160,28 @@ test_data:
     isbn_success: "9787115600387"
     price_success: 1900
 
+  # 闲鱼改价格测试数据（场景九）
+  xy_price_change:
+    new_price: 5000                          # 改价格目标价（分）= 50元
+
+  # 闲鱼改库存测试数据（场景十）
+  xy_stock_change:
+    new_stock: 2                             # 改库存目标数量
+
+  # 孔夫子核价发布测试数据
+  kfz_price_publish:
+    isbn_success: "9787115600387"            # 期望：执行成功
+    price_success: 1900                      # 价格（分）
+
+
+  # 孔夫子改价格测试数据
+  kfz_price_change:
+    new_price: 5000                          # 改价格目标价（分）= 50元
+
+  # 孔夫子改库存测试数据
+  kfz_stock_change:
+    new_stock: 2                             # 改库存目标数量
+
   # 商品拉取搜索配置
   pull_goods:
     search_page_size: 500                    # 分批搜索每批大小
@@ -112,7 +193,9 @@ test_data:
 task_type:
   price_publish: "1"                         # 核价发布
   pull_goods: "3"                            # 商品拉取
-  price_stock_shelf: "5"                     # 改价格/改库存/上下架（共用）
+  price_stock_shelf: "5"                     # 改价格/改库存/上下架（拼多多共用）
+  xy_price_stock_shelf: "5"                  # 闲鱼：改价格/改库存/上下架（共用）
+  kfz_price_stock_shelf: "5"                  # 孔夫子：改价格/改库存/上下架（共用）
 
 # ============================================================
 # 任务创建通用参数
@@ -137,3 +220,15 @@ body_over_min:
   pdd_price_publish: 1                       # 场景一：1条执行成功数据
   pdd_price_change: 3                        # 场景二：3条（核价1+改价1+改库存1）
   pdd_shelf_on_off: 3                        # 场景四：3条（与改价格共享任务）
+  pdd_goods_delete: 4                        # 场景四补充：4条（再增加1条删除）
+
+  # body_over 闲鱼
+  xy_price_change: 3                        # 场景九：3条（核价1+改价格1+改库存1）
+  xy_shelf_on_off: 3                        # 场景十一：3条（改价格共享任务）
+
+  # body_over 孔夫子
+  kfz_price_publish: 1                       # 1条执行成功数据
+  kfz_price_change: 3                        # 3条（核价1+改价格1+改库存1）
+  kfz_stock_change: 3                       # 3条（共享）
+  kfz_shelf_on_off: 3                       # 3条（共享）
+  kfz_goods_delete: 4                        # 4条（再增加1条删除）

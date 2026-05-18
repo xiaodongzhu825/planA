@@ -24,8 +24,8 @@ func CreateTableIfNotExists(taskId string) error {
             json text COLLATE utf8_unicode_ci COMMENT '原始字符串',
     		status int(11) DEFAULT '0' COMMENT '状态: 1=正常 2=错误',
     		err  text COLLATE utf8_unicode_ci COMMENT '错误信息',
-            pdd_delete_at datetime DEFAULT NULL COMMENT '请求拼多多删除商品时间',
-            pdd_delete_date date DEFAULT NULL COMMENT '请求拼多多删除商品日期',
+            delete_at datetime DEFAULT NULL COMMENT '请求删除商品时间',
+            delete_date date DEFAULT NULL COMMENT '请求删除商品日期',
             create_at datetime DEFAULT NULL COMMENT '创建时间',
             PRIMARY KEY (id),
             KEY del_task_id (del_task_id, task_id, goods_id)
@@ -51,10 +51,10 @@ func UpdateDelTaskDetailStatus(id int, status int, err string) error {
 	return golabl.MysqlDb.Table("del_task_details_"+golabl.TaskId).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"status":          status,
-			"err":             err,
-			"pdd_delete_at":   now,
-			"pdd_delete_date": now.Format("2006-01-02"),
+			"status":      status,
+			"err":         err,
+			"delete_at":   now,
+			"delete_date": now.Format("2006-01-02"),
 		}).Error
 }
 
@@ -74,26 +74,33 @@ func InsertDelTaskDetail(delTaskID int64, taskId string, token string, bookName 
 		return err
 	}
 
-	now := time.Now()
-	status := int64(1)
-
-	delTaskDetail := &planBType.DelTaskDetail{
-		DelTaskID:     &delTaskID,
-		TaskID:        &taskId,
-		BookName:      &bookName,
-		Token:         &token,
-		Isbn:          &isbn,
-		GoodsID:       &goodsId,
-		Status:        &status,
-		PddDeleteAt:   nil,
-		PddDeleteDate: nil,
-		CreateAt:      &now,
+	// 检查数据是否存在
+	var count int64
+	if err := golabl.MysqlDb.Table(dleTaskDetailsTable).Where("task_id = ? AND goods_id = ?", taskId, goodsId).Count(&count).Error; err != nil {
+		return fmt.Errorf("查询数据失败: %v", err)
 	}
+	if count == 0 {
+		now := time.Now()
+		status := int64(1)
 
-	// 使用动态表名插入
-	result := golabl.MysqlDb.Table(dleTaskDetailsTable).Create(delTaskDetail)
-	if result.Error != nil {
-		return fmt.Errorf("插入数据失败: %v", result.Error)
+		delTaskDetail := &planBType.DelTaskDetail{
+			DelTaskID:  &delTaskID,
+			TaskID:     &taskId,
+			BookName:   &bookName,
+			Token:      &token,
+			Isbn:       &isbn,
+			GoodsID:    &goodsId,
+			Status:     &status,
+			DeleteAt:   nil,
+			DeleteDate: nil,
+			CreateAt:   &now,
+		}
+
+		// 使用动态表名插入
+		result := golabl.MysqlDb.Table(dleTaskDetailsTable).Create(delTaskDetail)
+		if result.Error != nil {
+			return fmt.Errorf("插入数据失败: %v", result.Error)
+		}
 	}
 	return nil
 }

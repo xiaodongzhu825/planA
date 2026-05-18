@@ -1121,7 +1121,7 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 	var districtId int64
 	var districtType string
 	//处理 Token
-	if shop.ShopType == "1" { //拼多店铺
+	if shop.ShopType == "1" || shop.ShopType == "2" { //拼多店铺
 		token = shop.Token
 	} else if shop.ShopType == "5" { // 闲鱼店铺
 		token = fmt.Sprintf("{\"app_id\":%v,\"app_secret\":\"%v\",\"username\":\"%v\"}", shop.MallID, shop.Token, shop.ShopKey)
@@ -1190,6 +1190,10 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 				SpecCompose:        spec.SpecCompose,          //规格组合类型 0=自定义 1=Isbn 2=书名 3=货号
 				SpecPrefix:         spec.SpecPrefix,           //规格前缀
 				SpecSuffix:         spec.SpecSuffix,           //规格后缀
+				IsParcel:           detail.IsParcel,           //是否包邮
+				BookWeight:         detail.BookWeight,         //书籍重量
+				StandardNumber:     detail.StandardNumber,     //商品标准本数
+				ConditionDef:       detail.ConditionDef,       //商品品相
 			},
 			PriceMod:         priceModArr,             //价格模版
 			ShipPriceMod:     "",                      //运费模版
@@ -1262,53 +1266,6 @@ func AddTask(taskId string, bodyData []string) int {
 			return 0
 		}
 	}
-	//// 遍历 bodyData 获取skuId与goodsId
-	//if header.TaskType == 5 {
-	//	var bodyDataArr []_type.TaskBody
-	//	//先转换成数组结构体
-	//	for _, v := range bodyData {
-	//		var taskBody _type.TaskBody
-	//		// 清理JSON字符串（去除可能的空格和换行）
-	//		jsonStr := strings.TrimSpace(v)
-	//		if err := json.Unmarshal([]byte(jsonStr), &taskBody); err != nil {
-	//			fmt.Printf("解析失败: %v %v\n", err, jsonStr)
-	//			continue
-	//		}
-	//		bodyDataArr = append(bodyDataArr, taskBody)
-	//	}
-	//	//转换成 Json字符串
-	//	bodyDataJSON, marshalErr := json.Marshal(bodyDataArr)
-	//	if marshalErr != nil {
-	//		fmt.Printf("转换成 Json字符串失败: %v\n", marshalErr)
-	//		return 0
-	//	}
-	//	getSkuIdMap := map[string]string{
-	//		"shopId": strconv.FormatInt(header.ShopId, 10),
-	//		"data":   string(bodyDataJSON),
-	//	}
-	//	// 发送请求批量获取 skuID
-	//	dataRetStr, submitFormDataErr := tool.SubmitFormData(golabl.Config.FileUrl.PddGetSkuId, getSkuIdMap)
-	//	if submitFormDataErr != nil {
-	//		fmt.Printf("获取 skuId 提交表单数据失败: %v\n", submitFormDataErr)
-	//		return 0
-	//	}
-	//	var dataRetStrArr []_type.TaskBody
-	//	err := json.Unmarshal([]byte(dataRetStr), &dataRetStrArr)
-	//	if err != nil {
-	//		fmt.Printf("解析失败: %v\n", err)
-	//		return 0
-	//	}
-	//	// 转回[]string
-	//	var newBodyData []string
-	//	for _, v := range dataRetStrArr {
-	//		vStr, marshalErr := json.Marshal(v)
-	//		if marshalErr != nil {
-	//			return 0
-	//		}
-	//		newBodyData = append(newBodyData, string(vStr))
-	//	}
-	//	bodyData = newBodyData
-	//}
 	// 遍历 bodyData 写入redis
 	var num atomic.Int64
 	for _, v := range bodyData {

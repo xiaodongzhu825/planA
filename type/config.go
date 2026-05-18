@@ -14,6 +14,7 @@ type Config struct {
 	PoolConfig  PoolConfig    `json:"pool_config"`
 	RedisConfig []RedisConfig `json:"redis_config"`
 	PddConfig   PddConfig     `json:"pdd_config"`
+	KfzConfig   KfzConfig     `json:"kfz_config"`
 	AppBConfig  AppBConfig    `json:"app_b_config"`
 	HttpUrl     HttpUrl       `json:"http_url"`
 	FileUrl     FileUrl       `json:"file_url"`
@@ -111,6 +112,12 @@ type PddConfig struct {
 	ClientSecret string `json:"client_secret"`
 }
 
+// KfzConfig 孔夫子配置
+type KfzConfig struct {
+	AppId     int    `json:"app_id"`
+	AppSecret string `json:"app_secret"`
+}
+
 // HttpUrl 请求路径
 type HttpUrl struct {
 	TaskUrl string `json:"task_url"`
@@ -135,9 +142,12 @@ type FileUrl struct {
 	PddGetGoodsDetailUrl         string `json:"pdd_get_goods_detail_url"`
 	PddAddGoodsUrl               string `json:"pdd_add_goods_url"`
 	XianYuAddGoodsUrl            string `json:"xianyu_add_goods_url"`
+	KfzAddGoodsUrl               string `json:"kfz_add_goods_url"`
 	PddGetSkuId                  string `json:"pdd_get_sku_id"`
 	DelTaskUrl                   string `json:"del_task_url"`
 	BackupUrl                    string `json:"backup_url"`
 	PddGoodsDetailsUrl           string `json:"pdd_goods_details_url"`
 	UpdateTokenUrl               string `json:"update_token_url"`
+	KfzImgTempUrl                string `json:"kfz_img_temp_url"`
+	KfzImgHttpUrl                string `json:"kfz_img_http_url"`
 }

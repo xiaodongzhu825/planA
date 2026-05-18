@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"plantest/modules/kfz"
 	"plantest/modules/xianYu"
 
 	"github.com/go-redis/redis/v8"
@@ -54,6 +55,14 @@ type XianyuConfig struct {
 	DLLPath   string `yaml:"dll_path"`
 }
 
+type KfzConfig struct {
+	ShopID    string `yaml:"shop_id"`
+	ShopType  string `yaml:"shop_type"`
+	AppID     int    `yaml:"app_id"`
+	AppSecret string `yaml:"app_secret"`
+	DLLPath   string `yaml:"dll_path"`
+}
+
 type TimeoutConfig struct {
 	WaitTimeout       int `yaml:"wait_timeout"`
 	PollInterval      int `yaml:"poll_interval"`
@@ -83,8 +92,56 @@ type PddShelfOnOffDelays struct {
 	WaitBodyOverTimeout int `yaml:"wait_body_over_timeout"`
 }
 
+type PddGoodsDeleteDelays struct {
+	AfterSendRedisCheck int `yaml:"after_send_redis_check"`
+	AfterSendAPICheck   int `yaml:"after_send_api_check"`
+}
+
 type XyPricePublishDelays struct {
 	AfterSend int `yaml:"after_send"`
+}
+
+type XyPriceChangeDelays struct {
+	AfterCreateQueryDetail int `yaml:"after_create_query_detail"`
+	AfterSendRedisCheck    int `yaml:"after_send_redis_check"`
+	AfterSendAPICheck      int `yaml:"after_send_api_check"`
+}
+
+type XyStockChangeDelays struct {
+	AfterSendRedisCheck int `yaml:"after_send_redis_check"`
+	AfterSendAPICheck   int `yaml:"after_send_api_check"`
+}
+
+type XyShelfOnOffDelays struct {
+	AfterSendRedisCheck int `yaml:"after_send_redis_check"`
+	AfterWaitAPICheck   int `yaml:"after_wait_api_check"`
+	WaitBodyOverTimeout int `yaml:"wait_body_over_timeout"`
+}
+
+type KfzPricePublishDelays struct {
+	AfterSend int `yaml:"after_send"`
+}
+
+type KfzPriceChangeDelays struct {
+	AfterCreateQueryDetail int `yaml:"after_create_query_detail"`
+	AfterSendRedisCheck    int `yaml:"after_send_redis_check"`
+	AfterSendAPICheck      int `yaml:"after_send_api_check"`
+}
+
+type KfzStockChangeDelays struct {
+	AfterSendRedisCheck int `yaml:"after_send_redis_check"`
+	AfterSendAPICheck   int `yaml:"after_send_api_check"`
+}
+
+type KfzShelfOnOffDelays struct {
+	AfterSendRedisCheck int `yaml:"after_send_redis_check"`
+	AfterWaitAPICheck   int `yaml:"after_wait_api_check"`
+	WaitBodyOverTimeout int `yaml:"wait_body_over_timeout"`
+}
+
+type KfzGoodsDeleteDelays struct {
+	AfterSendRedisCheck int `yaml:"after_send_redis_check"`
+	AfterSendAPICheck   int `yaml:"after_send_api_check"`
 }
 
 type DelaysConfig struct {
@@ -92,7 +149,16 @@ type DelaysConfig struct {
 	PddPriceChange  PddPriceChangeDelays  `yaml:"pdd_price_change"`
 	PddStockChange  PddStockChangeDelays  `yaml:"pdd_stock_change"`
 	PddShelfOnOff   PddShelfOnOffDelays   `yaml:"pdd_shelf_on_off"`
+	PddGoodsDelete  PddGoodsDeleteDelays  `yaml:"pdd_goods_delete"`
 	XyPricePublish  XyPricePublishDelays  `yaml:"xy_price_publish"`
+	XyPriceChange   XyPriceChangeDelays   `yaml:"xy_price_change"`
+	XyStockChange   XyStockChangeDelays   `yaml:"xy_stock_change"`
+	XyShelfOnOff    XyShelfOnOffDelays    `yaml:"xy_shelf_on_off"`
+	KfzPricePublish KfzPricePublishDelays `yaml:"kfz_price_publish"`
+	KfzPriceChange  KfzPriceChangeDelays  `yaml:"kfz_price_change"`
+	KfzStockChange  KfzStockChangeDelays  `yaml:"kfz_stock_change"`
+	KfzShelfOnOff   KfzShelfOnOffDelays   `yaml:"kfz_shelf_on_off"`
+	KfzGoodsDelete  KfzGoodsDeleteDelays  `yaml:"kfz_goods_delete"`
 }
 
 type PddPricePublishTestData struct {
@@ -117,6 +183,27 @@ type XyPricePublishTestData struct {
 	PriceSuccess int64  `yaml:"price_success"`
 }
 
+type XyPriceChangeTestData struct {
+	NewPrice int64 `yaml:"new_price"`
+}
+
+type XyStockChangeTestData struct {
+	NewStock int64 `yaml:"new_stock"`
+}
+
+type KfzPricePublishTestData struct {
+	ISBNSuccess  string `yaml:"isbn_success"`
+	PriceSuccess int64  `yaml:"price_success"`
+}
+
+type KfzPriceChangeTestData struct {
+	NewPrice int64 `yaml:"new_price"`
+}
+
+type KfzStockChangeTestData struct {
+	NewStock int64 `yaml:"new_stock"`
+}
+
 type PullGoodsTestData struct {
 	SearchPageSize    int64 `yaml:"search_page_size"`
 	BodyWaitMaxSearch int64 `yaml:"body_wait_max_search"`
@@ -127,13 +214,19 @@ type TestDataConfig struct {
 	PddPriceChange  PddPriceChangeTestData  `yaml:"pdd_price_change"`
 	PddStockChange  PddStockChangeTestData  `yaml:"pdd_stock_change"`
 	XyPricePublish  XyPricePublishTestData  `yaml:"xy_price_publish"`
+	XyPriceChange   XyPriceChangeTestData   `yaml:"xy_price_change"`
+	XyStockChange   XyStockChangeTestData   `yaml:"xy_stock_change"`
+	KfzPricePublish KfzPricePublishTestData `yaml:"kfz_price_publish"`
+	KfzPriceChange  KfzPriceChangeTestData  `yaml:"kfz_price_change"`
+	KfzStockChange  KfzStockChangeTestData  `yaml:"kfz_stock_change"`
 	PullGoods       PullGoodsTestData       `yaml:"pull_goods"`
 }
 
 type TaskTypeConfig struct {
-	PricePublish    string `yaml:"price_publish"`
-	PullGoods       string `yaml:"pull_goods"`
-	PriceStockShelf string `yaml:"price_stock_shelf"`
+	PricePublish      string `yaml:"price_publish"`
+	PullGoods         string `yaml:"pull_goods"`
+	PriceStockShelf   string `yaml:"price_stock_shelf"`
+	XyPriceStockShelf string `yaml:"xy_price_stock_shelf"`
 }
 
 type TaskCreateConfig struct {
@@ -145,6 +238,14 @@ type BodyOverMinConfig struct {
 	PddPricePublish int `yaml:"pdd_price_publish"`
 	PddPriceChange  int `yaml:"pdd_price_change"`
 	PddShelfOnOff   int `yaml:"pdd_shelf_on_off"`
+	PddGoodsDelete  int `yaml:"pdd_goods_delete"`
+	XyPriceChange   int `yaml:"xy_price_change"`
+	XyShelfOnOff    int `yaml:"xy_shelf_on_off"`
+	KfzPricePublish int `yaml:"kfz_price_publish"`
+	KfzPriceChange  int `yaml:"kfz_price_change"`
+	KfzStockChange  int `yaml:"kfz_stock_change"`
+	KfzShelfOnOff   int `yaml:"kfz_shelf_on_off"`
+	KfzGoodsDelete  int `yaml:"kfz_goods_delete"`
 }
 
 type Config struct {
@@ -152,6 +253,7 @@ type Config struct {
 	Redis       RedisConfig       `yaml:"redis"`
 	PDD         PDDConfig         `yaml:"pdd"`
 	Xianyu      XianyuConfig      `yaml:"xianyu"`
+	Kfz         KfzConfig         `yaml:"kfz"`
 	Timeout     TimeoutConfig     `yaml:"timeout"`
 	Delays      DelaysConfig      `yaml:"delays"`
 	TestData    TestDataConfig    `yaml:"test_data"`
@@ -189,6 +291,11 @@ var (
 	XyDllPath   string
 	XyDomain    string
 
+	// 孔夫子 DLL 配置
+	KfzAppID     int
+	KfzAppSecret string
+	KfzDllPath   string
+
 	// 场景延迟配置
 	DelayPddPublishAfterSend     time.Duration
 	DelayPddChangeAfterQuery     time.Duration
@@ -199,28 +306,58 @@ var (
 	DelayPddShelfAfterSend       time.Duration
 	DelayPddShelfAfterWait       time.Duration
 	DelayPddShelfBodyOverTimeout time.Duration
+	DelayPddDeleteAfterSend      time.Duration
+	DelayPddDeleteAfterAPI       time.Duration
 	DelayXyPublishAfterSend      time.Duration
+	DelayXyPriceChangeAfterQuery time.Duration
+	DelayXyPriceChangeAfterSend  time.Duration
+	DelayXyPriceChangeAfterAPI   time.Duration
+	DelayXyStockAfterSend        time.Duration
+	DelayXyStockAfterAPI         time.Duration
+	DelayXyShelfAfterSend        time.Duration
+	DelayXyShelfAfterWait        time.Duration
+	DelayXyShelfBodyOverTimeout  time.Duration
+
+	// 孔夫子场景延迟
+	DelayKfzPublishAfterSend      time.Duration
+	DelayKfzPriceChangeAfterQuery time.Duration
+	DelayKfzPriceChangeAfterSend  time.Duration
+	DelayKfzPriceChangeAfterAPI   time.Duration
+	DelayKfzStockAfterSend        time.Duration
+	DelayKfzStockAfterAPI         time.Duration
+	DelayKfzShelfAfterSend        time.Duration
+	DelayKfzShelfAfterWait        time.Duration
+	DelayKfzShelfBodyOverTimeout  time.Duration
+	DelayKfzDeleteAfterSend       time.Duration
+	DelayKfzDeleteAfterAPI        time.Duration
 
 	// 测试数据
-	TestISBNSuccess    string
-	TestPriceSuccess   int64
-	TestISBNPriceZero  string
-	TestPriceZero      int64
-	TestISBNBanned     string
-	TestPriceBanned    int64
-	TestNewPrice       int64
-	TestNewStock       int64
-	TestXyISBNSuccess  string
-	TestXyPriceSuccess int64
+	TestISBNSuccess     string
+	TestPriceSuccess    int64
+	TestISBNPriceZero   string
+	TestPriceZero       int64
+	TestISBNBanned      string
+	TestPriceBanned     int64
+	TestNewPrice        int64
+	TestNewStock        int64
+	TestXyISBNSuccess   string
+	TestXyPriceSuccess  int64
+	TestXyNewPrice      int64
+	TestXyNewStock      int64
+	TestKfzISBNSuccess  string
+	TestKfzPriceSuccess int64
+	TestKfzNewPrice     int64
+	TestKfzNewStock     int64
 
 	// 拉取搜索配置
 	SearchPageSize    int64
 	BodyWaitMaxSearch int64
 
 	// 任务类型
-	TaskTypePricePublish    string
-	TaskTypePullGoods       string
-	TaskTypePriceStockShelf string
+	TaskTypePricePublish      string
+	TaskTypePullGoods         string
+	TaskTypePriceStockShelf   string
+	TaskTypeXyPriceStockShelf string
 
 	// 任务创建参数
 	TaskCount string
@@ -230,9 +367,17 @@ var (
 	StatusName map[int]string
 
 	// body_over 最少条数
-	BodyOverMinPublish int
-	BodyOverMinChange  int
-	BodyOverMinShelf   int
+	BodyOverMinPublish        int
+	BodyOverMinChange         int
+	BodyOverMinShelf          int
+	BodyOverMinDelete         int
+	BodyOverMinXyPriceChange  int
+	BodyOverMinXyShelfOnOff   int
+	BodyOverMinKfzPublish     int
+	BodyOverMinKfzPriceChange int
+	BodyOverMinKfzStockChange int
+	BodyOverMinKfzShelfOnOff  int
+	BodyOverMinKfzDelete      int
 
 	// HTTP 客户端超时
 	HTTPClientTimeout time.Duration
@@ -279,6 +424,11 @@ func loadConfig(path string) error {
 	XyDllPath = cfg.Xianyu.DLLPath
 	XyDomain = cfg.Xianyu.Domain
 
+	// 孔夫子
+	KfzAppID = cfg.Kfz.AppID
+	KfzAppSecret = cfg.Kfz.AppSecret
+	KfzDllPath = cfg.Kfz.DLLPath
+
 	// 超时
 	WaitTimeout = time.Duration(cfg.Timeout.WaitTimeout) * time.Second
 	PollInterval = time.Duration(cfg.Timeout.PollInterval) * time.Second
@@ -297,6 +447,27 @@ func loadConfig(path string) error {
 	DelayPddShelfAfterWait = time.Duration(cfg.Delays.PddShelfOnOff.AfterWaitAPICheck) * time.Second
 	DelayPddShelfBodyOverTimeout = time.Duration(cfg.Delays.PddShelfOnOff.WaitBodyOverTimeout) * time.Second
 	DelayXyPublishAfterSend = time.Duration(cfg.Delays.XyPricePublish.AfterSend) * time.Second
+	DelayXyPriceChangeAfterQuery = time.Duration(cfg.Delays.XyPriceChange.AfterCreateQueryDetail) * time.Second
+	DelayXyPriceChangeAfterSend = time.Duration(cfg.Delays.XyPriceChange.AfterSendRedisCheck) * time.Second
+	DelayXyPriceChangeAfterAPI = time.Duration(cfg.Delays.XyPriceChange.AfterSendAPICheck) * time.Second
+	DelayXyStockAfterSend = time.Duration(cfg.Delays.XyStockChange.AfterSendRedisCheck) * time.Second
+	DelayXyStockAfterAPI = time.Duration(cfg.Delays.XyStockChange.AfterSendAPICheck) * time.Second
+	DelayXyShelfAfterSend = time.Duration(cfg.Delays.XyShelfOnOff.AfterSendRedisCheck) * time.Second
+	DelayXyShelfAfterWait = time.Duration(cfg.Delays.XyShelfOnOff.AfterWaitAPICheck) * time.Second
+	DelayXyShelfBodyOverTimeout = time.Duration(cfg.Delays.XyShelfOnOff.WaitBodyOverTimeout) * time.Second
+
+	// 孔夫子场景延迟
+	DelayKfzPublishAfterSend = time.Duration(cfg.Delays.KfzPricePublish.AfterSend) * time.Second
+	DelayKfzPriceChangeAfterQuery = time.Duration(cfg.Delays.KfzPriceChange.AfterCreateQueryDetail) * time.Second
+	DelayKfzPriceChangeAfterSend = time.Duration(cfg.Delays.KfzPriceChange.AfterSendRedisCheck) * time.Second
+	DelayKfzPriceChangeAfterAPI = time.Duration(cfg.Delays.KfzPriceChange.AfterSendAPICheck) * time.Second
+	DelayKfzStockAfterSend = time.Duration(cfg.Delays.KfzStockChange.AfterSendRedisCheck) * time.Second
+	DelayKfzStockAfterAPI = time.Duration(cfg.Delays.KfzStockChange.AfterSendAPICheck) * time.Second
+	DelayKfzShelfAfterSend = time.Duration(cfg.Delays.KfzShelfOnOff.AfterSendRedisCheck) * time.Second
+	DelayKfzShelfAfterWait = time.Duration(cfg.Delays.KfzShelfOnOff.AfterWaitAPICheck) * time.Second
+	DelayKfzShelfBodyOverTimeout = time.Duration(cfg.Delays.KfzShelfOnOff.WaitBodyOverTimeout) * time.Second
+	DelayKfzDeleteAfterSend = time.Duration(cfg.Delays.KfzGoodsDelete.AfterSendRedisCheck) * time.Second
+	DelayKfzDeleteAfterAPI = time.Duration(cfg.Delays.KfzGoodsDelete.AfterSendAPICheck) * time.Second
 
 	// 测试数据
 	TestISBNSuccess = cfg.TestData.PddPricePublish.ISBNSuccess
@@ -309,6 +480,12 @@ func loadConfig(path string) error {
 	TestNewStock = cfg.TestData.PddStockChange.NewStock
 	TestXyISBNSuccess = cfg.TestData.XyPricePublish.ISBNSuccess
 	TestXyPriceSuccess = cfg.TestData.XyPricePublish.PriceSuccess
+	TestXyNewPrice = cfg.TestData.XyPriceChange.NewPrice
+	TestXyNewStock = cfg.TestData.XyStockChange.NewStock
+	TestKfzISBNSuccess = cfg.TestData.KfzPricePublish.ISBNSuccess
+	TestKfzPriceSuccess = cfg.TestData.KfzPricePublish.PriceSuccess
+	TestKfzNewPrice = cfg.TestData.KfzPriceChange.NewPrice
+	TestKfzNewStock = cfg.TestData.KfzStockChange.NewStock
 
 	// 拉取搜索
 	SearchPageSize = cfg.TestData.PullGoods.SearchPageSize
@@ -318,6 +495,7 @@ func loadConfig(path string) error {
 	TaskTypePricePublish = cfg.TaskType.PricePublish
 	TaskTypePullGoods = cfg.TaskType.PullGoods
 	TaskTypePriceStockShelf = cfg.TaskType.PriceStockShelf
+	TaskTypeXyPriceStockShelf = cfg.TaskType.XyPriceStockShelf
 
 	// 任务创建参数
 	TaskCount = cfg.TaskCreate.TaskCount
@@ -333,6 +511,17 @@ func loadConfig(path string) error {
 	BodyOverMinPublish = cfg.BodyOverMin.PddPricePublish
 	BodyOverMinChange = cfg.BodyOverMin.PddPriceChange
 	BodyOverMinShelf = cfg.BodyOverMin.PddShelfOnOff
+	BodyOverMinDelete = cfg.BodyOverMin.PddGoodsDelete
+	BodyOverMinXyPriceChange = cfg.BodyOverMin.XyPriceChange
+	BodyOverMinXyShelfOnOff = cfg.BodyOverMin.XyShelfOnOff
+	BodyOverMinKfzPublish = cfg.BodyOverMin.KfzPricePublish
+	BodyOverMinKfzPriceChange = cfg.BodyOverMin.KfzPriceChange
+	BodyOverMinKfzStockChange = cfg.BodyOverMin.KfzStockChange
+	BodyOverMinKfzShelfOnOff = cfg.BodyOverMin.KfzShelfOnOff
+	BodyOverMinKfzDelete = cfg.BodyOverMin.KfzGoodsDelete
+
+	DelayPddDeleteAfterSend = time.Duration(cfg.Delays.PddGoodsDelete.AfterSendRedisCheck) * time.Second
+	DelayPddDeleteAfterAPI = time.Duration(cfg.Delays.PddGoodsDelete.AfterSendAPICheck) * time.Second
 
 	// 更新 httpClient 超时
 	httpClient = &http.Client{Timeout: HTTPClientTimeout}
@@ -392,10 +581,18 @@ var (
 
 	// 闲鱼场景
 	xyTaskID         string // 场景七 闲鱼核价发布任务 task_id
+	xyModTaskID      string // 场景十/十一/十二 闲鱼改库存/下架/上架 共用的任务 task_id
 	xySuccessISBN    string // 场景七中执行成功的ISBN
 	xySuccessGoodsID int64  // 场景七中执行成功对应的goods_id
 	xyPullTaskID     string // 场景八 闲鱼商品拉取任务 task_id
 	xyPullGoodsID    int64  // 场景八 拉取任务中找到的goods_id
+)
+
+// 孔夫子任务跟踪变量
+var (
+	kfzTaskID         string // 孔夫子任务 task_id
+	kfzSuccessISBN    string // 核价发布成功ISBN
+	kfzSuccessGoodsID int64  // 核价发布成功goods_id
 )
 
 // ============================================================
@@ -779,6 +976,375 @@ func getAccessToken(taskID string) (string, error) {
 		return "", fmt.Errorf("shop_msg.token 为空")
 	}
 	return shopMsg.Token, nil
+}
+
+// ============================================================
+// 闲鱼 DLL 查询辅助函数
+// ============================================================
+
+// getXyAccessToken 从 Redis 获取闲鱼的 accessToken（token 字段）
+func getXyAccessToken() (string, error) {
+	if xyTaskID == "" {
+		return "", fmt.Errorf("xyTaskID 为空，场景七未成功创建任务")
+	}
+	headerKey := xyTaskID + ":header"
+	shopMsgJSON, err := redisClient.HGet(redisCtx, headerKey, "shop_msg").Result()
+	if err != nil {
+		return "", fmt.Errorf("Redis HGet %s shop_msg 失败: %w", headerKey, err)
+	}
+	var shopMsg struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal([]byte(shopMsgJSON), &shopMsg); err != nil {
+		return "", fmt.Errorf("解析 shop_msg JSON 失败: %w, 原始: %s", err, truncate(shopMsgJSON, 200))
+	}
+	if shopMsg.Token == "" {
+		return "", fmt.Errorf("shop_msg.token 为空")
+	}
+	return shopMsg.Token, nil
+}
+
+// findXyGoodsByISBN 用 DLL ExecuteSelectGoodsListPrice 按 ISBN 搜索商品，返回 product_id
+func findXyGoodsByISBN(isbn string, accessToken string) (int64, error) {
+	xyDll, err := xianYu.InitXianYuDll(XyDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("初始化闲鱼DLL失败: %v", err)
+	}
+	// online_time 传空数组，product_status=22 表示在售
+	queryReq := map[string]interface{}{
+		"appId":          XyAppID,
+		"appSecret":      XyAppSecret,
+		"token":          accessToken,
+		"online_time":    []interface{}{},
+		"product_status": 22,
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := xyDll.XianYuGetGoodsList(string(queryJSON), XyDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("XianYuGetGoodsList 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return 0, fmt.Errorf("解析商品列表 JSON 失败: %v, 原始: %s", err, truncate(result, 200))
+	}
+	code, _ := resultMap["code"].(float64)
+	if code != 200 && code != 0 {
+		msg, _ := resultMap["msg"].(string)
+		return 0, fmt.Errorf("查询商品列表失败: code=%.0f msg=%s", code, msg)
+	}
+	// 遍历列表匹配 ISBN
+	data, ok := resultMap["data"].(map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("data 字段格式异常，无法解析商品列表")
+	}
+	for _, itemRaw := range data {
+		item, ok := itemRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if itemISBN, ok := item["isbn"].(string); ok && itemISBN == isbn {
+			if pid, ok := item["product_id"].(float64); ok {
+				return int64(pid), nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("ISBN=%s 在商品列表中未找到", isbn)
+}
+
+// getXyGoodsPrice 用 DLL ExecuteGetGoodsDetail 查询商品价格（返回分）
+func getXyGoodsPrice(productID int64, accessToken string) (int64, error) {
+	xyDll, err := xianYu.InitXianYuDll(XyDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("初始化闲鱼DLL失败: %v", err)
+	}
+	queryReq := map[string]interface{}{
+		"appId":      XyAppID,
+		"appSecret":  XyAppSecret,
+		"token":      accessToken,
+		"product_id": productID,
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := xyDll.XianYuGetGoodsDetail(string(queryJSON), XyDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("XianYuGetGoodsDetail 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return 0, fmt.Errorf("解析商品详情 JSON 失败: %v", err)
+	}
+	code, _ := resultMap["code"].(float64)
+	if code != 200 && code != 0 {
+		msg, _ := resultMap["msg"].(string)
+		return 0, fmt.Errorf("查询商品详情失败: code=%.0f msg=%s", code, msg)
+	}
+	if price, ok := resultMap["price"].(float64); ok {
+		return int64(price), nil
+	}
+	if data, ok := resultMap["data"].(map[string]interface{}); ok {
+		if price, ok := data["price"].(float64); ok {
+			return int64(price), nil
+		}
+	}
+	return 0, fmt.Errorf("商品详情中未找到 price 字段")
+}
+
+// getXyGoodsStock 用 DLL ExecuteGetGoodsDetail 查询商品库存
+func getXyGoodsStock(productID int64, accessToken string) (int64, error) {
+	xyDll, err := xianYu.InitXianYuDll(XyDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("初始化闲鱼DLL失败: %v", err)
+	}
+	queryReq := map[string]interface{}{
+		"appId":      XyAppID,
+		"appSecret":  XyAppSecret,
+		"token":      accessToken,
+		"product_id": productID,
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := xyDll.XianYuGetGoodsDetail(string(queryJSON), XyDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("XianYuGetGoodsDetail 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return 0, fmt.Errorf("解析商品详情 JSON 失败: %v", err)
+	}
+	code, _ := resultMap["code"].(float64)
+	if code != 200 && code != 0 {
+		msg, _ := resultMap["msg"].(string)
+		return 0, fmt.Errorf("查询商品详情失败: code=%.0f msg=%s", code, msg)
+	}
+	if stock, ok := resultMap["stock"].(float64); ok {
+		return int64(stock), nil
+	}
+	if data, ok := resultMap["data"].(map[string]interface{}); ok {
+		if stock, ok := data["stock"].(float64); ok {
+			return int64(stock), nil
+		}
+	}
+	return 0, fmt.Errorf("商品详情中未找到 stock 字段")
+}
+
+// getXyGoodsStatus 用 DLL ExecuteGetGoodsDetail 查询商品状态
+// 返回值：1=上架 2=下架 3=售罄 4=已删除，-1=未知
+func getXyGoodsStatus(productID int64, accessToken string) (int, error) {
+	xyDll, err := xianYu.InitXianYuDll(XyDllPath)
+	if err != nil {
+		return -1, fmt.Errorf("初始化闲鱼DLL失败: %v", err)
+	}
+	queryReq := map[string]interface{}{
+		"appId":      XyAppID,
+		"appSecret":  XyAppSecret,
+		"token":      accessToken,
+		"product_id": productID,
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := xyDll.XianYuGetGoodsDetail(string(queryJSON), XyDllPath)
+	if err != nil {
+		return -1, fmt.Errorf("XianYuGetGoodsDetail 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return -1, fmt.Errorf("解析商品详情 JSON 失败: %v", err)
+	}
+	code, _ := resultMap["code"].(float64)
+	if code != 200 && code != 0 {
+		msg, _ := resultMap["msg"].(string)
+		return -1, fmt.Errorf("查询商品详情失败: code=%.0f msg=%s", code, msg)
+	}
+	if ps, ok := resultMap["product_status"].(float64); ok {
+		return int(ps), nil
+	}
+	if data, ok := resultMap["data"].(map[string]interface{}); ok {
+		if ps, ok := data["product_status"].(float64); ok {
+			return int(ps), nil
+		}
+	}
+	return -1, fmt.Errorf("商品详情中未找到 product_status 字段")
+}
+
+// ============================================================
+// 孔夫子 DLL 查询辅助函数
+// ============================================================
+
+// getKfzAccessToken 从 Redis 获取孔夫子的 accessToken（token 字段）
+func getKfzAccessToken() (string, error) {
+	if kfzTaskID == "" {
+		return "", fmt.Errorf("kfzTaskID 为空，场景未成功创建任务")
+	}
+	headerKey := kfzTaskID + ":header"
+	shopMsgJSON, err := redisClient.HGet(redisCtx, headerKey, "shop_msg").Result()
+	if err != nil {
+		return "", fmt.Errorf("Redis HGet %s shop_msg 失败: %w", headerKey, err)
+	}
+	var shopMsg struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal([]byte(shopMsgJSON), &shopMsg); err != nil {
+		return "", fmt.Errorf("解析 shop_msg JSON 失败: %w, 原始: %s", err, truncate(shopMsgJSON, 200))
+	}
+	if shopMsg.Token == "" {
+		return "", fmt.Errorf("shop_msg.token 为空")
+	}
+	return shopMsg.Token, nil
+}
+
+// findKfzGoodsByISBN 用 DLL GetGoodsList 按 ISBN 搜索商品，返回 itemId
+func findKfzGoodsByISBN(isbn string, accessToken string) (int64, error) {
+	kfzDll, err := kfz.InitKfzDll(KfzDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("初始化孔夫子DLL失败: %v", err)
+	}
+	// type="sale" 表示在售，pageNum=1
+	queryReq := kfz.GetGoodsListReq{
+		Type:      "sale",
+		PageNum:   1,
+		PageSize:  50,
+		SortOrder: "addTime",
+		SortType:  "DESC",
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := kfzDll.GetGoodsList(KfzAppID, KfzAppSecret, accessToken, string(queryJSON))
+	if err != nil {
+		return 0, fmt.Errorf("KongfzShopItemList 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return 0, fmt.Errorf("解析商品列表 JSON 失败: %v, 原始: %s", err, truncate(result, 200))
+	}
+	// 检查 errorResponse
+	if errResp, ok := resultMap["errorResponse"].(map[string]interface{}); ok {
+		if code, _ := errResp["code"].(float64); code != 0 {
+			msg, _ := errResp["msg"].(string)
+			return 0, fmt.Errorf("查询商品列表失败: code=%.0f msg=%s", code, msg)
+		}
+	}
+	// 遍历列表匹配 ISBN
+	if successResp, ok := resultMap["successResponse"].(map[string]interface{}); ok {
+		if list, ok := successResp["list"].([]interface{}); ok {
+			for _, itemRaw := range list {
+				item, ok := itemRaw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if itemISBN, ok := item["isbn"].(string); ok && itemISBN == isbn {
+					if itemId, ok := item["itemId"].(float64); ok {
+						return int64(itemId), nil
+					}
+				}
+			}
+		}
+	}
+	return 0, fmt.Errorf("ISBN=%s 在商品列表中未找到", isbn)
+}
+
+// getKfzGoodsPrice 从商品列表中获取指定 itemId 的商品价格（返回元）
+func getKfzGoodsPrice(itemId int64, accessToken string) (float64, error) {
+	kfzDll, err := kfz.InitKfzDll(KfzDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("初始化孔夫子DLL失败: %v", err)
+	}
+	queryReq := kfz.GetGoodsListReq{
+		Type:     "sale",
+		PageNum:  1,
+		PageSize: 50,
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := kfzDll.GetGoodsList(KfzAppID, KfzAppSecret, accessToken, string(queryJSON))
+	if err != nil {
+		return 0, fmt.Errorf("KongfzShopItemList 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return 0, fmt.Errorf("解析商品列表 JSON 失败: %v", err)
+	}
+	if successResp, ok := resultMap["successResponse"].(map[string]interface{}); ok {
+		if list, ok := successResp["list"].([]interface{}); ok {
+			for _, itemRaw := range list {
+				if item, ok := itemRaw.(map[string]interface{}); ok {
+					if id, ok := item["itemId"].(float64); ok && id == float64(itemId) {
+						if price, ok := item["price"].(float64); ok {
+							return price, nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return 0, fmt.Errorf("itemId=%d 未找到对应商品或价格字段", itemId)
+}
+
+// getKfzGoodsStock 从商品列表中获取指定 itemId 的商品库存
+func getKfzGoodsStock(itemId int64, accessToken string) (int, error) {
+	kfzDll, err := kfz.InitKfzDll(KfzDllPath)
+	if err != nil {
+		return 0, fmt.Errorf("初始化孔夫子DLL失败: %v", err)
+	}
+	queryReq := kfz.GetGoodsListReq{
+		Type:     "sale",
+		PageNum:  1,
+		PageSize: 50,
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := kfzDll.GetGoodsList(KfzAppID, KfzAppSecret, accessToken, string(queryJSON))
+	if err != nil {
+		return 0, fmt.Errorf("KongfzShopItemList 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return 0, fmt.Errorf("解析商品列表 JSON 失败: %v", err)
+	}
+	if successResp, ok := resultMap["successResponse"].(map[string]interface{}); ok {
+		if list, ok := successResp["list"].([]interface{}); ok {
+			for _, itemRaw := range list {
+				if item, ok := itemRaw.(map[string]interface{}); ok {
+					if id, ok := item["itemId"].(float64); ok && id == float64(itemId) {
+						if stock, ok := item["number"].(float64); ok {
+							return int(stock), nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return 0, fmt.Errorf("itemId=%d 未找到对应商品或库存字段", itemId)
+}
+
+// getKfzGoodsStatus 从商品列表中获取指定 itemId 的商品上下架状态
+// isOnSale: 1=上架 0=下架
+func getKfzGoodsStatus(itemId int64, accessToken string) (int, error) {
+	kfzDll, err := kfz.InitKfzDll(KfzDllPath)
+	if err != nil {
+		return -1, fmt.Errorf("初始化孔夫子DLL失败: %v", err)
+	}
+	queryReq := kfz.GetGoodsListReq{
+		Type:     "sale",
+		PageNum:  1,
+		PageSize: 50,
+	}
+	queryJSON, _ := json.Marshal(queryReq)
+	result, err := kfzDll.GetGoodsList(KfzAppID, KfzAppSecret, accessToken, string(queryJSON))
+	if err != nil {
+		return -1, fmt.Errorf("KongfzShopItemList 失败: %v", err)
+	}
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+		return -1, fmt.Errorf("解析商品列表 JSON 失败: %v", err)
+	}
+	if successResp, ok := resultMap["successResponse"].(map[string]interface{}); ok {
+		if list, ok := successResp["list"].([]interface{}); ok {
+			for _, itemRaw := range list {
+				if item, ok := itemRaw.(map[string]interface{}); ok {
+					if id, ok := item["itemId"].(float64); ok && id == float64(itemId) {
+						if isOnSale, ok := item["isOnSale"].(float64); ok {
+							return int(isOnSale), nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return -1, fmt.Errorf("itemId=%d 未找到对应商品", itemId)
 }
 
 // ============================================================
@@ -1963,6 +2529,144 @@ func testPddShelfOnOff() {
 }
 
 // ============================================================
+// 测试四（补充）：拼多多删除商品
+// ============================================================
+
+func testPddGoodsDelete() {
+	cat := "四（补充）、拼多多删除商品"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	// 前置条件检查
+	if mixedTaskID == "" {
+		fmt.Println("⚠️  改价格 task_id 为空，跳过删除测试")
+		fail(cat, "前置条件", "场景二未创建改价格任务，无法获取 task_id", 0)
+		return
+	}
+	if successISBN == "" || successGoodsID == 0 {
+		fmt.Println("⚠️  场景一未匹配到执行成功数据，跳过删除测试")
+		fail(cat, "前置条件", "场景一未匹配到执行成功数据（isbn/goods_id）", 0)
+		return
+	}
+
+	fmt.Printf("\n  📌 使用改价格 task_id: %s（复用 task_type=5 任务）\n", mixedTaskID)
+
+	// ---------- 步骤1：发送删除任务 ----------
+	{
+		name := "1、发送任务数据【删除】"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"goods_id":%d,"status":3}}`,
+			successISBN, successGoodsID)
+		fmt.Printf("    📋 task_id: %s\n", mixedTaskID)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+
+		params := map[string]string{
+			"task_id": mixedTaskID,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, fmt.Sprintf("ISBN=%s GoodsID=%d status=3(删除) 接口返回成功", successISBN, successGoodsID), elapsed)
+	}
+
+	// 延迟后校验
+	countdownDelay(DelayPddDeleteAfterSend, "校验")
+
+	// ---------- 步骤2：等待删除任务处理完成 ----------
+	{
+		name := "2、等待任务处理完成"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		fmt.Printf("    ⏳ 等待删除任务处理完成（检查 body_over）...\n")
+
+		// 上下架已有 3 条，删除后再增加 1 条，应达到 4 条
+		if err := waitBodyOverMin(mixedTaskID, BodyOverMinDelete, DelayPddShelfBodyOverTimeout); err != nil {
+			fmt.Printf("    ⚠️  等待超时: %v，继续尝试校验\n", err)
+		} else {
+			fmt.Printf("    ✅ 删除任务已处理完成\n")
+		}
+		elapsed := time.Since(start)
+		pass(cat, name, fmt.Sprintf("body_over ≥ %d", BodyOverMinDelete), elapsed)
+	}
+
+	// 步骤3：延迟后接口校验
+	countdownDelay(DelayPddDeleteAfterAPI, "接口校验")
+
+	// ---------- 步骤4：校验删除状态 ----------
+	{
+		name := "4、校验删除状态"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		// 获取 accessToken
+		accessToken, err := getAccessToken(priceTaskID)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 accessToken 失败: %v", err), time.Since(start))
+			return
+		}
+		fmt.Printf("    🔑 accessToken: %s...%s\n", accessToken[:8], accessToken[len(accessToken)-8:])
+		fmt.Printf("    📦 goodsId: %d\n", successGoodsID)
+
+		// 查询商品详情（最多重试5次）
+		rawMap, err := queryGoodsDetail(accessToken, successGoodsID, 5)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			errCase(cat, name, fmt.Sprintf("查询商品详情失败: %v", err), elapsed)
+			return
+		}
+
+		// 提取商品状态
+		goodsStatus, goodsName := extractGoodsStatus(rawMap)
+		if goodsStatus == -1 {
+			if dataMap, ok := rawMap["data"].(map[string]interface{}); ok {
+				goodsStatus, goodsName = extractGoodsStatus(dataMap)
+			}
+		}
+		if goodsStatus == -1 {
+			for _, key := range []string{"goods", "goodsDetail", "result"} {
+				if nested, ok := rawMap[key].(map[string]interface{}); ok {
+					goodsStatus, goodsName = extractGoodsStatus(nested)
+					if goodsStatus != -1 {
+						break
+					}
+				}
+			}
+		}
+
+		var statusStr string
+		if n, ok := StatusName[goodsStatus]; ok {
+			statusStr = n
+		}
+		fmt.Printf("    📊 商品状态: status=%d(%s), name=%s\n", goodsStatus, statusStr, goodsName)
+
+		if goodsStatus == 4 {
+			pass(cat, name, fmt.Sprintf("商品已删除 status=4(已删除) goodsId=%d", successGoodsID), elapsed)
+		} else if goodsStatus == 2 {
+			fail(cat, name, fmt.Sprintf("商品状态为下架 status=2(下架) goodsId=%d，非预期的删除状态", successGoodsID), elapsed)
+		} else if goodsStatus == 3 {
+			fail(cat, name, fmt.Sprintf("商品状态为售罄 status=3(售罄) goodsId=%d，非预期的删除状态", successGoodsID), elapsed)
+		} else if goodsStatus == 1 {
+			fail(cat, name, fmt.Sprintf("商品状态为上架 status=1(上架) goodsId=%d，非预期的删除状态", successGoodsID), elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("未能解析商品状态 status=%d, name=%s", goodsStatus, goodsName), elapsed)
+		}
+	}
+}
+
+// ============================================================
 // 测试五：拼多多商品拉取任务
 // ============================================================
 
@@ -2157,6 +2861,472 @@ func testPddPullGoods() {
 		} else {
 			fail(cat, name, fmt.Sprintf("status=4 ✅ | body_over(%d) ≤ task_count_true(%d) ✅ | 但 ISBN=%s 不在 body_over 也不在 body_wait(前%d条) 中",
 				bodyOverCount, taskCountTrue, successISBN, BodyWaitMaxSearch), elapsed)
+		}
+	}
+}
+
+// ============================================================
+// 测试九：闲鱼改价格
+// ============================================================
+
+func testXyPriceChange() {
+	cat := "九、闲鱼改价格"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	var tid string
+
+	// 前置条件
+	if xyTaskID == "" || xySuccessISBN == "" {
+		fmt.Println("⚠️  场景七未创建闲鱼任务，跳过")
+		return
+	}
+	fmt.Printf("\n  📌 复用场景七 task_id: %s\n", xyTaskID)
+	fmt.Printf("  📌 目标 ISBN: %s\n", xySuccessISBN)
+
+	// 步骤1：创建改价格任务（task_type=5，与闲鱼共用）
+	{
+		name := "1、创建闲鱼改价格任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		params := map[string]string{
+			"shop_id":    XyShopID,
+			"shop_type":  XyShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypeXyPriceStockShelf,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		tid = dataStr
+		fmt.Printf("    ✅ task_id=%s\n", tid)
+	}
+
+	if tid == "" {
+		fmt.Println("⚠️  任务创建失败，跳过")
+		return
+	}
+
+	// 步骤2：查询商品详情（改价格前）
+	var basePrice int64
+	{
+		name := "2、查询商品详情（改价格前）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, err := getXyAccessToken()
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 accessToken 失败: %v", err), time.Since(start))
+			return
+		}
+
+		// 使用核价发布步骤已获取的 goods_id
+		xyGoodsID := xySuccessGoodsID
+		if xyGoodsID == 0 {
+			fail(cat, name, "xySuccessGoodsID 为空，场景七未成功获取商品ID", time.Since(start))
+			return
+		}
+		fmt.Printf("    🔑 accessToken: %s...%s\n", accessToken[:8], accessToken[len(accessToken)-8:])
+		fmt.Printf("    📦 goodsId: %d\n", xyGoodsID)
+
+		price, err := getXyGoodsPrice(xyGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询价格失败: %v", err), elapsed)
+			return
+		}
+		basePrice = price
+		fmt.Printf("    💰 当前价格: %d (分)\n", basePrice)
+		pass(cat, name, fmt.Sprintf("goodsId=%d 当前价格=%d", xyGoodsID, basePrice), elapsed)
+	}
+
+	countdownDelay(DelayXyPriceChangeAfterQuery, "改价格")
+
+	// 步骤3：发送改价格任务
+	{
+		name := "3、发送改价格任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		xyGoodsID := xySuccessGoodsID
+		if xyGoodsID == 0 {
+			fail(cat, name, "xySuccessGoodsID 为空", time.Since(start))
+			return
+		}
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"goods_id":%d,"price":%d,"status":5}}`,
+			xySuccessISBN, xyGoodsID, TestXyNewPrice)
+		params := map[string]string{
+			"task_id": tid,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, fmt.Sprintf("改价格目标=%d (分)", TestXyNewPrice), elapsed)
+	}
+
+	countdownDelay(DelayXyPriceChangeAfterSend, "Redis校验")
+
+	// 步骤4：校验 body_over
+	{
+		name := "4、校验 body_over"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		if err := waitBodyOverMin(tid, 1, 30); err != nil {
+			fail(cat, name, fmt.Sprintf("body_over < 1: %v", err), time.Since(start))
+		} else {
+			pass(cat, name, "body_over ≥ 1", time.Since(start))
+		}
+	}
+
+	countdownDelay(DelayXyPriceChangeAfterAPI, "接口校验")
+
+	// 步骤5：接口校验
+	{
+		name := "5、接口校验（价格已修改）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, _ := getXyAccessToken()
+		xyGoodsID := xySuccessGoodsID
+		newPrice, err := getXyGoodsPrice(xyGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询价格失败: %v", err), elapsed)
+			return
+		}
+		fmt.Printf("    📊 当前价格: %d (分)\n", newPrice)
+		if newPrice == TestXyNewPrice {
+			pass(cat, name, fmt.Sprintf("价格已改为 %d", TestXyNewPrice), elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("价格未变更: 期望=%d 实际=%d", TestXyNewPrice, newPrice), elapsed)
+		}
+	}
+}
+
+// ============================================================
+// 测试十：闲鱼改库存
+// ============================================================
+
+func testXyStockChange() {
+	cat := "十、闲鱼改库存"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	// 复用九创建的改价格任务
+	fmt.Printf("\n  📌 目标 ISBN: %s\n", xySuccessISBN)
+
+	// 步骤1：创建改库存任务
+	{
+		name := "1、创建闲鱼改库存任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		params := map[string]string{
+			"shop_id":    XyShopID,
+			"shop_type":  XyShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypeXyPriceStockShelf,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		xyModTaskID = dataStr
+		fmt.Printf("    ✅ task_id=%s\n", xyModTaskID)
+	}
+
+	if xyModTaskID == "" {
+		fmt.Println("⚠️  任务创建失败，跳过")
+		return
+	}
+
+	// 步骤2：发送改库存任务
+	{
+		name := "2、发送改库存任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		xyGoodsID := xySuccessGoodsID
+		if xyGoodsID == 0 {
+			fail(cat, name, "xySuccessGoodsID 为空", time.Since(start))
+			return
+		}
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"goods_id":%d,"stock":%d,"status":4}}`,
+			xySuccessISBN, xyGoodsID, TestXyNewStock)
+		fmt.Printf("    📋 task_id: %s\n", xyModTaskID)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+		params := map[string]string{
+			"task_id": xyModTaskID,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, fmt.Sprintf("改库存目标=%d", TestXyNewStock), elapsed)
+	}
+
+	countdownDelay(DelayXyStockAfterSend, "Redis校验")
+
+	// 步骤3：校验 body_over
+	{
+		name := "3、校验 body_over"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		if err := waitBodyOverMin(xyModTaskID, 1, 30); err != nil {
+			fail(cat, name, fmt.Sprintf("body_over < 1: %v", err), time.Since(start))
+		} else {
+			pass(cat, name, "body_over ≥ 1", time.Since(start))
+		}
+	}
+
+	countdownDelay(DelayXyStockAfterAPI, "接口校验")
+
+	// 步骤4：接口校验
+	{
+		name := "4、接口校验（库存已修改）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		accessToken, _ := getXyAccessToken()
+		xyGoodsID := xySuccessGoodsID
+		newStock, err := getXyGoodsStock(xyGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询库存失败: %v", err), elapsed)
+			return
+		}
+		fmt.Printf("    📊 当前库存: %d\n", newStock)
+		if newStock == TestXyNewStock {
+			pass(cat, name, fmt.Sprintf("库存已改为 %d", TestXyNewStock), elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("库存未变更: 期望=%d 实际=%d", TestXyNewStock, newStock), elapsed)
+		}
+	}
+}
+
+// ============================================================
+// 测试十一：闲鱼上下架
+// ============================================================
+
+func testXyShelfOff() {
+	cat := "十一、闲鱼下架"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	// 前置条件检查
+	if xyModTaskID == "" {
+		fmt.Println("⚠️  闲鱼核价发布 task_id 为空，跳过下架测试")
+		fail(cat, "前置条件", "场景七未创建核价发布任务，无法获取 task_id", 0)
+		return
+	}
+	if xySuccessISBN == "" || xySuccessGoodsID == 0 {
+		fmt.Println("⚠️  场景七未匹配到执行成功数据，跳过下架测试")
+		fail(cat, "前置条件", "场景七未匹配到执行成功数据（isbn/goods_id）", 0)
+		return
+	}
+
+	fmt.Printf("\n  📌 复用场景七 task_id: %s\n", xyModTaskID)
+	fmt.Printf("  📌 目标 ISBN: %s\n", xySuccessISBN)
+
+	// ---------- 步骤1：发送下架任务 ----------
+	{
+		name := "1、发送任务数据【下架】"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"goods_id":%d,"status":2}}`,
+			xySuccessISBN, xySuccessGoodsID)
+		fmt.Printf("    📋 task_id: %s\n", xyModTaskID)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+
+		params := map[string]string{
+			"task_id": xyModTaskID,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, fmt.Sprintf("ISBN=%s GoodsID=%d status=2(下架) 接口返回成功", xySuccessISBN, xySuccessGoodsID), elapsed)
+	}
+
+	countdownDelay(DelayXyShelfAfterSend, "校验")
+
+	// ---------- 等待下架任务处理完成 ----------
+	{
+		fmt.Printf("\n    ⏳ 等待下架任务处理完成（检查 body_over）...\n")
+		if err := waitBodyOverMin(xyModTaskID, BodyOverMinXyShelfOnOff, DelayXyShelfBodyOverTimeout); err != nil {
+			fmt.Printf("    ⚠️  等待超时: %v，继续尝试校验\n", err)
+		} else {
+			fmt.Printf("    ✅ 下架任务已处理完成\n")
+		}
+	}
+
+	countdownDelay(DelayXyShelfAfterWait, "接口校验")
+
+	// ---------- 步骤2：校验下架状态 ----------
+	{
+		name := "2、校验下架状态"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, _ := getXyAccessToken()
+		status, err := getXyGoodsStatus(xySuccessGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询状态失败: %v", err), elapsed)
+			return
+		}
+		statusStr := ""
+		if n, ok := StatusName[status]; ok {
+			statusStr = n
+		}
+		fmt.Printf("    📊 商品状态: status=%d(%s)\n", status, statusStr)
+		if status == 2 {
+			pass(cat, name, fmt.Sprintf("商品已下架 status=2(下架) goodsId=%d", xySuccessGoodsID), elapsed)
+		} else if status == 1 {
+			fail(cat, name, fmt.Sprintf("商品仍处于上架状态 status=1(上架) goodsId=%d，下架可能未生效", xySuccessGoodsID), elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("状态不符合预期: 期望=status=2(下架) 实际=status=%d(%s)", status, statusStr), elapsed)
+		}
+	}
+}
+
+// ============================================================
+// 测试十二：闲鱼上架
+// ============================================================
+func testXyShelfOn() {
+	cat := "十二、闲鱼上架"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	// 前置条件检查
+	if xyModTaskID == "" {
+		fmt.Println("⚠️  闲鱼核价发布 task_id 为空，跳过上架测试")
+		fail(cat, "前置条件", "场景七未创建核价发布任务，无法获取 task_id", 0)
+		return
+	}
+	if xySuccessISBN == "" || xySuccessGoodsID == 0 {
+		fmt.Println("⚠️  场景七未匹配到执行成功数据，跳过上架测试")
+		fail(cat, "前置条件", "场景七未匹配到执行成功数据（isbn/goods_id）", 0)
+		return
+	}
+
+	fmt.Printf("\n  📌 复用场景七 task_id: %s\n", xyModTaskID)
+	fmt.Printf("  📌 目标 ISBN: %s\n", xySuccessISBN)
+
+	// ---------- 步骤1：发送上架任务 ----------
+	{
+		name := "1、发送任务数据【上架】"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"goods_id":%d,"status":1}}`,
+			xySuccessISBN, xySuccessGoodsID)
+		fmt.Printf("    📋 task_id: %s\n", xyModTaskID)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+
+		params := map[string]string{
+			"task_id": xyModTaskID,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, fmt.Sprintf("ISBN=%s GoodsID=%d status=1(上架) 接口返回成功", xySuccessISBN, xySuccessGoodsID), elapsed)
+	}
+
+	countdownDelay(DelayXyShelfAfterSend, "校验")
+
+	// ---------- 等待上架任务处理完成 ----------
+	{
+		fmt.Printf("\n    ⏳ 等待上架任务处理完成（检查 body_over）...\n")
+		if err := waitBodyOverMin(xyModTaskID, BodyOverMinXyShelfOnOff, DelayXyShelfBodyOverTimeout); err != nil {
+			fmt.Printf("    ⚠️  等待超时: %v，继续尝试校验\n", err)
+		} else {
+			fmt.Printf("    ✅ 上架任务已处理完成\n")
+		}
+	}
+
+	countdownDelay(DelayXyShelfAfterWait, "接口校验")
+
+	// ---------- 步骤2：校验上架状态 ----------
+	{
+		name := "2、校验上架状态"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, _ := getXyAccessToken()
+		status, err := getXyGoodsStatus(xySuccessGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询状态失败: %v", err), elapsed)
+			return
+		}
+		statusStr := ""
+		if n, ok := StatusName[status]; ok {
+			statusStr = n
+		}
+		fmt.Printf("    📊 商品状态: status=%d(%s)\n", status, statusStr)
+		if status == 1 {
+			pass(cat, name, fmt.Sprintf("商品已上架 status=1(上架) goodsId=%d", xySuccessGoodsID), elapsed)
+		} else if status == 2 {
+			fail(cat, name, fmt.Sprintf("商品仍处于下架状态 status=2(下架) goodsId=%d，上架可能未生效", xySuccessGoodsID), elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("状态不符合预期: 期望=status=1(上架) 实际=status=%d(%s)", status, statusStr), elapsed)
 		}
 	}
 }
@@ -2366,6 +3536,764 @@ func testXyPullGoods() {
 // 主函数
 // ============================================================
 
+// ============================================================
+// 孔夫子测试函数
+// ============================================================
+
+// testKfzPricePublish 孔夫子核价发布
+func testKfzPricePublish() {
+	cat := "孔夫子核价发布"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	var tid string
+
+	// 步骤1：创建任务
+	{
+		name := "1、创建孔夫子核价发布任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		params := map[string]string{
+			"shop_id":    ShopID,
+			"shop_type":  ShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypePricePublish,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		if dataStr == "" {
+			fail(cat, name, "返回 data 为空", elapsed)
+			return
+		}
+		tid = dataStr
+		kfzTaskID = tid
+		pass(cat, name, fmt.Sprintf("task_id=%s", tid), elapsed)
+	}
+
+	if tid == "" {
+		fmt.Println("⚠️  任务创建失败，跳过后续步骤")
+		return
+	}
+	fmt.Printf("\n  📌 孔夫子 task_id: %s\n", tid)
+
+	// 步骤2：发送 ISBN 数据
+	{
+		name := fmt.Sprintf("2、发送任务数据【isbn=%s, price=%d】期望：执行成功", TestKfzISBNSuccess, TestKfzPriceSuccess)
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"price":%d}}`, TestKfzISBNSuccess, TestKfzPriceSuccess)
+		params := map[string]string{
+			"task_id": tid,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, "接口返回成功", elapsed)
+	}
+
+	countdownDelay(DelayKfzPublishAfterSend, "Redis校验")
+
+	// 步骤3：Redis 校验 body_over
+	{
+		name := "3、Redis 校验 - body_over 中执行成功"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		fmt.Printf("    ⏳ 等待后台处理完成（最多 %v）...\n", WaitTimeout)
+
+		if err := waitBodyOverMin(tid, 1, WaitTimeout); err != nil {
+			errCase(cat, name, "等待超时: "+err.Error(), time.Since(start))
+			return
+		}
+
+		totalCnt, _ := getBodyOverCount(tid)
+		fmt.Printf("    📊 body_over 总数: %d，开始校验...\n", totalCnt)
+
+		targetISBN := TestKfzISBNSuccess
+		found := false
+		var foundGoodsID int64
+
+		for offset := int64(0); offset < totalCnt && !found; offset += 100 {
+			items, err := getBodyOverFromRedis(tid, offset, offset+99)
+			if err != nil || len(items) == 0 {
+				break
+			}
+			for _, item := range items {
+				isbn := ""
+				if bi, ok := item["book_info"].(map[string]interface{}); ok {
+					if v, ok := bi["isbn"].(string); ok {
+						isbn = v
+					}
+				}
+				if isbn != targetISBN {
+					continue
+				}
+				// 找到了，提取 itemId
+				if detail, ok := item["detail"].(map[string]interface{}); ok {
+					if itemId, ok := detail["itemId"].(float64); ok {
+						foundGoodsID = int64(itemId)
+						found = true
+						break
+					}
+				}
+			}
+		}
+
+		if found {
+			kfzSuccessISBN = targetISBN
+			kfzSuccessGoodsID = foundGoodsID
+			pass(cat, name, fmt.Sprintf("ISBN=%s 找到，itemId=%d", targetISBN, foundGoodsID), time.Since(start))
+			fmt.Printf("\n  📌 核价发布成功 - ISBN=%s, itemId=%d\n", targetISBN, foundGoodsID)
+		} else {
+			fail(cat, name, fmt.Sprintf("ISBN=%s 在 body_over 中未找到", targetISBN), time.Since(start))
+		}
+	}
+}
+
+// testKfzPriceChange 孔夫子改价格
+func testKfzPriceChange() {
+	cat := "孔夫子改价格"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	if kfzTaskID == "" || kfzSuccessISBN == "" {
+		fmt.Println("⚠️  孔夫子发布任务未创建，跳过")
+		return
+	}
+	fmt.Printf("\n  📌 task_id: %s\n", kfzTaskID)
+	fmt.Printf("  📌 目标 ISBN: %s, itemId: %d\n", kfzSuccessISBN, kfzSuccessGoodsID)
+
+	// 步骤1：创建改价格任务
+	var tid string
+	{
+		name := "1、创建孔夫子改价格任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		params := map[string]string{
+			"shop_id":    ShopID,
+			"shop_type":  ShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypePriceStockShelf,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		tid = dataStr
+		pass(cat, name, fmt.Sprintf("task_id=%s", tid), elapsed)
+	}
+
+	countdownDelay(DelayKfzPriceChangeAfterQuery, "改价格")
+
+	// 步骤2：发送改价格任务
+	{
+		name := "2、发送改价格任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"itemId":%d,"price":%d}}`,
+			kfzSuccessISBN, kfzSuccessGoodsID, TestKfzNewPrice)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+		params := map[string]string{
+			"task_id": tid,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, fmt.Sprintf("改价格目标=%d", TestKfzNewPrice), elapsed)
+	}
+
+	countdownDelay(DelayKfzPriceChangeAfterSend, "Redis校验")
+
+	// 步骤3：校验 body_over
+	{
+		name := "3、校验 body_over"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		if err := waitBodyOverMin(tid, 1, 30); err != nil {
+			fail(cat, name, fmt.Sprintf("body_over < 1: %v", err), time.Since(start))
+		} else {
+			pass(cat, name, "body_over ≥ 1", time.Since(start))
+		}
+	}
+
+	countdownDelay(DelayKfzPriceChangeAfterAPI, "接口校验")
+
+	// 步骤4：接口校验
+	{
+		name := "4、接口校验（价格已修改）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, err := getKfzAccessToken()
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 accessToken 失败: %v", err), time.Since(start))
+			return
+		}
+		fmt.Printf("    🔑 token: %s...%s\n", accessToken[:8], accessToken[len(accessToken)-8:])
+
+		newPrice, err := getKfzGoodsPrice(kfzSuccessGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询价格失败: %v", err), elapsed)
+			return
+		}
+		fmt.Printf("    📊 当前价格: %.2f (元)\n", newPrice)
+		if newPrice == float64(TestKfzNewPrice)/100 {
+			pass(cat, name, fmt.Sprintf("价格已改为 %.2f", float64(TestKfzNewPrice)/100), elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("价格未变更: 期望=%.2f 实际=%.2f", float64(TestKfzNewPrice)/100, newPrice), elapsed)
+		}
+	}
+}
+
+// testKfzStockChange 孔夫子改库存
+func testKfzStockChange() {
+	cat := "孔夫子改库存"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	if kfzSuccessGoodsID == 0 {
+		fmt.Println("⚠️  孔夫子发布任务未创建有效商品，跳过")
+		return
+	}
+	fmt.Printf("\n  📌 itemId: %d\n", kfzSuccessGoodsID)
+
+	var tid string
+	// 步骤1：创建改库存任务
+	{
+		name := "1、创建孔夫子改库存任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		params := map[string]string{
+			"shop_id":    ShopID,
+			"shop_type":  ShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypePriceStockShelf,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		tid = dataStr
+		pass(cat, name, fmt.Sprintf("task_id=%s", tid), elapsed)
+	}
+
+	// 步骤2：发送改库存任务
+	{
+		name := "2、发送改库存任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"itemId":%d,"stock":%d}}`,
+			kfzSuccessISBN, kfzSuccessGoodsID, TestKfzNewStock)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+		params := map[string]string{
+			"task_id": tid,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, fmt.Sprintf("改库存目标=%d", TestKfzNewStock), elapsed)
+	}
+
+	countdownDelay(DelayKfzStockAfterSend, "Redis校验")
+
+	// 步骤3：校验 body_over
+	{
+		name := "3、校验 body_over"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		if err := waitBodyOverMin(tid, 1, 30); err != nil {
+			fail(cat, name, fmt.Sprintf("body_over < 1: %v", err), time.Since(start))
+		} else {
+			pass(cat, name, "body_over ≥ 1", time.Since(start))
+		}
+	}
+
+	countdownDelay(DelayKfzStockAfterAPI, "接口校验")
+
+	// 步骤4：接口校验
+	{
+		name := "4、接口校验（库存已修改）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, err := getKfzAccessToken()
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 accessToken 失败: %v", err), time.Since(start))
+			return
+		}
+
+		newStock, err := getKfzGoodsStock(kfzSuccessGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询库存失败: %v", err), elapsed)
+			return
+		}
+		fmt.Printf("    📊 当前库存: %d\n", newStock)
+		if newStock == int(TestKfzNewStock) {
+			pass(cat, name, fmt.Sprintf("库存已改为 %d", TestKfzNewStock), elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("库存未变更: 期望=%d 实际=%d", TestKfzNewStock, newStock), elapsed)
+		}
+	}
+}
+
+// testKfzShelfOnOff 孔夫子上下架
+func testKfzShelfOnOff() {
+	cat := "孔夫子上下架"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	if kfzSuccessGoodsID == 0 {
+		fmt.Println("⚠️  孔夫子发布任务未创建有效商品，跳过")
+		return
+	}
+	fmt.Printf("\n  📌 itemId: %d\n", kfzSuccessGoodsID)
+
+	var tid string
+
+	// 步骤1：创建上下架任务
+	{
+		name := "1、创建孔夫子上下架任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		params := map[string]string{
+			"shop_id":    ShopID,
+			"shop_type":  ShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypePriceStockShelf,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		tid = dataStr
+		pass(cat, name, fmt.Sprintf("task_id=%s", tid), elapsed)
+	}
+
+	// 步骤2：发送上架任务（status=1）
+	{
+		name := "2、发送上架任务（status=1）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"itemId":%d,"status":1}}`,
+			kfzSuccessISBN, kfzSuccessGoodsID)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+		params := map[string]string{
+			"task_id": tid,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, "上架任务发送成功", elapsed)
+	}
+
+	countdownDelay(DelayKfzShelfAfterSend, "处理")
+
+	// 步骤3：等待处理
+	{
+		name := "3、等待任务处理"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		fmt.Printf("    ⏳ 等待后台处理完成（最多 %v）...\n", WaitTimeout)
+
+		if err := waitBodyOverMin(tid, 1, WaitTimeout); err != nil {
+			errCase(cat, name, "等待超时: "+err.Error(), time.Since(start))
+			return
+		}
+		pass(cat, name, "任务处理完成", time.Since(start))
+	}
+
+	countdownDelay(DelayKfzShelfAfterWait, "接口校验")
+
+	// 步骤4：接口校验（上架）
+	{
+		name := "4、接口校验（上架）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, err := getKfzAccessToken()
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 accessToken 失败: %v", err), time.Since(start))
+			return
+		}
+
+		status, err := getKfzGoodsStatus(kfzSuccessGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询上下架状态失败: %v", err), elapsed)
+			return
+		}
+		fmt.Printf("    📊 当前上下架状态: isOnSale=%d (1=上架)\n", status)
+		if status == 1 {
+			pass(cat, name, "商品已上架", elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("商品未上架: isOnSale=%d", status), elapsed)
+		}
+	}
+
+	// 步骤5：发送下架任务（status=2）
+	{
+		name := "5、发送下架任务（status=2）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"itemId":%d,"status":2}}`,
+			kfzSuccessISBN, kfzSuccessGoodsID)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+		params := map[string]string{
+			"task_id": tid,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, "下架任务发送成功", elapsed)
+	}
+
+	countdownDelay(DelayKfzShelfAfterSend, "处理")
+
+	// 步骤6：等待处理
+	{
+		name := "6、等待任务处理"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		if err := waitBodyOverMin(tid, 2, WaitTimeout); err != nil {
+			errCase(cat, name, "等待超时: "+err.Error(), time.Since(start))
+			return
+		}
+		pass(cat, name, "任务处理完成", time.Since(start))
+	}
+
+	countdownDelay(DelayKfzShelfAfterWait, "接口校验")
+
+	// 步骤7：接口校验（下架）
+	{
+		name := "7、接口校验（下架）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, err := getKfzAccessToken()
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 accessToken 失败: %v", err), time.Since(start))
+			return
+		}
+
+		status, err := getKfzGoodsStatus(kfzSuccessGoodsID, accessToken)
+		elapsed := time.Since(start)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("查询上下架状态失败: %v", err), elapsed)
+			return
+		}
+		fmt.Printf("    📊 当前上下架状态: isOnSale=%d (0=下架)\n", status)
+		if status == 0 {
+			pass(cat, name, "商品已下架", elapsed)
+		} else {
+			fail(cat, name, fmt.Sprintf("商品未下架: isOnSale=%d", status), elapsed)
+		}
+	}
+}
+
+// testKfzGoodsDelete 孔夫子删除商品
+func testKfzGoodsDelete() {
+	cat := "孔夫子删除商品"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	if kfzSuccessGoodsID == 0 {
+		fmt.Println("⚠️  孔夫子发布任务未创建有效商品，跳过")
+		return
+	}
+	fmt.Printf("\n  📌 itemId: %d\n", kfzSuccessGoodsID)
+
+	var tid string
+	// 步骤1：创建删除任务
+	{
+		name := "1、创建孔夫子删除任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		params := map[string]string{
+			"shop_id":    ShopID,
+			"shop_type":  ShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypePriceStockShelf,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		tid = dataStr
+		pass(cat, name, fmt.Sprintf("task_id=%s", tid), elapsed)
+	}
+
+	// 步骤2：发送删除任务（status=4 表示删除操作）
+	{
+		name := "2、发送删除任务（status=4）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		bodyJSON := fmt.Sprintf(`{"book_info":{"isbn":"%s"},"detail":{"itemId":%d,"status":4}}`,
+			kfzSuccessISBN, kfzSuccessGoodsID)
+		fmt.Printf("    📋 body: %s\n", bodyJSON)
+		params := map[string]string{
+			"task_id": tid,
+			"body":    bodyJSON,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/setTaskBody", params)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		pass(cat, name, "删除任务发送成功", elapsed)
+	}
+
+	countdownDelay(DelayKfzDeleteAfterSend, "Redis校验")
+
+	// 步骤3：校验 body_over
+	{
+		name := "3、校验 body_over"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+		fmt.Printf("    ⏳ 等待后台处理完成（最多 %v）...\n", WaitTimeout)
+
+		if err := waitBodyOverMin(tid, 1, WaitTimeout); err != nil {
+			errCase(cat, name, "等待超时: "+err.Error(), time.Since(start))
+			return
+		}
+		pass(cat, name, "body_over ≥ 1", time.Since(start))
+	}
+
+	countdownDelay(DelayKfzDeleteAfterAPI, "接口校验")
+
+	// 步骤4：接口校验（调用 DLL 验证商品是否已删除）
+	{
+		name := "4、接口校验（商品已删除）"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		accessToken, err := getKfzAccessToken()
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 accessToken 失败: %v", err), time.Since(start))
+			return
+		}
+		fmt.Printf("    🔑 token: %s...%s\n", accessToken[:8], accessToken[len(accessToken)-8:])
+
+		// 调用 DLL 搜索该 ISBN，看是否还能找到
+		_, err = findKfzGoodsByISBN(kfzSuccessISBN, accessToken)
+		elapsed := time.Since(start)
+		if err != nil && strings.Contains(err.Error(), "未找到") {
+			// 商品已被删除，找不到了
+			pass(cat, name, fmt.Sprintf("商品已删除（ISBN=%s 无法在列表中找到）", kfzSuccessISBN), elapsed)
+		} else if err != nil {
+			fail(cat, name, fmt.Sprintf("查询商品失败: %v", err), elapsed)
+		} else {
+			// 还能找到，说明删除失败
+			fail(cat, name, fmt.Sprintf("商品未删除，ISBN=%s 仍在列表中", kfzSuccessISBN), elapsed)
+		}
+	}
+}
+
+// testKfzPullGoods 孔夫子商品拉取
+func testKfzPullGoods() {
+	cat := "孔夫子商品拉取"
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("  " + cat)
+	fmt.Println(strings.Repeat("=", 60))
+
+	var tid string
+
+	// 步骤1：创建拉取任务
+	{
+		name := "1、创建孔夫子商品拉取任务"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		params := map[string]string{
+			"shop_id":    ShopID,
+			"shop_type":  ShopType,
+			"task_count": TaskCount,
+			"task_type":  TaskTypePullGoods,
+			"img_type":   ImgType,
+		}
+		params["sign"] = SignParams(params)
+		resp, err := postMultipart(BaseURL+"/task/create", params)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			errCase(cat, name, err.Error(), elapsed)
+			return
+		}
+		if resp.Code != "200" {
+			fail(cat, name, fmt.Sprintf("code=%s msg=%s", resp.Code, resp.Msg), elapsed)
+			return
+		}
+		dataStr, _ := resp.Data.(string)
+		if dataStr == "" {
+			fail(cat, name, "返回 data 为空", elapsed)
+			return
+		}
+		tid = dataStr
+		pass(cat, name, fmt.Sprintf("task_id=%s", tid), elapsed)
+	}
+
+	if tid == "" {
+		fmt.Println("⚠️  拉取任务创建失败，跳过后续步骤")
+		return
+	}
+	fmt.Printf("\n  📌 孔夫子商品拉取 task_id: %s\n", tid)
+
+	// 步骤2：等待任务完成（无时间限制，拉取数据量大）
+	{
+		name := "2、等待任务完成并校验"
+		start := time.Now()
+		fmt.Printf("\n[步骤] %s\n", name)
+
+		// 等待 header status=4
+		fmt.Printf("    ⏳ 等待任务完成（header status=4，无时间限制）...\n")
+		waitStart := time.Now()
+		for {
+			st, err := getHeaderStatus(tid)
+			if err == nil && st == 4 {
+				fmt.Printf("    ✅ 任务状态已变为 status=4（耗时 %v）\n", time.Since(waitStart).Round(time.Second))
+				break
+			}
+			if int(time.Since(waitStart).Seconds()) > 0 && int(time.Since(waitStart).Seconds())%30 == 0 {
+				bodyOverCnt, _ := getBodyOverCount(tid)
+				fmt.Printf("    ⏳ 已等待 %v，status=%d，body_over=%d\n",
+					time.Since(waitStart).Round(time.Second), st, bodyOverCnt)
+			}
+			time.Sleep(PollInterval)
+		}
+
+		// 校验 task_count_true 与 body_over 数量
+		headerKey := tid + ":header"
+		taskCountTrueStr, err := redisClient.HGet(redisCtx, headerKey, "task_count_true").Result()
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 task_count_true 失败: %v", err), time.Since(start))
+			return
+		}
+		taskCountTrue, _ := strconv.ParseInt(taskCountTrueStr, 10, 64)
+		bodyOverCount, err := getBodyOverCount(tid)
+		if err != nil {
+			fail(cat, name, fmt.Sprintf("获取 body_over 数量失败: %v", err), time.Since(start))
+			return
+		}
+
+		fmt.Printf("    📊 task_count_true=%d, body_over=%d\n", taskCountTrue, bodyOverCount)
+		if bodyOverCount > taskCountTrue {
+			fail(cat, name, fmt.Sprintf("body_over(%d) > task_count_true(%d)", bodyOverCount, taskCountTrue), time.Since(start))
+		} else {
+			pass(cat, name, fmt.Sprintf("body_over ≤ task_count_true"), time.Since(start))
+		}
+	}
+}
+
+// ============================================================
+// 主函数
+// ============================================================
+
 func main() {
 	reportDir, _ = os.Getwd()
 
@@ -2413,18 +4341,21 @@ func main() {
 	}
 	fmt.Println("✅ curl 可用\n")
 
-	// 拼多多测试
-	testPddPricePublish()
-	testPddPriceChange()
-	testPddStockChange()
-	testPddShelfOnOff()
-	testPddPullGoods()
+	// // 拼多多测试
+	// testPddPricePublish()
+	// testPddPriceChange()
+	// testPddStockChange()
+	// testPddShelfOnOff()
+	// testPddGoodsDelete()
+	// testPddPullGoods()
 
-	// 运行测试七：闲鱼核价发布
+	// 闲鱼测试
 	testXyPricePublish()
-
-	// 运行测试八：闲鱼商品拉取任务
-	testXyPullGoods()
+	testXyPriceChange()
+	testXyStockChange()
+	testXyShelfOff()
+	testXyShelfOn()
+	//testXyPullGoods()
 
 	// 生成并保存报告
 	fmt.Println(strings.Repeat("-", 60))

@@ -393,7 +393,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	// 返回成功响应
-	tool.Session(httpMsg, taskId)
+	tool.Success(httpMsg, taskId)
 }
 
 // SetTaskBody 置任务体
@@ -470,7 +470,7 @@ func SetTaskBody(httpMsg http.ResponseWriter, data *http.Request) {
 	go UpdateTaskCount(bodyData, taskId)
 
 	// 返回成功响应
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // PauseTask 暂停任务
@@ -559,7 +559,7 @@ func PauseTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 	// 返回成功响应
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // ResumeTask 恢复任务
@@ -592,7 +592,7 @@ func ResumeTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 	// 返回成功响应
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // StopTask 停止任务
@@ -627,7 +627,7 @@ func StopTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	// 返回成功响应
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // DelTask 删除任务
@@ -716,7 +716,7 @@ func DelTask(httpMsg http.ResponseWriter, data *http.Request) {
 		}
 	}()
 
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // OverTask 任务完成
@@ -758,7 +758,7 @@ func OverTask(httpMsg http.ResponseWriter, data *http.Request) {
 		}
 	}
 	// 返回成功响应
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // GetTask 任务列表
@@ -851,7 +851,7 @@ func GetTask(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  dataTaskAll,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 }
 
 // GetTaskByUserId 获取用户任务
@@ -938,7 +938,7 @@ func GetTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  dataTaskAll,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 }
 
 // GetTaskHeader 获取 header信息
@@ -958,11 +958,11 @@ func GetTaskHeader(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	//判断数据是否为空
 	if header.TaskId == "" {
-		tool.Session(httpMsg, "")
+		tool.Success(httpMsg, "")
 		return
 	}
 	header.ShopMsg.Token = "****暂不展示*****"
-	tool.Session(httpMsg, header)
+	tool.Success(httpMsg, header)
 }
 
 // GetBodyOver 获取body_over
@@ -987,7 +987,7 @@ func GetBodyOver(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  bodyOver,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 }
 
 // GetTaskList 获取任务列表
@@ -1071,7 +1071,7 @@ func GetTaskList(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  dataTaskAll,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 }
 
 func B(httpMsg http.ResponseWriter, data *http.Request) {
@@ -1083,7 +1083,7 @@ func B(httpMsg http.ResponseWriter, data *http.Request) {
 		tool.Error(httpMsg, callSendPublishingErr.Error(), http.StatusInternalServerError)
 		return
 	}
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 //****************************工具**************************************//

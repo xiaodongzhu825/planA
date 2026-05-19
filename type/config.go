@@ -132,6 +132,7 @@ type FileUrl struct {
 	BFileName                    string `json:"b_file_name"`
 	CFileName                    string `json:"c_file_name"`
 	DFileName                    string `json:"d_file_name"`
+	EFileName                    string `json:"e_file_name"`
 	CreateTaskUrl                string `json:"create_task_url"`
 	BannedWordSubstitutionUrl    string `json:"banned_word_substitution_url"`
 	CreateTaskNoticeUrl          string `json:"create_task_notice_url"`

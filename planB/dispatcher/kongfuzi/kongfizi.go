@@ -82,8 +82,11 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 		taskMsg.BookInfo) // 图书信息
 	taskMsg.Detail.GoodsName = goodsAdd.ItemName
 
+	// 售价 + 运费
+	priceTol := taskMsg.Detail.Price + taskMsg.Detail.ShippingCost
+
 	//售价
-	goodsAdd.Price = tool.FenToYuanFloat64(taskMsg.Detail.Price)
+	goodsAdd.Price = tool.FenToYuanFloat64(priceTol)
 
 	//库存
 	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
@@ -212,7 +215,7 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	goodsAdd.WordNum = float64(taskMsg.BookInfo.WordsCount / 1000)
 
 	// 图书定价
-	goodsAdd.OriPrice = float64(tool.BuildGoodsPrice(taskMsg.Detail.Price) / 100)
+	goodsAdd.OriPrice = float64(tool.BuildGoodsPrice(priceTol) / 100)
 
 	url := "http://127.0.0.1:8095"
 	tool.HttpGetRequest(url)
@@ -387,6 +390,14 @@ func (kongFuZi *KongFuZi) OperationGoodsTask(taskMsg planAType.TaskBody) (string
 	default:
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("未知操作类型"))
 	}
+}
+
+// IncStockTask 增量库存
+// @param taskMsg 任务内容
+// @return string body 信息
+// @return error 错误
+func (kongFuZi *KongFuZi) IncStockTask(taskMsg planAType.TaskBody) (string, error) {
+	return tool.ReturnSuccess(planAType.TaskBody{})
 }
 
 func (kongFuZi *KongFuZi) SetGoodsTask() string {

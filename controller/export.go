@@ -61,7 +61,7 @@ func GetExportTask(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  dataTaskAll,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 }
 
 // GetExportTaskByUserId 导出任务列表-用户
@@ -110,7 +110,7 @@ func GetExportTaskByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  dataTaskAll,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 }
 
 // ExportTaskDetail 根据任务 id导出任务详情
@@ -255,7 +255,7 @@ func ExportTaskDetail(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	go ExportCSV(dataVal.TaskID, total, taskRecord.TaskType)
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // ExportTaskDetailByUserId 根据任务 id导出任务详情-用户
@@ -388,7 +388,7 @@ func ExportTaskDetailByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 
 	go ExportCSV(dataVal.TaskID, total, task.TaskType)
-	tool.Session(httpMsg, "")
+	tool.Success(httpMsg, "")
 }
 
 // ExportCSV 导出CSV

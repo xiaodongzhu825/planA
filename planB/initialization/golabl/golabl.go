@@ -48,6 +48,7 @@ const (
 	TaskTypeGetGoodsTask       string = "GetGoodsTask"       // 获取商品
 	TaskTypeSetGoodsTask       string = "SetGoodsTask"       // 修改商品
 	TaskTypeOperationGoodsTask string = "OperationGoodsTask" // 操作商品
+	TaskTypeIncStock           string = "IncStock"           // 增量库存
 )
 
 // 错误集

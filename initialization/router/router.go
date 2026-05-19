@@ -11,4 +11,5 @@ func Init() {
 	router.AdmiinInir()
 	router.Alive()
 	router.DelTaskInit()
+	router.UploadImgInit()
 }

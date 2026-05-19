@@ -174,10 +174,10 @@ func SetPage(pageStr string, sizeStr string) (int, int) {
 	return page, size
 }
 
-// Session 成功响应
+// Success 成功响应
 // @param httpMsg http.ResponseWriter
 // @param data 返回的数据
-func Session(httpMsg http.ResponseWriter, data any) {
+func Success(httpMsg http.ResponseWriter, data any) {
 	ret := map[string]interface{}{
 		"code": "200",
 		"msg":  "成功",

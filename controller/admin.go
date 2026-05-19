@@ -20,15 +20,15 @@ func DelRedisTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	// 删除任务
 
-	tool.Session(httpMsg, taskId)
+	tool.Success(httpMsg, taskId)
 }
 
 // DelMysqlTask 删除mysql中指定任务
 func DelMysqlTask(httpMsg http.ResponseWriter, data *http.Request) {
-	tool.Session(httpMsg, "删除mysql中指定任务")
+	tool.Success(httpMsg, "删除mysql中指定任务")
 }
 
 // DelSqliteTask 删除sqlite中指定任务
 func DelSqliteTask(httpMsg http.ResponseWriter, data *http.Request) {
-	tool.Session(httpMsg, "删除sqlite中指定任务")
+	tool.Success(httpMsg, "删除sqlite中指定任务")
 }

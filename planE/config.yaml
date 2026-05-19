@@ -1,0 +1,5 @@
+pdd_config:
+  client_id: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
+  client_secret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret
+file_url:
+  pdd_dll: "D:\\source\\planA\\planE\\modules\\pdd"  #拼多多 DLL库路径

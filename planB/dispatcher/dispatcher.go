@@ -26,6 +26,9 @@ func Go(bodyWait planAType.TaskBody) (string, error) {
 	case golabl.TaskTypeOperationGoodsTask:
 		return golabl.Platform.OperationGoodsTask(bodyWait) // 操作商品
 
+	case golabl.TaskTypeIncStock:
+		return golabl.Platform.IncStockTask(bodyWait) // 增量库存
+
 	default:
 
 		return "", fmt.Errorf("没有此任务类型")

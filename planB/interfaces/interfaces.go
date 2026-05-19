@@ -17,4 +17,7 @@ type GoodsTask interface {
 
 	// OperationGoodsTask 操作商品任务
 	OperationGoodsTask(bodyWait planAType.TaskBody) (string, error)
+
+	// IncStockTask 增量库存
+	IncStockTask(bodyWait planAType.TaskBody) (string, error)
 }

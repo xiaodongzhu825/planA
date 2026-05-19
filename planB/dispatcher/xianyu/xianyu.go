@@ -219,9 +219,13 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	if price == 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("不在价格区间内 isbn:%v", taskMsg.BookInfo.Isbn))
 	}
+
+	//价格 + 运费
+	price = price + taskMsg.Detail.ShippingCost
+
 	taskMsg.Detail.Price = price
 
-	//构建售价
+	//构建定价
 	taskMsgBookInfoPrice := tool.BuildGoodsPrice(price)
 
 	// 图书类商品信息
@@ -281,10 +285,6 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	taskMsg.Detail.Img = refactorCarouselGallery[0]
 
 	return tool.ReturnSuccess(taskMsg)
-}
-func (xianYu *XianYu) SetGoodsTask() string {
-	return "闲鱼商品修改任务"
-
 }
 
 func (xianYu *XianYu) GetGoodsTask() (string, error) {
@@ -417,6 +417,19 @@ func (xianYu *XianYu) OperationGoodsTask(taskMsg planAType.TaskBody) (string, er
 	default:
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("未知操作类型"))
 	}
+}
+
+// IncStockTask 增量库存
+// @param taskMsg 任务内容
+// @return string body 信息
+// @return string error 错误
+func (xianYu *XianYu) IncStockTask(taskMsg planAType.TaskBody) (string, error) {
+	return tool.ReturnSuccess(planAType.TaskBody{})
+}
+
+func (xianYu *XianYu) SetGoodsTask() string {
+	return "闲鱼商品修改任务"
+
 }
 
 // *******************************私有方法************************************ //

@@ -31,5 +31,5 @@ func GetServiceAliveList(httpMsg http.ResponseWriter, data *http.Request) {
 			"status": status,
 		})
 	}
-	tool.Session(httpMsg, ret)
+	tool.Success(httpMsg, ret)
 }

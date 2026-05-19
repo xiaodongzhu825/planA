@@ -27,7 +27,7 @@ func GetDelTaskByPage(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  delTaskArr,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 	return
 }
 
@@ -51,7 +51,7 @@ func GetDelTaskByPageByUserId(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  delTaskArr,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 	return
 }
 
@@ -75,7 +75,7 @@ func GetDelTaskDetail(httpMsg http.ResponseWriter, data *http.Request) {
 		"total": total,
 		"list":  delTaskArr,
 	}
-	tool.Session(httpMsg, dataRet)
+	tool.Success(httpMsg, dataRet)
 	return
 
 }

@@ -59,6 +59,9 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 	if price == 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("不在价格区间内 isbn %v  原始价格 %v  当前价格 %v 价格模版 %v", taskMsg.BookInfo.Isbn, taskMsg.Detail.Price, price, golabl.Task.Header.PriceMod))
 	}
+	//价格 + 运费
+	price = price + taskMsg.Detail.ShippingCost
+
 	taskMsg.Detail.Price = price
 
 	var goodsAdd planBTypePinduoduo.GoodsAdd
@@ -304,9 +307,6 @@ func (pinDuoDuo *PinDuoDuo) AddGoodsTask(taskMsg planAType.TaskBody) (string, er
 
 	return tool.ReturnSuccess(taskMsg)
 }
-func (pinDuoDuo *PinDuoDuo) SetGoodsTask() string {
-	return ""
-}
 
 // GetGoodsTask 获取商品
 // @return string body 信息
@@ -429,6 +429,18 @@ func (pinDuoDuo *PinDuoDuo) OperationGoodsTask(taskMsg planAType.TaskBody) (stri
 	default:
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("未知操作类型"))
 	}
+}
+
+// IncStockTask 增量库存
+// @param taskMsg 任务内容
+// @return string body 信息
+// @return error 错误
+func (pinDuoDuo *PinDuoDuo) IncStockTask(taskMsg planAType.TaskBody) (string, error) {
+	return tool.ReturnSuccess(planAType.TaskBody{})
+}
+
+func (pinDuoDuo *PinDuoDuo) SetGoodsTask() string {
+	return ""
 }
 
 // *******************************私有方法************************************ //

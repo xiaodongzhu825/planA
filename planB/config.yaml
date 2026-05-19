@@ -88,6 +88,7 @@ file_url:
   b_file_name: "D:\\source\\planA\\planB\\planB.exe"   #B 程序文件路径
   c_file_name: "D:\\source\\planA\\planC\\planC.exe"   #C 程序文件路径
   d_file_name: "D:\\source\\planA\\planD\\planD.exe"   #D 程序文件路径
+  e_file_name: "D:\\source\\planA\\planE\\planE.exe"   #E 程序文件路径
   create_task_url: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   create_task_notice_url: "http://192.168.101.127:8055/task" #核价软件提交数据通知接口
   create_operation_task_notice_url: "http://192.168.101.127:8055/taskV2" #操作商品任务核价软件提交数据通知接口

@@ -140,20 +140,21 @@ const (
 
 // TaskDetail 详情结构
 type TaskDetail struct {
-	Condition  int64  `json:"condition"`    // 品相
-	Price      int64  `json:"price"`        // 价格
-	Stock      int64  `json:"stock"`        // 库存
-	Status     int64  `json:"status"`       // 状态 0=失败 1=成功
-	Error      string `json:"error"`        // 错误信息
-	GoodsId    int64  `json:"goods_id"`     // 商品 ID
-	ReturnId   int64  `json:"return_id"`    // 拼多多返回 ID
-	SkuCode    string `json:"sku_code"`     // 规格编码（sku维度）
-	SkuId      int64  `json:"sku_id"`       // sku 编码（货号）
-	Img        string `json:"img"`          // 图片
-	OutGoodsId string `json:"out_goods_id"` // 商品编码
-	GoodsName  string `json:"goods_name"`   // 商品名称
-	IsOnsale   int64  `json:"is_onsale"`    // 是否上架 0=上架状态，1=下架状态
-	Msg        string `json:"msg"`          // 消息
+	Condition    int64  `json:"condition"`     // 品相
+	Price        int64  `json:"price"`         // 价格
+	Stock        int64  `json:"stock"`         // 库存
+	Status       int64  `json:"status"`        // 状态 0=失败 1=成功
+	Error        string `json:"error"`         // 错误信息
+	GoodsId      int64  `json:"goods_id"`      // 商品 ID
+	ReturnId     int64  `json:"return_id"`     // 拼多多返回 ID
+	SkuCode      string `json:"sku_code"`      // 规格编码（sku维度）
+	SkuId        int64  `json:"sku_id"`        // sku 编码（货号）
+	Img          string `json:"img"`           // 图片
+	OutGoodsId   string `json:"out_goods_id"`  // 商品编码
+	GoodsName    string `json:"goods_name"`    // 商品名称
+	IsOnsale     int64  `json:"is_onsale"`     // 是否上架 0=上架状态，1=下架状态
+	ShippingCost int64  `json:"shipping_cost"` // 运费
+	Msg          string `json:"msg"`           // 消息
 }
 
 // ImageObject 图片对象结构

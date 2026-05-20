@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"planA/controlState/serviceAlive"
 	"planA/controller"
@@ -754,3 +755,44 @@ func DeleteKfzTempImg() {
 		fmt.Println("删除本地临时的孔夫子图片失败：", err)
 	}
 }
+
+/////////////////*********检查F程序启动***********/////////////////////////
+
+func RunF() error {
+	exeName := golabl.Config.FileUrl.FFileName
+	running, err := isProcessRunning(exeName)
+	if err != nil {
+		return fmt.Errorf("检查进程状态出错: %v\n", err)
+	}
+
+	if !running {
+		runFProgramErr := process.RunFProgram()
+		if runFProgramErr != nil {
+			return runFProgramErr
+		}
+	}
+	return nil
+}
+func isProcessRunning(exePath string) (bool, error) {
+	exeName := filepath.Base(exePath)
+
+	// 方法1：使用 tasklist（适用于Windows）
+	cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("IMAGENAME eq %s", exeName), "/NH", "/FO", "CSV")
+	output, err := cmd.Output()
+	if err != nil {
+		// 检查是否是"未找到进程"的错误
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == 1 {
+				return false, nil
+			}
+		}
+		return false, err
+	}
+
+	outputStr := string(output)
+	// 如果输出包含进程名且不包含"No tasks"，则认为进程在运行
+	return strings.Contains(outputStr, exeName) &&
+		!strings.Contains(outputStr, "INFO: No tasks"), nil
+}
+
+/////////////////*********检查F程序启动***********/////////////////////////

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 // 任务结构体
@@ -26,6 +27,7 @@ type TaskHeader struct {
 	ShopType         string     `json:"shop_type"`          // 店铺类型
 	ShopMsg          ShopMsg    `json:"shop_msg"`           // 店铺信息
 	PriceMod         []PriceMod `json:"price_mod"`          // 价格模版
+	PriceType        string     `json:"price_type"`         // 价格类型
 	ShipPriceMod     string     `json:"ship_price_mod"`     // 运费模版
 	TaskCount        int64      `json:"task_count"`         // 任务数量
 	TaskCountTrue    int64      `json:"task_count_true"`    // 任务数量（真实）
@@ -261,4 +263,16 @@ type DistrictMsg struct {
 type Publishing struct {
 	Value string `json:"value"`
 	Vid   int64  `json:"vid"`
+}
+
+type GetSubscriptionExpirationDateUrl struct {
+	Code      int                                  `json:"code"`
+	Message   string                               `json:"message"`
+	Data      GetSubscriptionExpirationDateUrlData `json:"data"`
+	Timestamp time.Time                            `json:"timestamp"` // 也可使用 time.Time 类型，根据实际需要选择
+}
+
+type GetSubscriptionExpirationDateUrlData struct {
+	ExpirationDate int64 `json:"expirationDate"`
+	IsVip          bool  `json:"isVip"`
 }

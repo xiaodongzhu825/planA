@@ -95,6 +95,14 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	shop := shopData.Shop
 
+	// 校验店铺订阅时间是否到期
+	checkShopSubscriptionExpirationErr := checkShopSubscriptionExpiration(shop.ID, dataVal.ShopType, shop.SkuSpec, shop.Deregulation, shop.ExpirationTime)
+	if checkShopSubscriptionExpirationErr != nil {
+		errMsg := checkShopSubscriptionExpirationErr.Error()
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+
 	if shopData.ShopDetail == nil {
 		errMsg := "未设置商品详情"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -227,7 +235,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 
 	// 创建任务逻辑...
 	createAt := time.Now().Unix()
-	task, err := CreateTaskData(taskId, taskType, createAt, shop, priceRange, spec, detail, context, dataVal.TaskCount, imgType, updateType)
+	task, err := CreateTaskData(taskId, taskType, createAt, shop, priceRange, spec, detail, context, dataVal.TaskCount, imgType, updateType, shopData.PriceTemplate.PriceType)
 	if err != nil {
 		errMsg := "创建任务失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -1101,7 +1109,7 @@ func B(httpMsg http.ResponseWriter, data *http.Request) {
 // @param imgType 图片类型
 // @return *_type.Task 任务数据
 // @return error 错误
-func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.Shop, priceRange []_type.PriceRange, spec *_type.Spec, detail *_type.ShopDetail, context *_type.ShopContext, taskCount string, imgType int64, updateType int64) (*_type.Task, error) {
+func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.Shop, priceRange []_type.PriceRange, spec *_type.Spec, detail *_type.ShopDetail, context *_type.ShopContext, taskCount string, imgType int64, updateType int64, priceType string) (*_type.Task, error) {
 	var task _type.Task
 	//处理价格模版
 	var priceModArr []_type.PriceMod
@@ -1197,6 +1205,7 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 				ConditionDef:       detail.ConditionDef,       //商品品相
 			},
 			PriceMod:         priceModArr,             //价格模版
+			PriceType:        priceType,               //价格类型
 			ShipPriceMod:     "",                      //运费模版
 			TaskCount:        taskCountInt64,          //任务数量
 			TaskCountTrue:    0,                       //真实任务数量
@@ -1574,4 +1583,41 @@ func buildPddGoodsSpecId(pddDll *pdd.PddDLL, token string, id string, name strin
 		return spec, fmt.Errorf("解析拼多多 PddGoodsSpecIdGet 接口返回json失败: %v [拼多多数据：%v]", err, specStr)
 	}
 	return spec, nil
+}
+
+// 验证店铺订阅是否到期
+func checkShopSubscriptionExpiration(taskId string, shopType string, skuSpec string, deregulation string, expirationTime string) error {
+	if shopType == "2" || shopType == "5" {
+		// 检验店铺订阅时间是否到期
+		expirationTime, err := tool.GetSubscriptionExpirationTime(taskId)
+		if err != nil {
+			return fmt.Errorf("获取用户订阅到期时间失败: %v", err)
+		}
+		// 明确单位：假设 expirationTime 是秒级时间戳
+		now := time.Now().Unix()
+		if now > expirationTime {
+			expirationDateTime := time.Unix(expirationTime, 0).Format("2006-01-02 15:04:05")
+			return fmt.Errorf("店铺已到期，到期时间：" + expirationDateTime)
+		}
+		return nil
+	} else {
+		// 解析时间字符串
+		expTime, err := time.Parse("2006-01-02 15:04:05", expirationTime)
+		if err != nil {
+			return fmt.Errorf("时间格式错误: %v", err)
+		}
+
+		// 判断是否大于当前时间
+		if !expTime.After(time.Now()) {
+			return fmt.Errorf("店铺已到期，到期时间：%s", expTime.Format("2006-01-02 15:04:05"))
+		}
+		// 如果是拼多多店铺的话校验下 是否试用
+		if shopType == "1" && strings.Contains(skuSpec, "七天") {
+			// 是否开启使用无上限
+			if deregulation == "1" {
+				return fmt.Errorf("七天试用 未开启试用无上限功能")
+			}
+		}
+		return nil
+	}
 }

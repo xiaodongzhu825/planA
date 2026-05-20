@@ -83,7 +83,10 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	taskMsg.Detail.GoodsName = goodsAdd.ItemName
 
 	// 售价 + 运费
-	priceTol := taskMsg.Detail.Price + taskMsg.Detail.ShippingCost
+	priceTol := taskMsg.Detail.Price
+	if golabl.Task.Header.PriceType != "0" {
+		priceTol = priceTol + taskMsg.Detail.ShippingCost
+	}
 
 	//售价
 	goodsAdd.Price = tool.FenToYuan(priceTol)

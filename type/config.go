@@ -23,6 +23,7 @@ type Config struct {
 // Server 服务器配置结构
 type Server struct {
 	Port         string `json:"port"`
+	FPort        string `json:"f_port"`
 	Filter       int    `json:"filter"`
 	ReplaceMark  string `json:"replace_mark"`
 	RedisExp     int    `json:"redis_exp"`
@@ -124,32 +125,34 @@ type HttpUrl struct {
 }
 
 type FileUrl struct {
-	PddDll                       string `json:"pdd_dll"`
-	KfzDll                       string `json:"kfz_dll"`
-	XianYuDll                    string `json:"xian_yu_dll"`
-	LogDll                       string `json:"log_dll"`
-	ImageDll                     string `json:"image_dll"`
-	BFileName                    string `json:"b_file_name"`
-	CFileName                    string `json:"c_file_name"`
-	DFileName                    string `json:"d_file_name"`
-	EFileName                    string `json:"e_file_name"`
-	CreateTaskUrl                string `json:"create_task_url"`
-	BannedWordSubstitutionUrl    string `json:"banned_word_substitution_url"`
-	CreateTaskNoticeUrl          string `json:"create_task_notice_url"`
-	CreateOperationTaskNoticeUrl string `json:"create_operation_task_notice_url"`
-	PddTokenUrl                  string `json:"pdd_token_url"`
-	DeductionUrl                 string `json:"deduction_url"`
-	PddGetGoodsUrl               string `json:"pdd_get_goods_url"`
-	PddGetGoodsDetailUrl         string `json:"pdd_get_goods_detail_url"`
-	PddAddGoodsUrl               string `json:"pdd_add_goods_url"`
-	XianYuAddGoodsUrl            string `json:"xianyu_add_goods_url"`
-	KfzAddGoodsUrl               string `json:"kfz_add_goods_url"`
-	PddGetSkuId                  string `json:"pdd_get_sku_id"`
-	DelTaskUrl                   string `json:"del_task_url"`
-	BackupUrl                    string `json:"backup_url"`
-	PddGoodsDetailsUrl           string `json:"pdd_goods_details_url"`
-	UpdateTokenUrl               string `json:"update_token_url"`
-	KfzImgTempUrl                string `json:"kfz_img_temp_url"`
-	KfzImgHttpUrl                string `json:"kfz_img_http_url"`
-	GetPddGoodsShopIdIsbnUrl     string `json:"get_pdd_goods_shopid_isbn_url"`
+	PddDll                           string `json:"pdd_dll"`
+	KfzDll                           string `json:"kfz_dll"`
+	XianYuDll                        string `json:"xian_yu_dll"`
+	LogDll                           string `json:"log_dll"`
+	ImageDll                         string `json:"image_dll"`
+	BFileName                        string `json:"b_file_name"`
+	CFileName                        string `json:"c_file_name"`
+	DFileName                        string `json:"d_file_name"`
+	EFileName                        string `json:"e_file_name"`
+	FFileName                        string `json:"f_file_name"`
+	CreateTaskUrl                    string `json:"create_task_url"`
+	BannedWordSubstitutionUrl        string `json:"banned_word_substitution_url"`
+	CreateTaskNoticeUrl              string `json:"create_task_notice_url"`
+	CreateOperationTaskNoticeUrl     string `json:"create_operation_task_notice_url"`
+	PddTokenUrl                      string `json:"pdd_token_url"`
+	DeductionUrl                     string `json:"deduction_url"`
+	PddGetGoodsUrl                   string `json:"pdd_get_goods_url"`
+	PddGetGoodsDetailUrl             string `json:"pdd_get_goods_detail_url"`
+	PddAddGoodsUrl                   string `json:"pdd_add_goods_url"`
+	XianYuAddGoodsUrl                string `json:"xianyu_add_goods_url"`
+	KfzAddGoodsUrl                   string `json:"kfz_add_goods_url"`
+	PddGetSkuId                      string `json:"pdd_get_sku_id"`
+	DelTaskUrl                       string `json:"del_task_url"`
+	BackupUrl                        string `json:"backup_url"`
+	PddGoodsDetailsUrl               string `json:"pdd_goods_details_url"`
+	UpdateTokenUrl                   string `json:"update_token_url"`
+	KfzImgTempUrl                    string `json:"kfz_img_temp_url"`
+	KfzImgHttpUrl                    string `json:"kfz_img_http_url"`
+	GetPddGoodsShopIdIsbnUrl         string `json:"get_pdd_goods_shopid_isbn_url"`
+	GetSubscriptionExpirationDateUrl string `json:"get_subscription_expiration_date_url"`
 }

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"planA/initialization/golabl"
 	_type "planA/type"
 	"reflect"
 	"strconv"
@@ -374,4 +375,20 @@ func CleanOldFolders(dirPath string, keepDays int) error {
 
 	fmt.Printf("共删除 %d 个过期文件夹\n", deletedCount)
 	return nil
+}
+
+// GetSubscriptionExpirationTime 根据用户id获取订阅到期时间
+func GetSubscriptionExpirationTime(shopId string) (int64, error) {
+	url := golabl.Config.FileUrl.GetSubscriptionExpirationDateUrl + "?userId=" + shopId
+	_, dataStr, httpGetRequestErr := HttpGetRequest(url)
+	if httpGetRequestErr != nil {
+		return 0, httpGetRequestErr
+	}
+	fmt.Println(dataStr)
+	var getSubscriptionExpirationDateUrl _type.GetSubscriptionExpirationDateUrl
+	jsonErr := json.Unmarshal([]byte(dataStr), &getSubscriptionExpirationDateUrl)
+	if jsonErr != nil {
+		return 0, jsonErr
+	}
+	return getSubscriptionExpirationDateUrl.Data.ExpirationDate, nil
 }

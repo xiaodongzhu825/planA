@@ -1,5 +1,6 @@
 server:
   port: "8080"  #服务器端口
+  f_port : "8284" #F程序端口
   filter: 1 #是否开启违禁词过滤器  0=关闭 1=开启
   replace_mark: "0" #标题违规词是否替换*  0 不替换  1 替换（替换会继续发布，不替换则不发布）
   redis_exp: 192 #redis过期时间 192小时（8天）
@@ -71,6 +72,10 @@ redis_config:
     db: 6
     addr: "36.212.12.247:6379"
     password: "long6166@@"
+  - db_name: "拼多多操作回调数据库"
+    db: 14
+    addr: "36.212.20.113:7963"
+    password: "j8nZ4jra2E"
 pdd_config:
   client_id: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
   client_secret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret
@@ -89,6 +94,7 @@ file_url:
   c_file_name: "D:\\source\\planA\\planC\\planC.exe"   #C 程序文件路径
   d_file_name: "D:\\source\\planA\\planD\\planD.exe"   #D 程序文件路径
   e_file_name: "D:\\source\\planA\\planE\\planE.exe"   #E 程序文件路径
+  f_file_name: "D:\\source\\planA\\planF\\planF.exe"   #F 程序文件路径
   create_task_url: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   create_task_notice_url: "http://192.168.101.127:8055/task" #核价软件提交数据通知接口
   create_operation_task_notice_url: "http://192.168.101.127:8055/taskV2" #操作商品任务核价软件提交数据通知接口
@@ -108,3 +114,4 @@ file_url:
   kfz_img_temp_url: "D:\\file\\kfzImg" #孔夫子图片临时路径
   kfz_img_http_url: "https://www0.kfzimg.com/" #孔夫子图片 http 路径
   get_pdd_goods_shopid_isbn_url : "http://192.168.101.127:18099/shopGoods/selectTrilateralIds" #获取拼多多商品 shopId 和 isbn
+  get_subscription_expiration_date_url : "http://119.45.237.193:9096/api/user/getKfzUserRecbusiness" #获取订阅到期时间

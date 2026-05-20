@@ -221,7 +221,9 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	}
 
 	//价格 + 运费
-	price = price + taskMsg.Detail.ShippingCost
+	if golabl.Task.Header.PriceType != "0" {
+		price = price + taskMsg.Detail.ShippingCost
+	}
 
 	taskMsg.Detail.Price = price
 

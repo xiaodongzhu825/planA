@@ -19,7 +19,6 @@ func DelRedisTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 	// 删除任务
-
 	tool.Success(httpMsg, taskId)
 }
 

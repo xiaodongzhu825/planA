@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"fmt"
 	"planA/modules/logs"
 
 	"github.com/robfig/cron/v3"
@@ -83,6 +84,20 @@ func Init() {
 	})
 	if delDirFolderErr != nil {
 		logs.LoggingMiddleware("error", "定时任务 删除指定目录的文件夹 启动失败")
+		return
+	}
+
+	// 五秒执行一次
+	_, runFErr := c.AddFunc("0/5 * * * * ?", func() {
+		runFErr := RunF()
+		if runFErr != nil {
+			fmt.Println(runFErr)
+			logs.LoggingMiddleware("error", "定时任务 启动planF.exe 启动失败")
+			return
+		}
+	})
+	if runFErr != nil {
+		logs.LoggingMiddleware("error", "定时任务 启动planF.exe 启动失败")
 		return
 	}
 

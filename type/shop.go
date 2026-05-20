@@ -32,6 +32,7 @@ type Shop struct {
 	TenantID       string      `json:"tenant_id"`
 	DelFlag        string      `json:"del_flag"`                 // 逻辑删
 	CreateBy       string      `json:"create_by" db:"create_by"` // 创建人
+	Deregulation   string      `json:"deregulation"`
 }
 
 // ShopDetail 店铺详情

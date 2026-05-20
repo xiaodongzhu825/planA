@@ -4,7 +4,7 @@ server:
   filter: 1 #是否开启违禁词过滤器  0=关闭 1=开启
   replace_mark: "0" #标题违规词是否替换*  0 不替换  1 替换（替换会继续发布，不替换则不发布）
   redis_exp: 192 #redis过期时间 192小时（8天）
-  read_db: "sqlite" #读数据库 mysql sqlite
+  read_db: "mysql" #读数据库 mysql sqlite
   err_pause_time: 3000 #错误暂停时间（毫秒）
   sign_key: "jRQdCh52Z55Kzh1hADaA2ZtdTKetj2PXk60Tz5Yc0iz9aD8Wafbk7CwAZ8cz69A9zb9caZ3k9dnR3Ys06J5nYFPrZ0xE9p6TY8DCD538ryiRjW81YTPmk41tCEnXizPh" #签名密钥
   data_day: 2 #数据保存时间（天）
@@ -24,10 +24,10 @@ alive:
   fluent: 50 #存活状态-流畅时间（毫秒）
   slow: 200 #存活状态-缓慢时间（毫秒）
 pool_config:
-  size: 6 #协程数量
+  size: 500 #协程数量
   with_expiry_duration: 10 #过期时间
   with_pre_alloc: true #预分配
-  with_max_blocking_tasks: 600 #阻塞任务数
+  with_max_blocking_tasks: 2000 #阻塞任务数
   with_nonblocking : true #非阻塞
 mysql_config:
   db_name: "task_user" #数据库名称
@@ -35,7 +35,7 @@ mysql_config:
   password: "root"  #数据库密码
   host: "127.0.0.1" #数据库地址
   port: 3306  #数据库端口
-  loglevel: "info"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
+  loglevel: "silent"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
   max_retry_times: 3  #数据库重试次数
   base_retry_interval: 100  #数据库重试间隔（毫秒）
   max_retry_interval: 3 #数据库最大重试间隔（秒）
@@ -72,10 +72,6 @@ redis_config:
     db: 6
     addr: "36.212.12.247:6379"
     password: "long6166@@"
-  - db_name: "拼多多操作回调数据库"
-    db: 14
-    addr: "36.212.20.113:7963"
-    password: "j8nZ4jra2E"
 pdd_config:
   client_id: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
   client_secret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret
@@ -94,7 +90,6 @@ file_url:
   c_file_name: "D:\\source\\planA\\planC\\planC.exe"   #C 程序文件路径
   d_file_name: "D:\\source\\planA\\planD\\planD.exe"   #D 程序文件路径
   e_file_name: "D:\\source\\planA\\planE\\planE.exe"   #E 程序文件路径
-  f_file_name: "D:\\source\\planA\\planE\\planF.exe"   #F 程序文件路径
   create_task_url: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   create_task_notice_url: "http://192.168.101.127:8055/task" #核价软件提交数据通知接口
   create_operation_task_notice_url: "http://192.168.101.127:8055/taskV2" #操作商品任务核价软件提交数据通知接口
@@ -102,16 +97,15 @@ file_url:
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deduction_url: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
-  pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
-  pdd_add_goods_url: "http://119.45.237.193:14003/task/putShopGoods" #添加拼多多商品接口
+  pdd_get_goods_detail_url: "http://192.168.101.127:8085/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
+  pdd_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加拼多多商品接口
   pdd_get_sku_id: "http://192.168.101.127:18099/shopGoods/getShopGoods" #批量获取 skuId接口
-  xianyu_add_goods_url: "http://119.45.237.193:14008/task/putShopGoods" #添加闲鱼商品接口
+  xianyu_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加闲鱼商品接口
   kfz_add_goods_url: "http://119.45.237.193:14009/task/kfzverifyPricePublishGoods" #添加孔夫子商品接口
   del_task_url: "http://119.45.237.193:14008/shopGoods/delShopGoodsk" #删除任务通知接口
-  backup_url: "D:\\file\\backup" #备份文件路径
+  backup_url: "C:\\file\\backup" #备份文件路径
   pdd_goods_details_url: "D:\\file\\pdd_goods_details" #保存拼多多详情路径
   update_token_url: "http://146.56.227.42:9099/api/updateToken" #更新拼多多 token 到redis
   kfz_img_temp_url: "D:\\file\\kfzImg" #孔夫子图片临时路径
   kfz_img_http_url: "https://www0.kfzimg.com/" #孔夫子图片 http 路径
-  get_pdd_goods_shopid_isbn_url : "http://119.45.237.193:14008/shopGoods/selectTrilateralIds" #获取拼多多商品 shopId 和 isbn
-  get_subscription_expiration_date_url : "http://119.45.237.193:9096/api/user/getKfzUserRecbusiness" #获取订阅到期时间
+  get_pdd_goods_shopid_isbn_url : "http://192.168.101.127:18099/shopGoods/selectTrilateralIds" #获取拼多多商品 shopId 和 isbn

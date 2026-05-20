@@ -380,6 +380,10 @@ func parseTaskHeader(taskHeader map[string]string) error {
 	if golabl.Task.Header.ShopType, _ = taskHeader["shop_type"]; golabl.Task.Header.ShopType == "" {
 		return fmt.Errorf("参数错误: %s", "shop_type 为 空")
 	}
+	// 解析 header price_type
+	if golabl.Task.Header.PriceType, _ = taskHeader["price_type"]; golabl.Task.Header.PriceType == "" {
+		return fmt.Errorf("参数错误: %s", "price_type 为 空")
+	}
 	// 解析 header task_count
 	if golabl.Task.Header.TaskCount, _ = strconv.ParseInt(taskHeader["task_count"], 10, 64); golabl.Task.Header.TaskCount == 0 {
 		//return fmt.Errorf("参数错误: %s", "task_count 为 空")

@@ -33,3 +33,14 @@ validator                           验证器
 config.yaml                         配置文件
 taskDb.db                           sqlite数据库（自动创建）
 ```
+
+## 目录结构
+
+```
+planA   web服务器
+planB   任务执行器
+planC   同步redis数据到硬盘
+planD   删除任务
+planE   图片上传到拼多多图片空间
+planF   获取12个商品信息，主要转发小军的接口信息
+```

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	_type "planA/type"
 	"reflect"
 	"strconv"
@@ -324,4 +326,52 @@ func GetTaskTypeName(taskType string) string {
 		return "新拉取商品任务"
 	}
 	return "未知任务类型"
+}
+
+// CleanOldFolders 删除指定目录中超过保留天数的日期文件夹
+// dirPath: 要清理的目录路径
+// keepDays: 保留的天数（保留最近 keepDays 天的文件夹）
+func CleanOldFolders(dirPath string, keepDays int) error {
+	// 读取目录内容
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return fmt.Errorf("读取目录失败: %v", err)
+	}
+
+	// 计算截止日期（保留最近 keepDays 天，即删除 keepDays 天之前的）
+	cutoffDate := time.Now().AddDate(0, 0, -keepDays)
+
+	deletedCount := 0
+	for _, entry := range entries {
+		// 只处理目录
+		if !entry.IsDir() {
+			continue
+		}
+
+		folderName := entry.Name()
+
+		// 尝试解析文件夹名为日期格式 (2006-01-02)
+		folderDate, err := time.Parse("2006-01-02", folderName)
+		if err != nil {
+			// 不是日期格式的文件夹，跳过
+			fmt.Printf("跳过非日期格式文件夹: %s\n", folderName)
+			continue
+		}
+
+		// 如果文件夹日期早于截止日期，则删除
+		if folderDate.Before(cutoffDate) {
+			folderPath := filepath.Join(dirPath, folderName)
+			fmt.Printf("删除过期文件夹: %s\n", folderPath)
+
+			err := os.RemoveAll(folderPath)
+			if err != nil {
+				fmt.Printf("删除失败 %s: %v\n", folderPath, err)
+			} else {
+				deletedCount++
+			}
+		}
+	}
+
+	fmt.Printf("共删除 %d 个过期文件夹\n", deletedCount)
+	return nil
 }

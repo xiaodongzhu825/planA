@@ -77,6 +77,15 @@ func Init() {
 		return
 	}
 
+	// 删除指定目录的文件夹
+	_, delDirFolderErr := c.AddFunc("0 0 0 * * ?", func() {
+		DeleteKfzTempImg()
+	})
+	if delDirFolderErr != nil {
+		logs.LoggingMiddleware("error", "定时任务 删除指定目录的文件夹 启动失败")
+		return
+	}
+
 	//// 备份 body_backup到硬盘 - 每分钟执行一次，使用锁防止并发（挪到C.exe）
 	//_, backupBodyBackupErr := c.AddFunc("0 * * * * ?", func() {
 	//	BackupBodyBackup()

@@ -717,7 +717,6 @@ func DeleteDelTaskAndDelTaskDetails() {
 }
 
 // VerifyToken 验证token过期
-
 func VerifyToken() {
 	list, getPddTokenListErr := service.GetPddTokenList()
 	if getPddTokenListErr != nil {
@@ -745,5 +744,13 @@ func VerifyToken() {
 				}
 			}
 		}
+	}
+}
+
+// DeleteKfzTempImg 删除本地临时的孔夫子图片
+func DeleteKfzTempImg() {
+	err := tool.CleanOldFolders(golabl.Config.FileUrl.KfzImgTempUrl, 3)
+	if err != nil {
+		fmt.Println("删除本地临时的孔夫子图片失败：", err)
 	}
 }

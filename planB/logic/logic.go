@@ -76,19 +76,23 @@ func Logic() {
 		golabl.Pool.Wg.Add(1)
 
 		//协程池 提交
-		//taskExecute()
-		//if taskPoolErr := golabl.Pool.Pool.Submit(taskExecute); taskPoolErr != nil {
-		//	tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池意外-原因来自:%d", taskPoolErr))
-		//	golabl.Pool.Wg.Done() // 确保计数正确
-		//}
-		// 改进后的任务提交
-		if taskPoolErr := golabl.Pool.Pool.Submit(func() {
-			defer golabl.Pool.Wg.Done()
+		if golabl.Task.Header.TaskType == 7 {
+			// 单线程执行
 			taskExecute()
-		}); taskPoolErr != nil {
-			//tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池提交失败: %v", taskPoolErr))
-			golabl.Pool.Wg.Done()
-			// 考虑将任务重新加入队列或记录失败
+			if taskPoolErr := golabl.Pool.Pool.Submit(taskExecute); taskPoolErr != nil {
+				golabl.Pool.Wg.Done()
+				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("协程池意外-原因来自:%d", taskPoolErr))
+			} else {
+				golabl.Pool.Wg.Done()
+			}
+		} else {
+			// 多线程执行
+			if taskPoolErr := golabl.Pool.Pool.Submit(func() {
+				defer golabl.Pool.Wg.Done()
+				taskExecute()
+			}); taskPoolErr != nil {
+				golabl.Pool.Wg.Done()
+			}
 		}
 
 		// 判断 任务数是否超过1000 并且 判断是否执行到了1000的倍数

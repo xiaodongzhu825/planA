@@ -424,7 +424,75 @@ func (xianYu *XianYu) OperationGoodsTask(taskMsg planAType.TaskBody) (string, er
 // @return string body 信息
 // @return string error 错误
 func (xianYu *XianYu) IncStockTask(taskMsg planAType.TaskBody) (string, error) {
-	return tool.ReturnSuccess(planAType.TaskBody{})
+
+	//生成唯一请求标识（用于出错精准查询日志）
+	logUuid, generateUUIDErr := tool.GenerateUUID()
+	if generateUUIDErr != nil {
+		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
+	}
+
+	// 获取商品id
+	getGoodsByShopIdAndIsbn, GetGoodsByShopIdAndIsbnErr := tool.GetGoodsByShopIdAndIsbn(golabl.Task.Header.ShopId, taskMsg.BookInfo.Isbn)
+	if GetGoodsByShopIdAndIsbnErr != nil {
+		return "", GetGoodsByShopIdAndIsbnErr
+	}
+	if getGoodsByShopIdAndIsbn.Code != "200" {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("请求ERP获取商品编码与skuid失败: %v", getGoodsByShopIdAndIsbn))
+	}
+	if len(getGoodsByShopIdAndIsbn.Data) == 0 {
+		//新发布
+		task, addGoodsTaskErr := xianYu.AddGoodsTask(taskMsg)
+		if addGoodsTaskErr != nil {
+			return "", addGoodsTaskErr
+		}
+		return task, nil
+	} else {
+		// 将 getGoodsByShopIdAndIsbn.Data[0].TrilateralId 转为 int64
+		trilateralId, trilateralIdParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].TrilateralId, 10, 64)
+		if trilateralIdParseIntErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
+		}
+
+		// 解析应用 id与应用秘钥
+		var token planBTypeXianyu.Token
+		unmarshalErr := json.Unmarshal([]byte(golabl.Task.Header.ShopMsg.Token), &token)
+		if unmarshalErr != nil {
+			return tool.ReturnErr(logUuid, planAType.TaskBody{}, golabl.TaskType, fmt.Errorf("解析应用id与应用秘钥失败: %v", unmarshalErr))
+		}
+
+		// 获取商品详情
+		getGoodsDetailReq := planBTypeXianyu.GoodsDetailReq{
+			AppId:     token.AppId,
+			AppSecret: token.AppSecret,
+			ProductId: trilateralId,
+		}
+
+		// 发送请求
+		goodsDetailResp, goodsDetailRespErr := xianYu.getGoodsDetail(getGoodsDetailReq)
+		if goodsDetailRespErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("获取商品详情失败: %v", goodsDetailRespErr))
+		}
+
+		var goodDetailRet planBTypeXianyu.GoodDetailRet
+		unmarshalErr = json.Unmarshal([]byte(goodsDetailResp), &goodDetailRet)
+		if unmarshalErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("解析商品详情失败: %v", unmarshalErr))
+		}
+
+		//检验商品数量
+		if goodDetailRet.Code == 200 {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("在闲鱼中未查询到该商品id  %v %v", trilateralId, goodDetailRet.Msg))
+		}
+
+		//增量修改库存
+		taskMsg.Detail.GoodsId = trilateralId
+		taskMsg.Detail.Stock = taskMsg.Detail.Stock + goodDetailRet.Data.Stock
+		quantity, updateGoodsQuantityErr := executeGoodsUpdateStock(logUuid, taskMsg)
+		if updateGoodsQuantityErr != nil {
+			return "", updateGoodsQuantityErr
+		}
+		return quantity, nil
+	}
 }
 
 func (xianYu *XianYu) SetGoodsTask() string {

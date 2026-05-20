@@ -11,3 +11,12 @@ type AsyncTaskResponse struct {
 	TaskKey         string `json:"taskKey"`         // 任务唯一标识
 	TotalCount      int    `json:"totalCount"`      // 总数量
 }
+
+type GetShopGoodsByShopIdAndIsbn struct {
+	Code string `json:"code"`
+	Data []struct {
+		Stock        string `json:"stock"`
+		TrilateralId string `json:"trilateralId"`
+		SkuId        string `json:"skuId"`
+	} `json:"data"`
+}

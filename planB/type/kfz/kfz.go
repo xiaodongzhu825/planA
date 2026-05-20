@@ -2,23 +2,23 @@ package kfz
 
 // GoodsAdd 商品添加结构体
 type GoodsAdd struct {
-	Tpl           int     `json:"tpl"`                     // 模板编号，取值范围：1～17，必须
-	CatId         string  `json:"catId"`                   // 分类编号，必须
-	MyCatId       int     `json:"myCatId,omitempty"`       // 本店分类，可选
-	ItemName      string  `json:"itemName"`                // 商品名称，长度限制200字符，必须
-	ImportantDesc string  `json:"importantDesc,omitempty"` // 推荐语，长度限制200字符，可选
-	Price         float64 `json:"price"`                   // 售价，0.01～99999999.99，必须
-	Number        int64   `json:"number"`                  // 库存，1~9999，必须
-	Quality       string  `json:"quality"`                 // 品相，可以是编号(int)或文字(string)，取值：10,20,30,40,50,60,65,70,75,80,85,90,95,100，必须
-	QualityDesc   string  `json:"qualityDesc,omitempty"`   // 品相描述，长度限制400字符，可选
-	ItemSn        string  `json:"itemSn,omitempty"`        // 货号，长度限制20字符，可选
-	ImgUrl        string  `json:"imgUrl"`                  // 商品主图，必须
-	Images        string  `json:"images,omitempty"`        // 多个商品图片路径，用英文分号隔开，最多30张，可选
-	ItemDesc      string  `json:"itemDesc,omitempty"`      // 商品描述，长度限制10000字符，可选
-	BearShipping  string  `json:"bearShipping"`            // 运费设置：seller(卖家包邮)，buyer(买家承担运费)，必须
-	MouldId       int     `json:"mouldId,omitempty"`       // 运费模板编号，bearShipping=buyer时必填
-	Weight        float64 `json:"weight,omitempty"`        // 商品重量(千克)，选择按重量模板时必填，0.01～9999.99
-	WeightPiece   float64 `json:"weightPiece,omitempty"`   // 商品标准本数，选择按标准本模板时必填，0.01～9999.99
+	Tpl           string `json:"tpl"`                     // 模板编号，取值范围：1～17，必须
+	CatId         string `json:"catId"`                   // 分类编号，必须
+	MyCatId       string `json:"myCatId,omitempty"`       // 本店分类，可选
+	ItemName      string `json:"itemName"`                // 商品名称，长度限制200字符，必须
+	ImportantDesc string `json:"importantDesc,omitempty"` // 推荐语，长度限制200字符，可选
+	Price         string `json:"price"`                   // 售价，0.01～99999999.99，必须
+	Number        string `json:"number"`                  // 库存，1~9999，必须
+	Quality       string `json:"quality"`                 // 品相，可以是编号(int)或文字(string)，取值：10,20,30,40,50,60,65,70,75,80,85,90,95,100，必须
+	QualityDesc   string `json:"qualityDesc,omitempty"`   // 品相描述，长度限制400字符，可选
+	ItemSn        string `json:"itemSn,omitempty"`        // 货号，长度限制20字符，可选
+	ImgUrl        string `json:"imgUrl"`                  // 商品主图，必须
+	Images        string `json:"images,omitempty"`        // 多个商品图片路径，用英文分号隔开，最多30张，可选
+	ItemDesc      string `json:"itemDesc,omitempty"`      // 商品描述，长度限制10000字符，可选
+	BearShipping  string `json:"bearShipping"`            // 运费设置：seller(卖家包邮)，buyer(买家承担运费)，必须
+	MouldId       string `json:"mouldId,omitempty"`       // 运费模板编号，bearShipping=buyer时必填
+	Weight        string `json:"weight,omitempty"`        // 商品重量(千克)，选择按重量模板时必填，0.01～9999.99
+	WeightPiece   string `json:"weightPiece,omitempty"`   // 商品标准本数，选择按标准本模板时必填，0.01～9999.99
 }
 
 // GoodsAdd17 商品添加结构体（分类17专用）
@@ -28,16 +28,16 @@ type GoodsAdd17 struct {
 	Author           string      `json:"author"`                     // 作者，长度限制120字符，必须
 	Press            string      `json:"press"`                      // 出版社，长度限制120字符，必须
 	PubDate          string      `json:"pubDate"`                    // 出版日期，格式：yyyy-mm，必须
-	Edition          int         `json:"edition,omitempty"`          // 版次，取值范围：1～9999，可选
+	Edition          string      `json:"edition,omitempty"`          // 版次，取值范围：1～9999，可选
 	PrintingTime     string      `json:"printingTime,omitempty"`     // 印刷时间，格式：yyyy-mm，填写printTimes时必填，不能早于出版时间，可选
-	PrintTimes       int         `json:"printTimes,omitempty"`       // 印次，取值范围：1～9999，可选
-	PrintingNum      float64     `json:"printingNum,omitempty"`      // 印数，单位:千册，取值范围：0.001～99999.999，可选
+	PrintTimes       string      `json:"printTimes,omitempty"`       // 印次，取值范围：1～9999，可选
+	PrintingNum      string      `json:"printingNum,omitempty"`      // 印数，单位:千册，取值范围：0.001～99999.999，可选
 	Binding          interface{} `json:"binding"`                    // 装帧，可以是编号(int)或文字(string)，必须
 	PageSize         string      `json:"pageSize,omitempty"`         // 开本，可自己填写，可选
 	Paper            interface{} `json:"paper,omitempty"`            // 纸张，可以是编号(int)或文字(string)，可选
-	PageNum          int64       `json:"pageNum,omitempty"`          // 页数，取值范围：1～99999，可选
-	WordNum          float64     `json:"wordNum,omitempty"`          // 字数，单位:千字，取值范围：0～99999.999，可选
-	OriPrice         float64     `json:"oriPrice,omitempty"`         // 图书定价，取值范围：0.01～99999999.99，可选
+	PageNum          string      `json:"pageNum,omitempty"`          // 页数，取值范围：1～99999，可选
+	WordNum          string      `json:"wordNum,omitempty"`          // 字数，单位:千字，取值范围：0～99999.999，可选
+	OriPrice         string      `json:"oriPrice,omitempty"`         // 图书定价，取值范围：0.01～99999999.99，可选
 	ForeignName      string      `json:"foreignName,omitempty"`      // 原版书名，长度限制200字符，可选
 	UnifiedIsbn      string      `json:"unifiedIsbn,omitempty"`      // 统一书号，长度限制20字符，可选
 	PublishedIn      string      `json:"publishedIn,omitempty"`      // 出版地，长度限制100字符，可选
@@ -195,6 +195,7 @@ type Item struct {
 
 // GetGoodsListReq 获取商品列表请求结构体
 type GetGoodsListReq struct {
+	ItemId       string `json:"itemId"`
 	Type         string `json:"type"`
 	PageNum      int    `json:"pageNum"`
 	PageSize     int    `json:"pageSize"`

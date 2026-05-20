@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"planA/planB/initialization/golabl"
 	"planA/planB/service"
+	planBType "planA/planB/type"
 	planBTypeModules "planA/planB/type/modules"
 	planAType "planA/type"
 	"strconv"
@@ -796,7 +797,26 @@ func ImageToBase64(img image.Image, format string) (string, error) {
 	return fmt.Sprintf("data:image/%s;base64,%s", format, base64Str), nil
 }
 
-// 将base64的图片缩放到800*800
-func base64SizeTo800(img []string) {
+// GetGoodsByShopIdAndIsbn 根据店铺id与isbn获取商品
+func GetGoodsByShopIdAndIsbn(shopId, isbn string) (planBType.GetShopGoodsByShopIdAndIsbn, error) {
 
+	var getShopGoodsByShopIdAndIsbn planBType.GetShopGoodsByShopIdAndIsbn
+
+	params := map[string]string{
+		"shopId": shopId,
+		"isbn":   isbn,
+	}
+	withParams, buildURLWithParamsErr := BuildURLWithParams(golabl.Config.FileUrl.GetPddGoodsShopIdIsbnUrl, params)
+	if buildURLWithParamsErr != nil {
+		return getShopGoodsByShopIdAndIsbn, buildURLWithParamsErr
+	}
+	_, resStr, httpGetRequestErr := HttpGetRequest(withParams)
+	if httpGetRequestErr != nil {
+		return getShopGoodsByShopIdAndIsbn, httpGetRequestErr
+	}
+	unmarshalErr := json.Unmarshal([]byte(resStr), &getShopGoodsByShopIdAndIsbn)
+	if unmarshalErr != nil {
+		return getShopGoodsByShopIdAndIsbn, unmarshalErr
+	}
+	return getShopGoodsByShopIdAndIsbn, nil
 }

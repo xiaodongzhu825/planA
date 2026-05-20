@@ -92,7 +92,7 @@ file_url:
   create_task_url: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
   create_task_notice_url: "http://192.168.101.127:8055/task" #核价软件提交数据通知接口
   create_operation_task_notice_url: "http://192.168.101.127:8055/taskV2" #操作商品任务核价软件提交数据通知接口
-  banned_word_substitution_url : "http://36.212.16.27:13001/task/getFilterSetNew" #违禁词替换接口
+  banned_word_substitution_url : "http://36.212.12.247:13001/task/getFilterSetNew" #违禁词替换接口
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deduction_url: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口
@@ -106,4 +106,5 @@ file_url:
   pdd_goods_details_url: "D:\\file\\pdd_goods_details" #保存拼多多详情路径
   update_token_url: "http://146.56.227.42:9099/api/updateToken" #更新拼多多 token 到redis
   kfz_img_temp_url: "D:\\file\\kfzImg" #孔夫子图片临时路径
-  kfz_img_http_url: "https://www0.kfzimg.com/"
+  kfz_img_http_url: "https://www0.kfzimg.com/" #孔夫子图片 http 路径
+  get_pdd_goods_shopid_isbn_url : "http://119.45.237.193:14008/shopGoods/selectTrilateralIds" #获取拼多多商品 shopId 和 isbn

@@ -64,7 +64,7 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	// *********************构建参数 开始******************************** //
 
 	//模板编号 默认 17
-	goodsAdd.Tpl = 17
+	goodsAdd.Tpl = "17"
 
 	//分类编号
 	if value, exists := golabl.KfzGetCommonCategory[string(taskMsg.BookInfo.CatIdObject.KongFuZiCatId)]; exists {
@@ -86,14 +86,14 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	priceTol := taskMsg.Detail.Price + taskMsg.Detail.ShippingCost
 
 	//售价
-	goodsAdd.Price = tool.FenToYuanFloat64(priceTol)
+	goodsAdd.Price = tool.FenToYuan(priceTol)
 
 	//库存
 	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
 		//如果库存为0 则给默认库存
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
 	}
-	goodsAdd.Number = taskMsg.Detail.Stock
+	goodsAdd.Number = strconv.FormatInt(taskMsg.Detail.Stock, 10)
 
 	//品相
 	goodsAdd.Quality = strconv.FormatInt(taskMsg.Detail.Condition, 10)
@@ -170,7 +170,7 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	if golabl.Task.Header.ShopMsg.IsParcel == "0" {
 		bearShipping = "buyer"
 		// 设置运费模板编号
-		goodsAdd.MouldId = 1
+		goodsAdd.MouldId = "1"
 	}
 	goodsAdd.BearShipping = bearShipping
 
@@ -180,13 +180,13 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	if atoiErr != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("运费模板编号转换错误 %v", atoiErr))
 	}
-	goodsAdd.MouldId = costTemplateId
+	goodsAdd.MouldId = strconv.Itoa(costTemplateId)
 
 	//重量
-	goodsAdd.Weight = float64(golabl.Task.Header.ShopMsg.BookWeight / 100)
+	goodsAdd.Weight = fmt.Sprintf("%v", float64(golabl.Task.Header.ShopMsg.BookWeight/100))
 
 	//商品标准本数
-	goodsAdd.WeightPiece = float64(golabl.Task.Header.ShopMsg.StandardNumber / 100)
+	goodsAdd.WeightPiece = fmt.Sprintf("%v", float64(golabl.Task.Header.ShopMsg.StandardNumber/100))
 
 	// *********************构建模板参数 开始******************************** //
 
@@ -209,13 +209,13 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	goodsAdd.PageSize = strconv.FormatInt(taskMsg.BookInfo.Format, 10)
 
 	// 页数
-	goodsAdd.PageNum = taskMsg.BookInfo.PagesCount
+	goodsAdd.PageNum = strconv.FormatInt(taskMsg.BookInfo.PagesCount, 10)
 
 	// 字数
-	goodsAdd.WordNum = float64(taskMsg.BookInfo.WordsCount / 1000)
+	goodsAdd.WordNum = fmt.Sprintf("%v", float64(taskMsg.BookInfo.WordsCount/1000))
 
 	// 图书定价
-	goodsAdd.OriPrice = float64(tool.BuildGoodsPrice(priceTol) / 100)
+	goodsAdd.OriPrice = fmt.Sprintf("%v", float64(tool.BuildGoodsPrice(priceTol)/100))
 
 	url := "http://127.0.0.1:8095"
 	tool.HttpGetRequest(url)
@@ -232,6 +232,11 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 		outGoodsId = taskMsg.Detail.OutGoodsId
 	} else {
 		outGoodsId = taskMsg.BookInfo.Isbn
+	}
+
+	//判断错误
+	if goods.ErrorResponse != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("新增商品失败 %v", goods.ErrorResponse.SubMsg))
 	}
 	taskMsg.Detail.GoodsId = goods.SuccessResponse.Item.ItemId
 	taskMsg.Detail.OutGoodsId = outGoodsId
@@ -397,7 +402,63 @@ func (kongFuZi *KongFuZi) OperationGoodsTask(taskMsg planAType.TaskBody) (string
 // @return string body 信息
 // @return error 错误
 func (kongFuZi *KongFuZi) IncStockTask(taskMsg planAType.TaskBody) (string, error) {
-	return tool.ReturnSuccess(planAType.TaskBody{})
+	//生成唯一请求标识（用于出错精准查询日志）
+	logUuid, generateUUIDErr := tool.GenerateUUID()
+	if generateUUIDErr != nil {
+		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
+	}
+	// 获取商品id
+	getGoodsByShopIdAndIsbn, GetGoodsByShopIdAndIsbnErr := tool.GetGoodsByShopIdAndIsbn(golabl.Task.Header.ShopId, taskMsg.BookInfo.Isbn)
+	if GetGoodsByShopIdAndIsbnErr != nil {
+		return "", GetGoodsByShopIdAndIsbnErr
+	}
+	if getGoodsByShopIdAndIsbn.Code != "200" {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("请求ERP获取商品编码与skuid失败: %v", getGoodsByShopIdAndIsbn))
+	}
+	if len(getGoodsByShopIdAndIsbn.Data) == 0 {
+		//新发布
+		task, addGoodsTaskErr := kongFuZi.AddGoodsTask(taskMsg)
+		if addGoodsTaskErr != nil {
+			return "", addGoodsTaskErr
+		}
+		return task, nil
+	} else {
+		// 将 getGoodsByShopIdAndIsbn.Data[0].TrilateralId 转为 int64
+		trilateralId, trilateralIdParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].TrilateralId, 10, 64)
+		if trilateralIdParseIntErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
+		}
+
+		// 获取商品详情
+		getGoodsListReq := planBTypeKfz.GetGoodsListReq{
+			ItemId: getGoodsByShopIdAndIsbn.Data[0].TrilateralId,
+		}
+
+		getGoodsListReqJson, marshalErr := json.Marshal(getGoodsListReq)
+		if marshalErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, marshalErr)
+		}
+
+		// 发送请求
+		goodsListResp, goodsListRespErr := sendGoodsListRequest(string(getGoodsListReqJson))
+		if goodsListRespErr != nil {
+			return "", fmt.Errorf("获取商品列表失败 %v", goodsListRespErr)
+		}
+
+		//检验商品数量
+		if len(goodsListResp.SuccessResponse.List) == 0 {
+			return "", fmt.Errorf("在孔夫子中未查询到该商品id  %v", trilateralId)
+		}
+
+		//增量修改库存
+		taskMsg.Detail.GoodsId = trilateralId
+		taskMsg.Detail.Stock = taskMsg.Detail.Stock + int64(goodsListResp.SuccessResponse.List[0].Number)
+		quantity, updateGoodsQuantityErr := executeGoodsUpdateStock(logUuid, taskMsg)
+		if updateGoodsQuantityErr != nil {
+			return "", updateGoodsQuantityErr
+		}
+		return quantity, nil
+	}
 }
 
 func (kongFuZi *KongFuZi) SetGoodsTask() string {
@@ -459,7 +520,6 @@ func addGoods(logUuid string, goodsInfo planBTypeKfz.GoodsAdd17) (planBTypeKfz.A
 	//判断是否成功
 	if strings.Contains(goodsAddStr, "失败") || strings.Contains(goodsAddStr, "错误码") {
 		//记录请求日志
-		// 记录请求日志
 		addGoodsReqMsg := fmt.Sprintf(`
 	════════════════════════════════════════════════════════════════
 	【孔夫子商品添加请求】
@@ -916,10 +976,10 @@ func deduplicateToBodyOver(duplicateCount *int, uniqueCount *int) error {
 	}
 
 	// 删除body_wait
-	//deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
-	//if deleteTaskBodyWaitErr != nil {
-	//	return deleteTaskBodyWaitErr
-	//}
+	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
+	if deleteTaskBodyWaitErr != nil {
+		return deleteTaskBodyWaitErr
+	}
 	return nil
 }
 
@@ -959,6 +1019,7 @@ func sendGoodsListRequest(reqJson string) (*planBTypeKfz.GetGoodsListResp, error
 	case goodsListStr := <-resultCh:
 		// 正常返回
 		var goodsListResp planBTypeKfz.GetGoodsListResp
+		fmt.Println(goodsListStr)
 		unmarshalErr := json.Unmarshal([]byte(goodsListStr), &goodsListResp)
 		if unmarshalErr != nil {
 			fmt.Printf("解析孔夫子商品列表返回json失败: %v [孔夫子数据：%v]", unmarshalErr, goodsListStr)

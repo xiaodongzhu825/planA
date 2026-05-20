@@ -151,4 +151,5 @@ type FileUrl struct {
 	UpdateTokenUrl               string `json:"update_token_url"`
 	KfzImgTempUrl                string `json:"kfz_img_temp_url"`
 	KfzImgHttpUrl                string `json:"kfz_img_http_url"`
+	GetPddGoodsShopIdIsbnUrl     string `json:"get_pdd_goods_shopid_isbn_url"`
 }

@@ -178,7 +178,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 				return
 			}
 		}
-	} else if taskType == 1 || taskType == 2 || taskType == 6 {
+	} else if taskType == 1 || taskType == 2 || taskType == 6 || taskType == 7 {
 		if shopData.Spec == nil {
 			errMsg := "未设置规格"
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -1280,7 +1280,7 @@ func AddTask(taskId string, bodyData []string) int {
 		var bookInfo _type.BookInfo
 		var GetTaskBookErr error
 		// 书品处理
-		if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 5 || header.TaskType == 6 {
+		if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 5 || header.TaskType == 6 || header.TaskType == 7 {
 			// 连接DB[b] 获取书品信息,#操作商品的isbn13个0则不查询isbn
 			if !(header.TaskType == 5 && taskBody.BookInfo.Isbn == "0000000000000") {
 				bookInfo, GetTaskBookErr = service.GetTaskBook(taskBody.BookInfo.Isbn)
@@ -1298,7 +1298,7 @@ func AddTask(taskId string, bodyData []string) int {
 				}
 			}
 			// 图片处理
-			if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 6 {
+			if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 6 || header.TaskType == 7 {
 				//处理图片 仅官图不处理
 				if header.ImgType == 2 { //仅实拍图，使用传递过来的图片
 					bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray

@@ -423,7 +423,7 @@ func (pinDuoDuo *PinDuoDuo) OperationGoodsTask(taskMsg planAType.TaskBody) (stri
 	case 1, 2:
 		return setSaleStatusGoodsTask(logUuid, taskMsg) //设置商品上下架状态 status=1 上架 status=2 下架  {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":936170582125,"status":2}}
 	case 4:
-		return updateGoodsQuantity(logUuid, taskMsg) //修改商品库存 {"book_info":{"isbn":"9787532080786"},"detail":{"goods_id":935177284615,"status":4,"stock":2,"sku_id":1882660479308}}
+		return updateGoodsQuantity(logUuid, taskMsg, 1, 0) //修改商品库存 {"book_info":{"isbn":"9787532080786"},"detail":{"goods_id":935177284615,"status":4,"stock":2,"sku_id":1882660479308}}
 	case 5:
 		return updateSkuPrice(logUuid, taskMsg) //修改商品价格 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":939229985495,"status":5,"price":5000,"sku_id":1886207421871}}
 	default:
@@ -436,7 +436,56 @@ func (pinDuoDuo *PinDuoDuo) OperationGoodsTask(taskMsg planAType.TaskBody) (stri
 // @return string body 信息
 // @return error 错误
 func (pinDuoDuo *PinDuoDuo) IncStockTask(taskMsg planAType.TaskBody) (string, error) {
-	return tool.ReturnSuccess(planAType.TaskBody{})
+	//生成唯一请求标识（用于出错精准查询日志）
+	logUuid, generateUUIDErr := tool.GenerateUUID()
+	if generateUUIDErr != nil {
+		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
+	}
+
+	// 获取商品id
+	getGoodsByShopIdAndIsbn, GetGoodsByShopIdAndIsbnErr := tool.GetGoodsByShopIdAndIsbn(golabl.Task.Header.ShopId, taskMsg.BookInfo.Isbn)
+	if GetGoodsByShopIdAndIsbnErr != nil {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, GetGoodsByShopIdAndIsbnErr)
+	}
+	if getGoodsByShopIdAndIsbn.Code != "200" {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("ERP未找到商品"))
+	}
+	if len(getGoodsByShopIdAndIsbn.Data) == 0 {
+		//新发布
+		task, addGoodsTaskErr := pinDuoDuo.AddGoodsTask(taskMsg)
+		if addGoodsTaskErr != nil {
+			return "", addGoodsTaskErr
+		}
+		return task, nil
+	} else {
+
+		// 将 getGoodsByShopIdAndIsbn.Data[0].TrilateralId 转为 int64
+		trilateralId, trilateralIdParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].TrilateralId, 10, 64)
+		if trilateralIdParseIntErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
+		}
+
+		// 将 getGoodsByShopIdAndIsbn.Data[0].SkuId 转为 int64
+		skuId, skuIdParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].SkuId, 10, 64)
+		if skuIdParseIntErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
+		}
+
+		// 将 getGoodsByShopIdAndIsbn.Data[0].Stock 转为 int64
+		stock, stockParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].Stock, 10, 64)
+		if stockParseIntErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
+		}
+
+		//增量修改库存
+		taskMsg.Detail.GoodsId = trilateralId
+		taskMsg.Detail.SkuId = skuId
+		quantity, updateGoodsQuantityErr := updateGoodsQuantity(logUuid, taskMsg, 2, stock)
+		if updateGoodsQuantityErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, updateGoodsQuantityErr)
+		}
+		return quantity, nil
+	}
 }
 
 func (pinDuoDuo *PinDuoDuo) SetGoodsTask() string {
@@ -1302,7 +1351,7 @@ func setSoleStatusGoods(logUuid string, reqDataInfo planBTypePinduoduo.SetSaleSt
 }
 
 // updateGoodsQuantity 修改库存
-func updateGoodsQuantity(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+func updateGoodsQuantity(logUuid string, taskMsg planAType.TaskBody, UpdateType int, stock int64) (string, error) {
 	// 拼多多商品 Id不能为空
 	if taskMsg.Detail.GoodsId == 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 Id不能为空"))
@@ -1316,7 +1365,7 @@ func updateGoodsQuantity(logUuid string, taskMsg planAType.TaskBody) (string, er
 		GoodsId:     taskMsg.Detail.GoodsId,
 		SkuId:       taskMsg.Detail.SkuId,
 		Quantity:    taskMsg.Detail.Stock,
-		UpdateType:  1,
+		UpdateType:  UpdateType,
 	}
 	delGoodsRet, _, err := quantityGoods(logUuid, reqDataInfo)
 	if err != nil {
@@ -1324,6 +1373,9 @@ func updateGoodsQuantity(logUuid string, taskMsg planAType.TaskBody) (string, er
 	}
 	if !delGoodsRet.GoodsQuantityUpdateResponse.IsSuccess {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("修改商品库存失败"))
+	}
+	if UpdateType == 2 {
+		taskMsg.Detail.Stock = taskMsg.Detail.Stock + stock
 	}
 	return tool.ReturnSuccess(taskMsg)
 }

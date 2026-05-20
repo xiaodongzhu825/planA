@@ -14,10 +14,10 @@ func SetWinTitle() {
 
 	//平台
 	switch golabl.Task.Header.ShopType {
-	//case 2:
-	//	return kongFuZi.NewKongfuzi(), nil
 	case "1":
 		title = title + "【拼多多】"
+	case "2":
+		title = title + "【孔夫子】"
 	case "5":
 		title = title + "【闲鱼】"
 	default:
@@ -37,6 +37,12 @@ func SetWinTitle() {
 		title = title + "【拉取商品】"
 	case 4:
 		title = title + "【拉取商品详情】"
+	case 5:
+		title = title + "【操作商品】"
+	case 6:
+		title = title + "【核价表格发布】"
+	case 7:
+		title = title + "【增量库存】"
 	default:
 		title = title + "【其他任务类型 " + fmt.Sprint(golabl.Task.Header.TaskType) + "】"
 	}

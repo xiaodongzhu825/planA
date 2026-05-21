@@ -186,7 +186,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 				return
 			}
 		}
-	} else if taskType == 1 || taskType == 2 || taskType == 6 || taskType == 7 {
+	} else if taskType == 1 || taskType == 2 || taskType == 6 || taskType == 7 || taskType == 8 {
 		if shopData.Spec == nil {
 			errMsg := "未设置规格"
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -1612,10 +1612,10 @@ func checkShopSubscriptionExpiration(taskId string, shopType string, skuSpec str
 			return fmt.Errorf("店铺已到期，到期时间：%s", expTime.Format("2006-01-02 15:04:05"))
 		}
 		// 如果是拼多多店铺的话校验下 是否试用
-		if shopType == "1" && strings.Contains(skuSpec, "七天") {
+		if shopType == "1" && strings.Contains(skuSpec, "7天") {
 			// 是否开启使用无上限
 			if deregulation == "1" {
-				return fmt.Errorf("七天试用 未开启试用无上限功能")
+				return fmt.Errorf("无法创建任务，请去ERP店铺列表订阅或者开通七天无上限限免")
 			}
 		}
 		return nil

@@ -95,6 +95,10 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
 		//如果库存为0 则给默认库存
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
+	} else {
+		if taskMsg.Detail.Stock == 0 && golabl.Task.Header.TaskType == 8 {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("库存不能为0"))
+		}
 	}
 	goodsAdd.Number = strconv.FormatInt(taskMsg.Detail.Stock, 10)
 
@@ -1103,6 +1107,10 @@ func executeGoodsDownShelf(logUuid string, taskMsg planAType.TaskBody) (string, 
 
 // 改价格
 func executeGoodsUpdatePrice(logUuid string, taskMsg planAType.TaskBody) (string, error) {
+	// 价格0 不能发布
+	if taskMsg.Detail.Price == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 价格不能为0"))
+	}
 	//将价格由分转为元
 	price := tool.FenToYuanFloat64(taskMsg.Detail.Price)
 	// 改价格

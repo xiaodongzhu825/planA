@@ -209,6 +209,10 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
 		//如果库存为0 则给默认库存
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
+	} else {
+		if taskMsg.Detail.Stock == 0 && golabl.Task.Header.TaskType == 8 {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("库存不能为0"))
+		}
 	}
 
 	url := "http://127.0.0.1:8095"
@@ -917,7 +921,6 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 
 	// 调试计数器
 	debugCount := 0
-
 	for {
 		list, getTaskBodyOverListErr := service.GetTaskBodyWaitList(page, pageSize)
 		if getTaskBodyOverListErr != nil {
@@ -927,7 +930,6 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 			// 没有数据，结束循环
 			break
 		}
-
 		for _, v := range list {
 			// 解析v到结构体
 			goods := planAType.TaskBody{}
@@ -935,7 +937,6 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 			if jsonUnmarshalErr != nil {
 				return fmt.Errorf("将json转为结构体失败: %v\n", jsonUnmarshalErr)
 			}
-
 			// 解析商品详情获取真实的商品ID
 			var goodsItem planBTypeXianyu.GoodsDetailRet
 			jsonUnmarshalErr = json.Unmarshal([]byte(goods.Detail.Error), &goodsItem)
@@ -990,7 +991,8 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 				// 检查每个店铺的商品数量，达到batchSize则推送
 				if len(shopGoodsMap[username]) >= pageSize {
 					fmt.Println("推送 username ", username, " 长度 ", len(shopGoodsMap[username]))
-					if err := pushShopGoodsData(username, shopGoodsMap[username], int64(page), pageTotal, &num); err != nil {
+					_, err := pushShopGoodsData(username, shopGoodsMap[username], int64(page), pageTotal, &num)
+					if err != nil {
 						return err
 					}
 					// 清空该店铺的数据
@@ -1027,168 +1029,10 @@ func (xianYu *XianYu) deduplicateToBodyOver(duplicateCount *int, uniqueCount *in
 	// 循环结束后，推送所有店铺剩余的数据（不足batchSize的部分）
 	for shopId, goodsList := range shopGoodsMap {
 		if len(goodsList) > 0 {
-			fmt.Println("最后一次 推送 username ", shopId, " 长度 ", len(goodsList))
-			if err := pushShopGoodsData(shopId, goodsList, pageTotal, pageTotal, &num); err != nil {
+			_, err := pushShopGoodsData(shopId, goodsList, pageTotal, pageTotal, &num)
+			if err != nil {
 				return err
 			}
-
-			//打印每个店铺的商品数量
-			fmt.Println("推送 username ", shopId, " 长度 ", len(goodsList))
-		}
-	}
-
-	// 删除body_wait
-	deleteTaskBodyWaitErr := service.DeleteTaskBodyWait()
-	if deleteTaskBodyWaitErr != nil {
-		return deleteTaskBodyWaitErr
-	}
-
-	fmt.Printf("[去重完成] 总处理: %d, 唯一: %d, 重复: %d\n",
-		*uniqueCount+*duplicateCount, *uniqueCount, *duplicateCount)
-
-	return nil
-}
-func (xianYu *XianYu) deduplicateToBodyOver1(duplicateCount *int, uniqueCount *int) error {
-	page := 1
-	pageSize := 100
-
-	// 按店铺存储去重后的商品数据
-	shopGoodsMap := make(map[string][]planBTypeXianyu.GoodsDetailRet)
-	// 已处理的商品ID集合（用于全局去重）
-	processedGoodsIds := make(map[int64]bool)
-
-	// 在循环前删除 body_over与body_backup，避免重复写入
-	deleteTaskBodyOverErr := service.DeleteTaskBodyOver()
-	if deleteTaskBodyOverErr != nil {
-		return deleteTaskBodyOverErr
-	}
-	deleteTaskBodyBackupErr := service.DeleteTaskBodyBackup()
-	if deleteTaskBodyBackupErr != nil {
-		return deleteTaskBodyBackupErr
-	}
-
-	num := 0
-	// 获取body_wait总数量
-	bodyWaitCount, getTaskBodyWaitCountErr := service.GetTaskBodyWaitCount()
-	if getTaskBodyWaitCountErr != nil {
-		return getTaskBodyWaitCountErr
-	}
-	pageTotal := (bodyWaitCount + int64(pageSize) - 1) / int64(pageSize)
-
-	// 调试计数器
-	debugCount := 0
-
-	for {
-		list, getTaskBodyOverListErr := service.GetTaskBodyWaitList(page, pageSize)
-		if getTaskBodyOverListErr != nil {
-			return getTaskBodyOverListErr
-		}
-		if len(list) <= 0 {
-			// 没有数据，结束循环
-			break
-		}
-
-		for _, v := range list {
-			// 解析v到结构体
-			goods := planAType.TaskBody{}
-			jsonUnmarshalErr := json.Unmarshal([]byte(v), &goods)
-			if jsonUnmarshalErr != nil {
-				return fmt.Errorf("将json转为结构体失败: %v\n", jsonUnmarshalErr)
-			}
-
-			// 解析商品详情获取真实的商品ID
-			var goodsItem planBTypeXianyu.GoodsDetailRet
-			jsonUnmarshalErr = json.Unmarshal([]byte(goods.Detail.Error), &goodsItem)
-			if jsonUnmarshalErr != nil {
-				return fmt.Errorf("将json转为结构体失败: %v\n", jsonUnmarshalErr)
-			}
-
-			//提取 Isbn
-			if goodsItem.BookData.ISBN == "" {
-				goodsItem.BookData.ISBN = tool.ExtractISBN978(goodsItem.Title)
-			}
-			//Isbn 为空则跳过
-			if goodsItem.BookData.ISBN == "" {
-				fmt.Println("####################商品无法获取 Isbn，跳过：", goodsItem.Title)
-				continue
-			}
-
-			// 使用 ProductID 作为唯一标识（int64类型）
-			goodsId := goodsItem.ProductID
-
-			// 调试：打印前10条数据的ID
-			if debugCount < 10 {
-				fmt.Printf("[去重调试] 第%d条 - 商品ID: %d, ProductID: %d, Title: %s\n",
-					debugCount+1, goodsId, goodsItem.ProductID, goodsItem.Title)
-				debugCount++
-			}
-
-			if !processedGoodsIds[goodsId] {
-				// 标记为已处理
-				processedGoodsIds[goodsId] = true
-				*uniqueCount++
-
-				// 获取闲鱼会员名
-				username := ""
-				if len(goodsItem.PublishShop) > 0 {
-					username = goodsItem.PublishShop[0].UserName
-				}
-
-				// 按店铺暂存数据
-				shopGoodsMap[username] = append(shopGoodsMap[username], goodsItem)
-
-				// 写入到body_over
-				goods.Detail.Status = 1
-				addTaskToBodyOverErr := service.AddTaskToBodyOver(goods, []string{"body_over", "body_backup"})
-				if addTaskToBodyOverErr != nil {
-					return addTaskToBodyOverErr
-				}
-
-				// 检查每个店铺的商品数量，达到batchSize则推送
-				if len(shopGoodsMap[username]) >= pageSize {
-					fmt.Println("推送 username ", username, " 长度 ", len(shopGoodsMap[username]))
-					if err := pushShopGoodsData(username, shopGoodsMap[username], int64(page), pageTotal, &num); err != nil {
-						return err
-					}
-					// 清空该店铺的数据
-					shopGoodsMap[username] = []planBTypeXianyu.GoodsDetailRet{}
-				}
-			} else {
-				// 重复数据 计次
-				*duplicateCount++
-				// 调试：打印前10条重复数据
-				if *duplicateCount <= 10 {
-					fmt.Printf("[去重调试] 发现重复商品: %d\n", goodsId)
-				}
-			}
-		}
-
-		page++
-
-		// 更新进度
-		if getTaskFooterErr := service.GetTaskFooter(); getTaskFooterErr != nil {
-			return getTaskFooterErr
-		}
-		con := int64(len(list))
-		if con >= golabl.Task.Footer.TaskCountTrue {
-			con = golabl.Task.Footer.TaskCountTrue - con
-		}
-		if updateTaskProgressErr := tool.UpdateTaskProgress(con); updateTaskProgressErr != nil {
-			return updateTaskProgressErr
-		}
-
-		// 暂停1秒
-		time.Sleep(1 * time.Second)
-	}
-
-	// 循环结束后，推送所有店铺剩余的数据（不足batchSize的部分）
-	for shopId, goodsList := range shopGoodsMap {
-		if len(goodsList) > 0 {
-			fmt.Println("最后一次 推送 username ", shopId, " 长度 ", len(goodsList))
-			if err := pushShopGoodsData(shopId, goodsList, pageTotal, pageTotal, &num); err != nil {
-				return err
-			}
-
 			//打印每个店铺的商品数量
 			fmt.Println("推送 username ", shopId, " 长度 ", len(goodsList))
 		}
@@ -1207,24 +1051,23 @@ func (xianYu *XianYu) deduplicateToBodyOver1(duplicateCount *int, uniqueCount *i
 }
 
 // pushShopGoodsData 推送单个店铺的商品数据到接口
-func pushShopGoodsData(username string, goodsList []planBTypeXianyu.GoodsDetailRet, currentPage int64, totalPage int64, totalCount *int) error {
+func pushShopGoodsData(username string, goodsList []planBTypeXianyu.GoodsDetailRet, currentPage int64, totalPage int64, totalCount *int) (string, error) {
 	if len(goodsList) == 0 {
-		return nil
+		return "", nil
 	}
 
 	// 将获取的数据推送写入店铺商品数据接口
 	ret, retStr, writeXianyuGoodsDataErr := writeXianyuGoodsData(goodsList, username, int(currentPage), totalPage)
 	if writeXianyuGoodsDataErr != nil {
-		return writeXianyuGoodsDataErr
+		return "", writeXianyuGoodsDataErr
 	}
 	if ret.Code != "200" {
-		return fmt.Errorf("添加商品失败 %v", retStr)
+		return retStr, fmt.Errorf("添加商品失败 %v", retStr)
 	}
 
 	*totalCount = *totalCount + len(goodsList)
-	fmt.Printf("推送店铺 %s 的商品数据，当前批次数量 %v 总数据量 %v \n", username, len(goodsList), *totalCount)
 
-	return nil
+	return retStr, nil
 }
 
 // processGoodsDetail 处理单个商品的详情并写入数据库（修改版）
@@ -1468,6 +1311,11 @@ func executeGoodsUpdateStock(logUuid string, taskMsg planAType.TaskBody) (string
 // 修改价格
 func executeGoodsUpdatePrice(logUuid string, taskMsg planAType.TaskBody) (string, error) {
 	var updatePrice planBTypeXianyu.UpdatePrice
+
+	// 价格0 不能发布
+	if taskMsg.Detail.Price == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 价格不能为0"))
+	}
 
 	// 解析应用 id与应用秘钥
 	var token planBTypeXianyu.Token

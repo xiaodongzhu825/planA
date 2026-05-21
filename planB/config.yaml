@@ -14,10 +14,10 @@ speed: #限速器
   xianyu_speed: 5 #闲鱼 每秒多少个任务
   watermark: 15 #打水印速率的个数
 minio: #minio 图片空间
-  url: "103.236.68.64:19000" #minio地址
-  access_key_id: "minio" #minio keyId
-  secret_access_key: "bhkXyaD2WdAF7C6z" #minio key
-  bucket_name: "my-pics" #存储桶
+  url: "36.212.7.35:19000" #minio地址
+  access_key_id: "minioadmin" #minio keyId
+  secret_access_key: "minioadmin" #minio key
+  bucket_name: "task-xianyu" #存储桶
   target_dir: "test/2025" #目标目录
   use_ssl: false #是否使用 SSL
 alive:
@@ -96,8 +96,8 @@ file_url:
   e_file_name: "D:\\source\\planA\\planE\\planE.exe"   #E 程序文件路径
   f_file_name: "D:\\source\\planA\\planE\\planF.exe"   #F 程序文件路径
   create_task_url: "https://api.buzhiyushu.cn/zhishu/baseInfo/addNewTask"   #新增任务接口
-  create_task_notice_url: "http://192.168.101.127:8055/task" #核价软件提交数据通知接口
-  create_operation_task_notice_url: "http://192.168.101.127:8055/taskV2" #操作商品任务核价软件提交数据通知接口
+  create_task_notice_url: "http://36.212.12.92:8055/task" #核价软件提交数据通知接口
+  create_operation_task_notice_url: "http://36.212.12.92:8055/taskV2" #操作商品任务核价软件提交数据通知接口
   banned_word_substitution_url : "http://36.212.12.247:13001/task/getFilterSetNew" #违禁词替换接口
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deduction_url: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口
@@ -105,7 +105,7 @@ file_url:
   pdd_get_goods_detail_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/newGetShopGoodsDetailList" #查询拼多多商品详情列表接口
   pdd_add_goods_url: "http://119.45.237.193:14003/task/putShopGoods" #添加拼多多商品接口
   pdd_get_sku_id: "http://192.168.101.127:18099/shopGoods/getShopGoods" #批量获取 skuId接口
-  xianyu_add_goods_url: "http://119.45.237.193:14008/task/putShopGoods" #添加闲鱼商品接口
+  xianyu_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加闲鱼商品接口
   kfz_add_goods_url: "http://119.45.237.193:14009/task/kfzverifyPricePublishGoods" #添加孔夫子商品接口
   del_task_url: "http://119.45.237.193:14008/shopGoods/delShopGoodsk" #删除任务通知接口
   backup_url: "D:\\file\\backup" #备份文件路径

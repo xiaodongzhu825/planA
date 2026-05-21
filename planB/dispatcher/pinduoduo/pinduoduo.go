@@ -1205,6 +1205,10 @@ func updateSkuPrice(logUuid string, taskMsg planAType.TaskBody) (string, error) 
 	if taskMsg.Detail.SkuId == 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 SkuId不能为空"))
 	}
+	// 价格0 不能发布
+	if taskMsg.Detail.Price == 0 {
+		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("拼多多商品 价格不能为0"))
+	}
 	fen := tool.BuildGoodsPrice(taskMsg.Detail.Price)
 	yuan := tool.FenToYuan(fen)
 	reqDataInfo := planBTypePinduoduo.UpdateSkuPrice{
@@ -1458,6 +1462,10 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
 		//如果库存为0 则给默认库存
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
+	} else {
+		if taskMsg.Detail.Stock == 0 && golabl.Task.Header.TaskType == 8 {
+			return taskMsg, fmt.Errorf("库存不能为0")
+		}
 	}
 
 	//生成一个2秒的延迟

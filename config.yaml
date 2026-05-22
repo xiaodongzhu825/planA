@@ -17,8 +17,8 @@ minio: #minio 图片空间
   url: "103.236.68.64:19000" #minio地址
   access_key_id: "minio" #minio keyId
   secret_access_key: "bhkXyaD2WdAF7C6z" #minio key
-  bucket_name: "my-pics" #存储桶
-  target_dir: "test/2025" #目标目录
+  bucket_name: "task-xianyu" #存储桶
+  target_dir: "test" #目标目录
   use_ssl: false #是否使用 SSL
 alive:
   fluent: 50 #存活状态-流畅时间（毫秒）

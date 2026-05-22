@@ -276,6 +276,7 @@ func AddWatermarkFromURLExs(imgUrl []string, watermarkImgUrl string, watermarkPo
 		// 给图片打水印，带重试机制，最大重试次数为3
 		maxRetries := 3
 		for retryCount := 0; retryCount <= maxRetries; retryCount++ {
+
 			newImgJson, addWatermarkFromURLExsErr = golabl.ImageDll.AddWatermarkFromURLExs(imgUrl[i], watermarkImgUrl)
 
 			// 判断是否包含超时错误

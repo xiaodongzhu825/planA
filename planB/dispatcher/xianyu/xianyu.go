@@ -34,12 +34,6 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
 	}
 
-	// 初始化 imageDll
-	//imageDll, imageDllErr := image.InitImageDll()
-	//if imageDllErr != nil {
-	//	return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("初始化图片DLL失败 %v", imageDllErr))
-	//}
-
 	// 价格不能小于0
 	if taskMsg.Detail.Price <= 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("价格不能小于等于0"))
@@ -136,30 +130,37 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	// 构建详情图
 	contentImgs := tool.BuildDetailGallery(golabl.Task.Header.ShopMsg.GoodsDetailFirstImgUrlArray, golabl.Task.Header.ShopMsg.GoodsDetailLastImgUrlArray, taskMsg.BookInfo.ImageObject.DetailUrlObject, taskMsg.BookInfo.ImageObject.CarouselUrlArray[0])
 
-	//oldCarouselUrlArray := append([]string{}, taskMsg.BookInfo.ImageObject.CarouselUrlArray...) //原始轮播图，用于后续处理，不会被打上水印
+	oldCarouselUrlArray := append([]string{}, taskMsg.BookInfo.ImageObject.CarouselUrlArray...) //原始轮播图，用于后续处理，不会被打上水印
 
-	// 存在水印图片，则打水印
-	//if golabl.Task.Header.ShopMsg.WatermarkImgUrl != "" {
-	//	//打水印
-	//	watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(imageDll, taskMsg.BookInfo.ImageObject.CarouselUrlArray, golabl.Task.Header.ShopMsg.WatermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
-	//	if watermarkFromURLExsErr != nil {
-	//		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("图片打水印失败 %v", watermarkFromURLExsErr))
-	//	}
-	//
-	//	//图片上传到图片空间
-	//	toMinIo, uploadToMinIoErr := tool.UploadToMinIo(watermarkFromURLExsBase64Arr)
-	//	if uploadToMinIoErr != nil {
-	//		return "", uploadToMinIoErr
-	//	}
-	//
-	//	//将上传的图片替换到商品轮播图中
-	//	for i := 0; i < len(toMinIo); i++ {
-	//		taskMsg.BookInfo.ImageObject.CarouselUrlArray[i] = toMinIo[i]
-	//	}
-	//}
+	//存在水印图片，则打水印
+	if golabl.Task.Header.ShopMsg.WatermarkImgUrl != "" {
+		//获取水印图片
+		watermarkImgUrl, watermarkImgErr := tool.GetWatermarkImg()
+		if watermarkImgErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("图片打水印失败 %v", fmt.Errorf("获取水印图片失败 %v", watermarkImgErr)))
+		}
+
+		//打水印
+		watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(taskMsg.BookInfo.ImageObject.CarouselUrlArray, watermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
+		if watermarkFromURLExsErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("图片打水印失败 %v", watermarkFromURLExsErr))
+		}
+
+		//图片上传到图片空间
+		toMinIo, uploadToMinIoErr := tool.UploadToMinIo(watermarkFromURLExsBase64Arr)
+		if uploadToMinIoErr != nil {
+			return "", uploadToMinIoErr
+		}
+
+		//将上传的图片替换到商品轮播图中
+		for i := 0; i < len(toMinIo); i++ {
+			taskMsg.BookInfo.ImageObject.CarouselUrlArray[i] = toMinIo[i]
+		}
+	}
+
 	// 构建主图（轮播图）
-	refactorCarouselGallery := tool.BuildCarouselGalleryOld(golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray, taskMsg.BookInfo.ImageObject.CarouselUrlArray)
-	//refactorCarouselGallery := tool.BuildCarouselGallery(golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray, oldCarouselUrlArray, taskMsg.BookInfo.ImageObject.CarouselUrlArray, "1")
+	//refactorCarouselGallery := tool.BuildCarouselGalleryOld(golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray, taskMsg.BookInfo.ImageObject.CarouselUrlArray)
+	refactorCarouselGallery := tool.BuildCarouselGallery(golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray, oldCarouselUrlArray, taskMsg.BookInfo.ImageObject.CarouselUrlArray, golabl.Task.Header.ShopMsg.WatermarkPosition)
 
 	// 如果轮播图没有图片，并且是优先官图，则使用默认图片
 	if len(refactorCarouselGallery) == 0 && golabl.Task.Header.ImgType == 3 && taskMsg.BookInfo.ImageObject.DefaultImageUrl != "" {
@@ -411,6 +412,8 @@ func (xianYu *XianYu) OperationGoodsTask(taskMsg planAType.TaskBody) (string, er
 	if generateUUIDErr != nil {
 		return "", fmt.Errorf("生成唯一请求标识失败: %v", generateUUIDErr)
 	}
+	//暂停 2 秒
+	time.Sleep(2 * time.Second)
 	switch taskMsg.Detail.Status {
 	case 1:
 		return executeGoodsLaunch(logUuid, taskMsg) //上架 {"book_info":{"isbn":"9787115600387"},"detail":{"goods_id":1562238986012229,"status":1}}
@@ -497,6 +500,9 @@ func (xianYu *XianYu) IncStockTask(taskMsg planAType.TaskBody) (string, error) {
 		if updateGoodsQuantityErr != nil {
 			return "", updateGoodsQuantityErr
 		}
+
+		//暂停 5秒
+		time.Sleep(5 * time.Second)
 		return quantity, nil
 	}
 }

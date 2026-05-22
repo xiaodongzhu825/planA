@@ -34,6 +34,9 @@ func GetTaskTypeSetToG() error {
 	case 8: //自营书品发布
 		golabl.TaskType = golabl.TaskTypeAddGoodsTask
 		return nil
+	case 9: //核价改价
+		golabl.TaskType = golabl.TaskTypeOperationGoodsTask
+		return nil
 	default:
 		fmt.Println(golabl.Task.Header.TaskType)
 		return errors.New("错误！")

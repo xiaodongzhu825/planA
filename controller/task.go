@@ -1289,7 +1289,7 @@ func AddTask(taskId string, bodyData []string) int {
 		var bookInfo _type.BookInfo
 		var GetTaskBookErr error
 		// 书品处理
-		if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 5 || header.TaskType == 6 || header.TaskType == 7 {
+		if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 5 || header.TaskType == 6 || header.TaskType == 7 || header.TaskType == 8 {
 			// 连接DB[b] 获取书品信息,#操作商品的isbn13个0则不查询isbn
 			if !(header.TaskType == 5 && taskBody.BookInfo.Isbn == "0000000000000") {
 				bookInfo, GetTaskBookErr = service.GetTaskBook(taskBody.BookInfo.Isbn)
@@ -1307,7 +1307,7 @@ func AddTask(taskId string, bodyData []string) int {
 				}
 			}
 			// 图片处理
-			if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 6 || header.TaskType == 7 {
+			if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 6 || header.TaskType == 7 || header.TaskType == 8 {
 				//处理图片 仅官图不处理
 				if header.ImgType == 2 { //仅实拍图，使用传递过来的图片
 					bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray

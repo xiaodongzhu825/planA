@@ -150,7 +150,7 @@ func taskExecute() {
 	}
 
 	//设置混合任务成功状态
-	if golabl.Task.Header.TaskType == 5 {
+	if golabl.Task.Header.TaskType == 5 || golabl.Task.Header.TaskType == 9 {
 		switch taskMsg.Detail.Status {
 		case 1:
 			errorStr = "设置商品上架 " + errorStr

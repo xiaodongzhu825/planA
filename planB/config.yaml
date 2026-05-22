@@ -14,12 +14,12 @@ speed: #限速器
   xianyu_speed: 5 #闲鱼 每秒多少个任务
   watermark: 15 #打水印速率的个数
 minio: #minio 图片空间
-  url: "36.212.7.35:19000" #minio地址
+  url: "shxy.image.yushutx.com" #minio地址
   access_key_id: "minioadmin" #minio keyId
   secret_access_key: "minioadmin" #minio key
   bucket_name: "task-xianyu" #存储桶
   target_dir: "test/2025" #目标目录
-  use_ssl: false #是否使用 SSL
+  use_ssl: true #是否使用 SSL
 alive:
   fluent: 50 #存活状态-流畅时间（毫秒）
   slow: 200 #存活状态-缓慢时间（毫秒）

@@ -159,7 +159,14 @@ func (pinDuoDuo *PinDuoDuo) OperationGoodsTask(taskMsg planAType.TaskBody) (stri
 	case 4:
 		return updateGoodsQuantity(logUuid, taskMsg, 1, 0) //修改商品库存 {"book_info":{"isbn":"9787532080786"},"detail":{"goods_id":935177284615,"status":4,"stock":2,"sku_id":1882660479308}}
 	case 5:
-		return updateSkuPrice(logUuid, taskMsg) //修改商品价格 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":939229985495,"status":5,"price":5000,"sku_id":1886207421871}}
+		return updateSkuPrice(logUuid, taskMsg) //修改商品价格 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":939229985495,"status":5,"price":5000,"sku_id":1886207421871}}	case 6:
+	case 6:
+		//发布商品
+		taskMsg, publishGoodsErr := publishGoods(logUuid, taskMsg)
+		if publishGoodsErr != nil {
+			return "", publishGoodsErr
+		}
+		return tool.ReturnSuccess(taskMsg)
 	default:
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("未知操作类型 %v", taskMsg.Detail.Status))
 	}
@@ -1529,12 +1536,10 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	// *********************构建参数 结束******************************** //
 
 	// 发送请求
-	goodsAddRet, s, err := addGoods(logUuid, goodsAdd)
+	goodsAddRet, _, err := addGoods(logUuid, goodsAdd)
 	if err != nil {
 		return taskMsg, fmt.Errorf("商品提交 %v", err)
 	}
-
-	fmt.Println(s)
 
 	// 获取商品提交的商品详情
 	goodsCommitDetail, _, getGoodsCommitDetailErr := getGoodsCommitDetail(goodsAddRet.Response.GoodsCommitID, goodsAddRet.Response.GoodsID)

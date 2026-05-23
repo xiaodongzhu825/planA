@@ -163,76 +163,7 @@ func taskExecute() {
 		case 3:
 			//删除商品的任务存储到 mysql中
 			//删除商品 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":935670364385,"status":3}}
-			delTask, isExistDelTask, delTaskErr := service.GetDelTaskByTaskId()
-			if !isExistDelTask && delTaskErr == nil {
-				taskCount := 0
-				taskCountOver := 0
-				sta := 0
-				//将header 转为json
-				headerByte, headerJsonErr := json.Marshal(golabl.Task.Header)
-				if headerJsonErr != nil {
-					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将header 转为json失败-原因来自:%v", headerJsonErr))
-					return
-				}
-				headerJson := string(headerByte)
-				currentTime := time.Now()
-				// 查询店铺数据
-				shopDataStr, getTaskShopErr := service.GetTaskShop(golabl.Task.Header.ShopId)
-				if getTaskShopErr != nil {
-					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("查询店铺数据失败:%v", headerJsonErr))
-					return
-				}
-				// 解析 json数据
-				shopData, parseShopDataErr := parseShopData(shopDataStr)
-				if parseShopDataErr != nil {
-					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("解析店铺数据失败:%v", parseShopDataErr))
-					return
-				}
-				userId := shopData.Shop.CreateBy
-				taskType := 1
-				//不存在 mysql任务则创建
-				createDelTask := planATypeMysql.DelTask{
-					UserID:        &userId,
-					ShopID:        &golabl.Task.Header.ShopId,
-					TaskID:        &golabl.Task.Header.TaskId,
-					ShopName:      &golabl.Task.Header.ShopName,
-					ShopType:      &shopData.Shop.ShopType,
-					TaskCount:     &taskCount,
-					TaskCountOver: &taskCountOver,
-					Status:        &sta,
-					TaskType:      &taskType,
-					Header:        &headerJson,
-					CreateAt:      &currentTime,
-				}
-				var err error
-				delTask, err = service.CreateDelTask(createDelTask)
-				if err != nil {
-					tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("创建删除任务失败-原因来自:%v", err))
-					return
-				}
-			} else if delTaskErr != nil {
-				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取删除任务失败-原因来自:%v", delTaskErr))
-				return
-			}
-
-			//将任务状态修改为执行中
-			updateDelTaskStatusToDoingErr := service.UpdateDelTaskStatusToDoing()
-			if updateDelTaskStatusToDoingErr != nil {
-				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将删除任务状态修改为执行中失败-原因来自:%v", updateDelTaskStatusToDoingErr))
-				return
-			}
-			// 将明细的删除任务转移到 mysql中
-			insertDelTaskDetailErr := service.InsertDelTaskDetail(delTask.ID, taskMsg)
-			if insertDelTaskDetailErr != nil {
-				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将明细的删除任务转移到 mysql中失败-原因来自:%v", insertDelTaskDetailErr))
-				return
-			}
-			// 添加删除任务数量
-			addDelTaskDetailCountErr := service.AddDelTaskDetailCount()
-			if addDelTaskDetailCountErr != nil {
-				tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("添加删除任务数量失败-原因来自:%v", addDelTaskDetailCountErr))
-				return
-			}
+			DelTask(taskMsg)
 			errorStr = "删除商品 已转转移至删除中心"
 		case 4:
 			errorStr = "修改商品库存 " + errorStr
@@ -242,6 +173,15 @@ func taskExecute() {
 			errorStr = "修改商品价格 " + errorStr
 			//执行任务
 			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
+		case 6:
+			errorStr = "发布商品 " + errorStr
+			//执行任务
+			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
+		case 7:
+			errorStr = "删除并重新发布 " + errorStr
+			//执行任务
+			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
+
 		default:
 			//执行任务
 			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
@@ -379,4 +319,80 @@ func exeTask(taskMsg planAType.TaskBody, status int64, errorStr string) (int64, 
 		taskMsg = bodyOver
 	}
 	return status, errorStr, taskMsg
+}
+
+// DelTask 删除任务
+func DelTask(taskMsg planAType.TaskBody) {
+	//删除商品的任务存储到 mysql中
+	//删除商品 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":935670364385,"status":3}}
+	delTask, isExistDelTask, delTaskErr := service.GetDelTaskByTaskId()
+	if !isExistDelTask && delTaskErr == nil {
+		taskCount := 0
+		taskCountOver := 0
+		sta := 0
+		//将header 转为json
+		headerByte, headerJsonErr := json.Marshal(golabl.Task.Header)
+		if headerJsonErr != nil {
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将header 转为json失败-原因来自:%v", headerJsonErr))
+			return
+		}
+		headerJson := string(headerByte)
+		currentTime := time.Now()
+		// 查询店铺数据
+		shopDataStr, getTaskShopErr := service.GetTaskShop(golabl.Task.Header.ShopId)
+		if getTaskShopErr != nil {
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("查询店铺数据失败:%v", headerJsonErr))
+			return
+		}
+		// 解析 json数据
+		shopData, parseShopDataErr := parseShopData(shopDataStr)
+		if parseShopDataErr != nil {
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("解析店铺数据失败:%v", parseShopDataErr))
+			return
+		}
+		userId := shopData.Shop.CreateBy
+		taskType := 1
+		//不存在 mysql任务则创建
+		createDelTask := planATypeMysql.DelTask{
+			UserID:        &userId,
+			ShopID:        &golabl.Task.Header.ShopId,
+			TaskID:        &golabl.Task.Header.TaskId,
+			ShopName:      &golabl.Task.Header.ShopName,
+			ShopType:      &shopData.Shop.ShopType,
+			TaskCount:     &taskCount,
+			TaskCountOver: &taskCountOver,
+			Status:        &sta,
+			TaskType:      &taskType,
+			Header:        &headerJson,
+			CreateAt:      &currentTime,
+		}
+		var err error
+		delTask, err = service.CreateDelTask(createDelTask)
+		if err != nil {
+			tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("创建删除任务失败-原因来自:%v", err))
+			return
+		}
+	} else if delTaskErr != nil {
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("获取删除任务失败-原因来自:%v", delTaskErr))
+		return
+	}
+
+	//将任务状态修改为执行中
+	updateDelTaskStatusToDoingErr := service.UpdateDelTaskStatusToDoing()
+	if updateDelTaskStatusToDoingErr != nil {
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将删除任务状态修改为执行中失败-原因来自:%v", updateDelTaskStatusToDoingErr))
+		return
+	}
+	// 将明细的删除任务转移到 mysql中
+	insertDelTaskDetailErr := service.InsertDelTaskDetail(delTask.ID, taskMsg)
+	if insertDelTaskDetailErr != nil {
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("将明细的删除任务转移到 mysql中失败-原因来自:%v", insertDelTaskDetailErr))
+		return
+	}
+	// 添加删除任务数量
+	addDelTaskDetailCountErr := service.AddDelTaskDetailCount()
+	if addDelTaskDetailCountErr != nil {
+		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, fmt.Sprintf("添加删除任务数量失败-原因来自:%v", addDelTaskDetailCountErr))
+		return
+	}
 }

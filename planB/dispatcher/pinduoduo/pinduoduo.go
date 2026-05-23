@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"planA/planB/initialization/golabl"
+	"planA/planB/logic"
 	"planA/planB/modules/logs"
 	"planA/planB/service"
 	"planA/planB/tool"
@@ -164,7 +165,22 @@ func (pinDuoDuo *PinDuoDuo) OperationGoodsTask(taskMsg planAType.TaskBody) (stri
 		//发布商品
 		taskMsg, publishGoodsErr := publishGoods(logUuid, taskMsg)
 		if publishGoodsErr != nil {
-			return "", publishGoodsErr
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, publishGoodsErr)
+		}
+		return tool.ReturnSuccess(taskMsg)
+	case 7:
+		//下架
+		taskMsg.Detail.Status = 2
+		_, setSaleStatusGoodsTaskErr := setSaleStatusGoodsTask(logUuid, taskMsg)
+		if setSaleStatusGoodsTaskErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, setSaleStatusGoodsTaskErr)
+		}
+		//删除商品
+		logic.DelTask(taskMsg)
+		//发布商品
+		taskMsg, publishGoodsErr := publishGoods(logUuid, taskMsg)
+		if publishGoodsErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, publishGoodsErr)
 		}
 		return tool.ReturnSuccess(taskMsg)
 	default:

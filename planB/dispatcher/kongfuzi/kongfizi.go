@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"planA/planB/initialization/golabl"
+	"planA/planB/logic"
 	"planA/planB/modules/logs"
 	"planA/planB/service"
 	"planA/planB/tool"
@@ -195,6 +196,17 @@ func (kongFuZi *KongFuZi) OperationGoodsTask(taskMsg planAType.TaskBody) (string
 		taskMsg, publishGoodsErr := publishGoods(logUuid, taskMsg) //{"book_info":{"isbn":"9787800822780","detail":{"price":5000,"shipping_cost":5000,"status":6,"stock":1 }}
 		if publishGoodsErr != nil {
 			return "", publishGoodsErr
+		}
+		return tool.ReturnSuccess(taskMsg)
+	case 7:
+		//删除商品
+		logic.DelTask(taskMsg)
+		//延迟 10 秒
+		time.Sleep(10 * time.Second)
+		//发布商品
+		taskMsg, publishGoodsErr := publishGoods(logUuid, taskMsg)
+		if publishGoodsErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, publishGoodsErr)
 		}
 		return tool.ReturnSuccess(taskMsg)
 	default:

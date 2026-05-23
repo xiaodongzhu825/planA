@@ -177,6 +177,18 @@ func (xianYu *XianYu) OperationGoodsTask(taskMsg planAType.TaskBody) (string, er
 			return "", publishGoodsErr
 		}
 		return tool.ReturnSuccess(taskMsg)
+	case 7:
+		//下架
+		_, setSaleStatusGoodsTaskErr := executeGoodsDownShelf(logUuid, taskMsg)
+		if setSaleStatusGoodsTaskErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, setSaleStatusGoodsTaskErr)
+		}
+		//发布商品
+		taskMsg, publishGoodsErr := publishGoods(logUuid, taskMsg)
+		if publishGoodsErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, publishGoodsErr)
+		}
+		return tool.ReturnSuccess(taskMsg)
 	default:
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("未知操作类型"))
 	}

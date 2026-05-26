@@ -91,6 +91,10 @@ func KongFiZLogic(task mysql.DelTask) error {
 
 func XianYuLogic() error {
 	//闲鱼没有删除
+	if err := service.UpdateTaskStatus(3); err != nil {
+		return err
+	}
+	fmt.Println("任务完成！")
 	return nil
 }
 
@@ -140,7 +144,7 @@ func handleLimitError(task mysql.DelTask, deleteGoodsId []int64) error {
 	if err := service.UpdateTaskStatus(2); err != nil {
 		return err
 	}
-	return fmt.Errorf("----您当日所删除的商品已达上限----\n")
+	return fmt.Errorf("----您当日所删除的商品已达上限或无法获取需要删除的数据----\n")
 }
 
 // 更新任务进度和完成状态
@@ -173,6 +177,12 @@ func PddRegularTask(task mysql.DelTask) error {
 	}
 
 	var deleteGoodsId []int64
+
+	if len(delTask) == 0 {
+		if err := handleLimitError(task, deleteGoodsId); err != nil {
+			return err
+		}
+	}
 
 	for _, v := range delTask {
 		status := 1
@@ -312,12 +322,19 @@ func PddCountTask(task mysql.DelTask) error {
 	if dleNum > 5000 {
 		dleNum = 5000
 	}
-	fmt.Println("删除数量 ：", dleNum)
+	fmt.Println("任务ID ", golabl.TaskId, " 删除数量 ：", dleNum)
+
 	goodsList, err := getGoodsList(header.ShopMsg.Token, dleNum)
 	if err != nil {
 		return err
 	}
 	fmt.Println("获取删除数量的长度 ", len(goodsList))
+
+	if len(goodsList) == 0 {
+		if err := handleLimitError(task, []int64{}); err != nil {
+			return err
+		}
+	}
 
 	return processDeletions(task, goodsList, header.ShopMsg.Token)
 }
@@ -350,6 +367,13 @@ func PddTimeTask(task mysql.DelTask) error {
 		}
 	}
 	fmt.Printf("获取删除数量的长度 %v\n", len(filteredList))
+
+	if len(filteredList) == 0 {
+		if err := handleLimitError(task, []int64{}); err != nil {
+			return err
+		}
+	}
+
 	if err := processDeletions(task, filteredList, header.ShopMsg.Token); err != nil {
 		return err
 	}

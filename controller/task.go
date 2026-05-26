@@ -156,7 +156,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	//请求创建任务接口并获取任务 id
 	taskId, err := CreateTaskRequest(dataVal.ShopID, dataVal.TaskType)
 	if err != nil {
-		errMsg := "请求创建任务接口失败: " + err.Error()
+		errMsg := "店铺ID " + dataVal.ShopID + " 任务类型" + dataVal.ShopType + " 请求创建任务接口失败: " + err.Error()
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}
@@ -471,6 +471,11 @@ func SetTaskBody(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	if header.Status == _type.TaskStatusStopped {
 		errMsg := "任务已停止"
+		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+		return
+	}
+	if header.TaskId == "" {
+		errMsg := "任务不存在或已经删除"
 		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
 		return
 	}

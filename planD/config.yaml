@@ -30,9 +30,9 @@ pool_config:
   with_nonblocking : true #非阻塞
 mysql_config:
   db_name: "task_user" #数据库名称
-  user: "root"  #数据库用户名
-  password: "root"  #数据库密码
-  host: "127.0.0.1" #数据库地址
+  user: "task_user"  #数据库用户名
+  password: "BCdmsRshrHHKdmJT"  #数据库密码
+  host: "36.212.12.247" #数据库地址
   port: 3306  #数据库端口
   loglevel: "silent"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
   max_retry_times: 3  #数据库重试次数

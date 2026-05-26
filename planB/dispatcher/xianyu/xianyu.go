@@ -410,7 +410,6 @@ func (xianYu *XianYu) phaseOneGoodsOnlyCount(token planBTypeXianyu.Token, pageSi
 		if err != nil {
 			return fmt.Errorf("解析响应失败，页码: %d, 错误: %v", page, err)
 		}
-
 		if list.Code != 0 {
 			return fmt.Errorf("获取商品列表失败 code=%d, msg=%s", list.Code, list.Msg)
 		}
@@ -443,7 +442,7 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 		endTime, time.Unix(endTime, 0).Format("2006-01-02 15:04:05"))
 
 	if currentUpdateTimeFrom > 0 {
-		currentUpdateTimeFrom := *lastUpdateTime
+		//currentUpdateTimeFrom := *lastUpdateTime
 		maxLoopCount := 100 // 最大循环次数保护
 		loopCount := 0
 
@@ -488,7 +487,6 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 			currentPage := 1
 			batchGoodsCount := 0
 			lastItemUpdateTime := int64(0)
-			hasDataInRange := false
 			pageExceededThreshold := false // 标记是否页码超过阈值
 
 			// 在当前时间范围内分页获取数据
@@ -520,6 +518,12 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 					return fmt.Errorf("解析响应失败（时间范围），页码: %d, 错误: %v", currentPage, err)
 				}
 
+				if list.Code == 100001 {
+					fmt.Println("大于半年了，结束查询111")
+					fmt.Println("开始时间", time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
+					fmt.Println("结束时间", time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"))
+					break
+				}
 				if list.Code != 0 {
 					return fmt.Errorf("获取商品列表失败 code=%d, msg=%s", list.Code, list.Msg)
 				}
@@ -529,17 +533,14 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 					// 如果当前页是第一页且没有数据，说明整个时间范围都没有数据
 					if currentPage == 1 {
 						fmt.Printf("时间范围 %d - %d 内无数据\n", currentUpdateTimeFrom, currentUpdateTimeEnd)
-						hasDataInRange = false
 						break
 					}
 					// 当前页没有数据，但前面有数据，说明当前时间范围的数据已取完
 					fmt.Printf("当前时间范围数据已取完，共获取 %d 条数据\n", batchGoodsCount)
-					hasDataInRange = true
 					break
 				}
 
 				// 有数据
-				hasDataInRange = true
 
 				// 收集商品数据并统计
 				for _, goods := range list.Data.List {
@@ -583,68 +584,32 @@ func (xianYu *XianYu) phaseTwoGoods(token planBTypeXianyu.Token, pageSize int, t
 				currentPage++
 			}
 
-			// 处理页码超过阈值的情况
+			// 不足10000条时，以上一轮的开始时间作为本次的结束时间
+			// 本次结束时间 = 上一轮开始时间，本次开始时间 = 本次结束时间 - 30天
 			if pageExceededThreshold {
-				// 页码超过100时，使用本次最后一条商品的更新时间作为下一时间阶段的结束时间
-				currentUpdateTimeEnd = lastItemUpdateTime
-				// 开始时间 = 当前时间往前推30天
-				currentUpdateTimeFrom = time.Now().Unix() - 30*24*60*60
-				if currentUpdateTimeFrom > currentUpdateTimeEnd {
-					// 如果开始时间超过结束时间，说明时间范围无效，直接使用最后商品时间+1秒
-					currentUpdateTimeFrom = lastItemUpdateTime + 1
+				if lastItemUpdateTime > 0 {
+					currentUpdateTimeEnd = lastItemUpdateTime
+					currentUpdateTimeFrom = currentUpdateTimeEnd - 30*24*60*60
+					fmt.Printf("页码超过100，使用最后一页最后一条时间 %d (%s) 作为新的结束时间，开始时间: %d (%s)\n",
+						currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"),
+						currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
+				} else {
+					currentUpdateTimeEnd = currentUpdateTimeFrom
+					currentUpdateTimeFrom = currentUpdateTimeFrom - 30*24*60*60
+					fmt.Printf("页码超过100但无数据，回退30天\n")
 				}
-				fmt.Printf("页码超过100，使用最后商品时间 %d (%s) 作为下一时间阶段结束时间，开始时间: %d (%s) [当前时间-30天]\n",
-					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"),
-					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
-				// 继续下一次循环
 				continue
 			}
 
-			// 新增逻辑：当获取数量大于等于10000条时，使用最后一条商品的更新时间作为下一时间阶段的结束时间，开始时间则从当前时间往前推30天
-			const maxRecordsThreshold = 10000 // 定义阈值常量
-			if hasDataInRange && batchGoodsCount >= maxRecordsThreshold {
-				// 大于等于10000条：使用最后一条商品的更新时间作为下一时间阶段的结束时间
-				currentUpdateTimeEnd = lastItemUpdateTime
-				// 开始时间 = 当前时间往前推30天
-				currentUpdateTimeFrom = time.Now().Unix() - 30*24*60*60
-				if currentUpdateTimeFrom > currentUpdateTimeEnd {
-					// 如果开始时间超过结束时间，说明时间范围无效，直接使用最后商品时间+1秒
-					currentUpdateTimeFrom = lastItemUpdateTime + 1
-				}
-				fmt.Printf("获取到 %d 条数据（达到阈值 %d），下一时间阶段结束时间: %d (%s)，开始时间: %d (%s) [当前时间-30天]\n",
-					batchGoodsCount, maxRecordsThreshold,
-					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"),
-					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
-			} else if !hasDataInRange {
-				// 情况1：当前时间范围完全没有数据
-				// 时间窗口往前移动30天：结束时间 = 开始时间，开始时间 = 开始时间 - 30天
+			if batchGoodsCount == 0 {
 				currentUpdateTimeEnd = currentUpdateTimeFrom
 				currentUpdateTimeFrom = currentUpdateTimeFrom - 30*24*60*60
-				fmt.Printf("时间范围内无数据，时间窗口往前移动30天\n")
-				fmt.Printf("下一时间范围: 开始时间 %d (%s), 结束时间 %d (%s)\n",
-					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"),
-					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"))
-			} else if batchGoodsCount < maxRecordsPerRange {
-				// 情况2：当前时间范围有数据，但数量少于100条
-				// 上一次的开始时间作为下一时间阶段的结束时间，结束时间-30天作为开始时间
+				fmt.Printf("未获取到数据，时间窗口往前移动30天\n")
+			} else {
 				currentUpdateTimeEnd = currentUpdateTimeFrom
 				currentUpdateTimeFrom = currentUpdateTimeEnd - 30*24*60*60
-				fmt.Printf("当前时间范围获取数据 %d 条，少于 %d 条，上一次开始时间作为下一阶段结束时间，结束时间-30天作为开始时间\n",
-					batchGoodsCount, maxRecordsPerRange)
-				fmt.Printf("下一时间范围: 开始时间 %d (%s), 结束时间 %d (%s)\n",
-					currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"),
-					currentUpdateTimeEnd, time.Unix(currentUpdateTimeEnd, 0).Format("2006-01-02 15:04:05"))
-			} else {
-				// 情况3：当前时间范围获取了100条或以上（但不足10000条），可能还有更多数据
-				// 使用最后一条商品的更新时间作为新的开始时间，继续在当前时间范围附近查询
-				if lastItemUpdateTime == currentUpdateTimeFrom {
-					currentUpdateTimeFrom = lastItemUpdateTime
-					fmt.Printf("最后商品时间与开始时间相同，推进1秒: %d -> %d\n", lastItemUpdateTime, currentUpdateTimeFrom)
-				} else {
-					currentUpdateTimeFrom = lastItemUpdateTime
-				}
-				fmt.Printf("当前时间范围获取 %d 条数据（达到阈值 %d），继续查询，新开始时间: %d (%s)\n",
-					batchGoodsCount, maxRecordsPerRange, currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
+				fmt.Printf("获取 %d 条（<10000），以上一轮开始时间作为结束时间，开始时间: %d (%s)\n",
+					batchGoodsCount, currentUpdateTimeFrom, time.Unix(currentUpdateTimeFrom, 0).Format("2006-01-02 15:04:05"))
 			}
 
 			// 检查新的开始时间是否已超过当前时间
@@ -959,6 +924,12 @@ func writeXianyuGoodsData(goodsListStr []planBTypeXianyu.GoodsDetailRet, usernam
 		"allNum":       strconv.FormatInt(pageTotal, 10),
 		"num":          strconv.Itoa(page),
 	}
+	// 将 params 转为 json
+	paramsJson, marshalErr := json.Marshal(params)
+	if marshalErr != nil {
+		return ret, "", marshalErr
+	}
+	fmt.Println(string(paramsJson))
 	retStr, submitFormDataErr := tool.SubmitFormData(golabl.Config.FileUrl.XianYuAddGoodsUrl, params)
 	if submitFormDataErr != nil {
 		return ret, retStr, submitFormDataErr
@@ -1307,15 +1278,15 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	url := "http://127.0.0.1:8095"
 	tool.HttpGetRequest(url)
 
+	//价格 + 运费
+	if golabl.Task.Header.PriceType != "0" {
+		taskMsg.Detail.Price = taskMsg.Detail.Price + taskMsg.Detail.ShippingCost
+	}
+
 	//构建参考价格
 	price := tool.BuildPrice(golabl.Task.Header.PriceMod, taskMsg.Detail.Price)
 	if price == 0 {
 		return taskMsg, fmt.Errorf("不在价格区间内 isbn:%v", taskMsg.BookInfo.Isbn)
-	}
-
-	//价格 + 运费
-	if golabl.Task.Header.PriceType != "0" {
-		price = price + taskMsg.Detail.ShippingCost
 	}
 
 	taskMsg.Detail.Price = price

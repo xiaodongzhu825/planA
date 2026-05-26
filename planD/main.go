@@ -32,7 +32,7 @@ func main() {
 	}
 
 	// 暂停1分钟，并循环倒计时
-	fmt.Println("\n✅ 任务执行完成！")
+	fmt.Println("\n✅ 任务执行完成！", taskId)
 	fmt.Println("⏸️  暂停1分钟后自动退出...")
 
 	ticker := time.NewTicker(1 * time.Second)

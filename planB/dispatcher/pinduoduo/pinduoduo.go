@@ -160,7 +160,7 @@ func (pinDuoDuo *PinDuoDuo) OperationGoodsTask(taskMsg planAType.TaskBody) (stri
 	case 4:
 		return updateGoodsQuantity(logUuid, taskMsg, 1, 0) //修改商品库存 {"book_info":{"isbn":"9787532080786"},"detail":{"goods_id":935177284615,"status":4,"stock":2,"sku_id":1882660479308}}
 	case 5:
-		return updateSkuPrice(logUuid, taskMsg) //修改商品价格 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":939229985495,"status":5,"price":5000,"sku_id":1886207421871}}	case 6:
+		return updateSkuPrice(logUuid, taskMsg) //修改商品价格 {"book_info":{"isbn":"9787543982888"},"detail":{"goods_id":939229985495,"status":5,"price":5000,"sku_id":1886207421871}}
 	case 6:
 		//发布商品
 		taskMsg, publishGoodsErr := publishGoods(logUuid, taskMsg)
@@ -215,44 +215,44 @@ func (pinDuoDuo *PinDuoDuo) IncStockTask(taskMsg planAType.TaskBody) (string, er
 		}
 
 		//根据回调查询商品回到信息直到成功
-		found := false
-		startTime := time.Now()
-		maxDuration := 3 * time.Minute // 最大查询时间 3分钟
+		//found := false
+		//startTime := time.Now()
+		//maxDuration := 3 * time.Minute // 最大查询时间 3分钟
 
-		for !found {
-			// 检查是否超时
-			if time.Since(startTime) > maxDuration {
-				fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~超时了~~~~~~~~~~~~~~~~~~~~~~~~~~")
-				found = true
-				break // 跳出内层循环
+		//for !found {
+		//	// 检查是否超时
+		//	if time.Since(startTime) > maxDuration {
+		//		fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~超时了~~~~~~~~~~~~~~~~~~~~~~~~~~")
+		//		found = true
+		//		break // 跳出内层循环
+		//	}
+		list, getPddNoticeMsgErr := service.GetPddNoticeMsg(golabl.Task.TaskId)
+		if getPddNoticeMsgErr != nil {
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, getPddNoticeMsgErr)
+		}
+		for _, v := range list {
+			var pddNoticeMsg planBTypePinduoduo.PddNoticeMsg
+			unmarshalErr := json.Unmarshal([]byte(v), &pddNoticeMsg)
+			if unmarshalErr != nil {
+				return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, unmarshalErr)
 			}
-			list, getPddNoticeMsgErr := service.GetPddNoticeMsg(golabl.Task.TaskId)
-			if getPddNoticeMsgErr != nil {
-				return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, getPddNoticeMsgErr)
-			}
-			for _, v := range list {
-				var pddNoticeMsg planBTypePinduoduo.PddNoticeMsg
-				unmarshalErr := json.Unmarshal([]byte(v), &pddNoticeMsg)
-				if unmarshalErr != nil {
-					return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, unmarshalErr)
+			//必须是发布上架
+			if pddNoticeMsg.Type == "pdd_goods_GoodsOnShelf" {
+				// task.Detail.GoodsId 转为字符串
+				goodsId := strconv.FormatInt(task.Detail.GoodsId, 10)
+				if pddNoticeMsg.GoodsId == goodsId {
+					fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~找到了~~~~~~~~~~~~~~~~~~~~~~~~~~")
+					//跳出最外层循环
+					//found = true
+					break // 跳出内层循环
 				}
-				//必须是发布上架
-				if pddNoticeMsg.Type == "pdd_goods_GoodsOnShelf" {
-					// task.Detail.GoodsId 转为字符串
-					goodsId := strconv.FormatInt(task.Detail.GoodsId, 10)
-					if pddNoticeMsg.GoodsId == goodsId {
-						fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~找到了~~~~~~~~~~~~~~~~~~~~~~~~~~")
-						//跳出最外层循环
-						found = true
-						break // 跳出内层循环
-					}
-				}
-			}
-			// 避免过于频繁的查询，可以添加短暂延迟
-			if !found {
-				time.Sleep(1 * time.Second)
 			}
 		}
+		//// 避免过于频繁的查询，可以添加短暂延迟
+		//if !found {
+		//	time.Sleep(1 * time.Second)
+		//}
+		//}
 		return tool.ReturnSuccess(task)
 	} else {
 		// 将 getGoodsByShopIdAndIsbn.Data[0].TrilateralId 转为 int64
@@ -1317,14 +1317,15 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		}
 	}
 
+	//价格 + 运费
+	if golabl.Task.Header.PriceType != "0" {
+		taskMsg.Detail.Price = taskMsg.Detail.Price + taskMsg.Detail.ShippingCost
+	}
+
 	// 价格处理
 	price := tool.BuildPrice(golabl.Task.Header.PriceMod, taskMsg.Detail.Price)
 	if price == 0 {
 		return taskMsg, fmt.Errorf("不在价格区间内 isbn %v  原始价格 %v  当前价格 %v 价格模版 %v", taskMsg.BookInfo.Isbn, taskMsg.Detail.Price, price, golabl.Task.Header.PriceMod)
-	}
-	//价格 + 运费
-	if golabl.Task.Header.PriceType != "0" {
-		price = price + taskMsg.Detail.ShippingCost
 	}
 
 	taskMsg.Detail.Price = price

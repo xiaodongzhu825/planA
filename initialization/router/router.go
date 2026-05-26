@@ -12,4 +12,5 @@ func Init() {
 	router.Alive()
 	router.DelTaskInit()
 	router.UploadImgInit()
+	router.ShopInit()
 }

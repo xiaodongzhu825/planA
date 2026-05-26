@@ -1043,7 +1043,7 @@ func pushShopGoodsData(shopGoodsList []planBTypeKfz.KfzGoodsItem, pageFlag int) 
 	return response, nil
 }
 
-// 拼多多发布
+// 孔夫子发布
 func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBody, error) {
 	// 价格不能小于0
 	if taskMsg.Detail.Price <= 0 {
@@ -1063,6 +1063,10 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		}
 	}
 
+	// 售价 + 运费
+	if golabl.Task.Header.PriceType != "0" {
+		taskMsg.Detail.Price = taskMsg.Detail.Price + taskMsg.Detail.ShippingCost
+	}
 	// 价格处理
 	price := tool.BuildPrice(golabl.Task.Header.PriceMod, taskMsg.Detail.Price)
 	if price == 0 {
@@ -1093,14 +1097,8 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		taskMsg.BookInfo) // 图书信息
 	taskMsg.Detail.GoodsName = goodsAdd.ItemName
 
-	// 售价 + 运费
-	priceTol := taskMsg.Detail.Price
-	if golabl.Task.Header.PriceType != "0" {
-		priceTol = priceTol + taskMsg.Detail.ShippingCost
-	}
-
 	//售价
-	goodsAdd.Price = tool.FenToYuan(priceTol)
+	goodsAdd.Price = tool.FenToYuan(taskMsg.Detail.Price)
 
 	//库存
 	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
@@ -1117,6 +1115,13 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	goodsAdd.Quality = strconv.FormatInt(taskMsg.Detail.Condition, 10)
 	if goodsAdd.Quality == "" || goodsAdd.Quality == "0" {
 		goodsAdd.Quality = strconv.FormatInt(golabl.Task.Header.ShopMsg.ConditionDef, 10)
+	}
+
+	//货号
+	if taskMsg.Detail.OutGoodsId != "" {
+		goodsAdd.ItemSn = taskMsg.Detail.OutGoodsId
+	} else {
+		goodsAdd.ItemSn = taskMsg.BookInfo.Isbn
 	}
 
 	if len(taskMsg.BookInfo.ImageObject.CarouselUrlArray) == 0 {
@@ -1233,7 +1238,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	goodsAdd.WordNum = fmt.Sprintf("%v", float64(taskMsg.BookInfo.WordsCount/1000))
 
 	// 图书定价
-	goodsAdd.OriPrice = fmt.Sprintf("%v", float64(tool.BuildGoodsPrice(priceTol)/100))
+	goodsAdd.OriPrice = fmt.Sprintf("%v", float64(tool.BuildGoodsPrice(taskMsg.Detail.Price)/100))
 
 	url := "http://127.0.0.1:8095"
 	tool.HttpGetRequest(url)
@@ -1259,5 +1264,6 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	taskMsg.Detail.GoodsId = goods.SuccessResponse.Item.ItemId
 	taskMsg.Detail.OutGoodsId = outGoodsId
 	taskMsg.Detail.Img = goodsAdd.ImgUrl
+	taskMsg.Detail.SkuCode = goodsAdd.ItemSn
 	return taskMsg, nil
 }

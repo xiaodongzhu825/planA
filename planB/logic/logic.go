@@ -186,14 +186,20 @@ func taskExecute() {
 			//执行任务
 			status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		}
+		// 更新任务信息
+		taskMsg.Detail.Status = status
+		taskMsg.Detail.Error = errorStr
+	} else if golabl.Task.Header.TaskType == 7 {
+		//执行任务
+		status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
+		taskMsg.Detail.Status = status
 	} else {
 		//执行任务
 		status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
+		// 更新任务信息
+		taskMsg.Detail.Status = status
+		taskMsg.Detail.Error = errorStr
 	}
-
-	// 更新任务信息
-	taskMsg.Detail.Status = status
-	taskMsg.Detail.Error = errorStr
 
 	//isbn 不为空的添加到body中，比如拉取店铺商品信息isbn可以返回空的
 	if taskMsg.BookInfo.Isbn != "" && (golabl.TaskType == "3" || golabl.TaskType == "4") {

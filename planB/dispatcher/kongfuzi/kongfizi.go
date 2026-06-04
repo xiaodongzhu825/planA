@@ -40,6 +40,7 @@ func (kongFuZi *KongFuZi) AddGoodsTask(taskMsg planAType.TaskBody) (string, erro
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, publishGoodsErr)
 	}
 
+	taskMsg.Detail.Error = "发布成功！"
 	return tool.ReturnSuccess(taskMsg)
 }
 
@@ -264,7 +265,28 @@ func (kongFuZi *KongFuZi) IncStockTask(taskMsg planAType.TaskBody) (string, erro
 
 		//检验商品数量
 		if len(goodsListResp.SuccessResponse.List) == 0 {
-			return "", fmt.Errorf("在孔夫子中未查询到该商品id  %v", trilateralId)
+			//在孔夫子中未查询到该商品id  重新新发布
+			task, addGoodsTaskErr := kongFuZi.AddGoodsTask(taskMsg)
+			if addGoodsTaskErr != nil {
+				return "", addGoodsTaskErr
+			}
+			// 记录特殊错误
+
+			//将task 转为 结构体
+			taskBody := planAType.TaskBody{}
+			unmarshalErr := json.Unmarshal([]byte(task), &taskBody)
+			if unmarshalErr != nil {
+				return "", fmt.Errorf("转换taskBody失败: %v", unmarshalErr)
+			}
+			taskBody.Detail.Error = fmt.Sprintf("未查询到商品id: %v", trilateralId) + " " + taskBody.Detail.Error
+
+			//将taskBody 转为json
+			taskByte, marshalErrs := json.Marshal(taskBody)
+			if marshalErrs != nil {
+				return "", fmt.Errorf("转换taskBody失败: %v", marshalErrs)
+			}
+			task = string(taskByte)
+			return task, nil
 		}
 
 		//增量修改库存
@@ -292,7 +314,7 @@ func (kongFuZi *KongFuZi) SetGoodsTask() string {
 func UploadImageToKfz(imgUrl string) (string, error) {
 
 	//将图片保存到本地
-	imgTempUrl, saveBase64ImageByDateErr := tool.SaveBase64ImageByDate(imgUrl)
+	imgTempUrl, saveBase64ImageByDateErr := tool.SaveBase64ImageByDate(imgUrl, golabl.Config.FileUrl.KfzImgTempUrl)
 	if saveBase64ImageByDateErr != nil {
 		return "", fmt.Errorf("保存图片失败 %v", saveBase64ImageByDateErr)
 	}
@@ -966,6 +988,7 @@ func executeGoodsUpdateStock(logUuid string, taskMsg planAType.TaskBody) (string
 	if launchGoods.ErrorResponse != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("改库存商品失败 %s", launchGoods.ErrorResponse))
 	}
+	taskMsg.Detail.Error = "增加库存成功！"
 	return tool.ReturnSuccess(taskMsg)
 }
 
@@ -1118,11 +1141,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	}
 
 	//货号
-	if taskMsg.Detail.OutGoodsId != "" {
-		goodsAdd.ItemSn = taskMsg.Detail.OutGoodsId
-	} else {
-		goodsAdd.ItemSn = taskMsg.BookInfo.Isbn
-	}
+	goodsAdd.ItemSn = taskMsg.Detail.SkuCode
 
 	if len(taskMsg.BookInfo.ImageObject.CarouselUrlArray) == 0 {
 		// 无图片信息 isbn计次
@@ -1217,15 +1236,24 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	goodsAdd.Isbn = taskMsg.BookInfo.Isbn
 
 	// 作者
+	if taskMsg.BookInfo.Author == "" {
+		taskMsg.BookInfo.Author = "佚名"
+	}
 	goodsAdd.Author = taskMsg.BookInfo.Author
 
 	// 出版社
+	if taskMsg.Publishing.Value == "" {
+		taskMsg.Publishing.Value = "2006-01"
+	}
 	goodsAdd.Press = taskMsg.Publishing.Value
 
 	// 出版社日期
 	goodsAdd.PubDate = taskMsg.BookInfo.PublicationDate
 
 	// 装帧
+	if taskMsg.BookInfo.Binding == "" {
+		taskMsg.BookInfo.Binding = "平装"
+	}
 	goodsAdd.Binding = taskMsg.BookInfo.Binding
 
 	// 开本
@@ -1243,18 +1271,22 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	url := "http://127.0.0.1:8095"
 	tool.HttpGetRequest(url)
 
-	// 新增商品
-	goods, _, addGoodsErr := addGoods(logUuid, goodsAdd)
-	if addGoodsErr != nil {
-		return taskMsg, fmt.Errorf("新增商品错误 %v", addGoodsErr)
-	}
-
 	// 构建商品编码
 	outGoodsId := ""
 	if taskMsg.Detail.OutGoodsId != "" {
 		outGoodsId = taskMsg.Detail.OutGoodsId
 	} else {
 		outGoodsId = taskMsg.BookInfo.Isbn
+	}
+
+	// 新增商品
+	goods, _, addGoodsErr := addGoods(logUuid, goodsAdd)
+	if addGoodsErr != nil {
+		// 如果错误信息包含 "该图书必须使用图书条目库上传"，则修改错误信息
+		if strings.Contains(addGoodsErr.Error(), "该图书必须使用图书条目库上传") {
+			addGoodsErr = fmt.Errorf("该图书可能涉及政治请手动上传")
+		}
+		return taskMsg, fmt.Errorf("新增商品错误 %v", addGoodsErr)
 	}
 
 	//判断错误

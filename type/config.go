@@ -6,18 +6,19 @@ import "time"
 
 // Config 配置结构
 type Config struct {
-	Server      Server        `json:"server"`
-	Speed       Speed         `json:"speed"`
-	Minio       Minio         `json:"minio"`
-	Alive       Alive         `json:"alive"`
-	MysqlConfig MysqlConfig   `json:"mysql_config"`
-	PoolConfig  PoolConfig    `json:"pool_config"`
-	RedisConfig []RedisConfig `json:"redis_config"`
-	PddConfig   PddConfig     `json:"pdd_config"`
-	KfzConfig   KfzConfig     `json:"kfz_config"`
-	AppBConfig  AppBConfig    `json:"app_b_config"`
-	HttpUrl     HttpUrl       `json:"http_url"`
-	FileUrl     FileUrl       `json:"file_url"`
+	Server       Server        `json:"server"`
+	Speed        Speed         `json:"speed"`
+	Minio        Minio         `json:"minio"`
+	Alive        Alive         `json:"alive"`
+	MysqlConfig  MysqlConfig   `json:"mysql_config"`
+	PoolConfig   PoolConfig    `json:"pool_config"`
+	RedisConfig  []RedisConfig `json:"redis_config"`
+	PddConfig    PddConfig     `json:"pdd_config"`
+	KfzConfig    KfzConfig     `json:"kfz_config"`
+	TaobaoConfig TaobaoConfig  `json:"taobao_config"`
+	AppBConfig   AppBConfig    `json:"app_b_config"`
+	HttpUrl      HttpUrl       `json:"http_url"`
+	FileUrl      FileUrl       `json:"file_url"`
 }
 
 // Server 服务器配置结构
@@ -119,6 +120,19 @@ type KfzConfig struct {
 	AppSecret string `json:"app_secret"`
 }
 
+// TaobaoConfig 淘宝配置
+type TaobaoConfig struct {
+	AppKey         int    `json:"app_key"`         // 平台分配的 App Key
+	AppSecret      string `json:"app_secret"`      // App 密钥，用于 HMAC-MD5 签名计算
+	Ati            string `json:"ati"`             // 设备/用户标识
+	UserID         string `json:"user_id"`         // 当前操作用户 ID
+	CompanyID      string `json:"company_id"`      // 公司/店铺所属 ID
+	BaseURL        string `json:"base_url"`        // API 基础域名
+	LocalImgDir    string `json:"local_img_dir"`   // 图片本地缓存目录
+	RequestTimeout int    `json:"request_timeout"` // 请求超时时间（秒）
+	Token          string `json:"token"`           //token
+}
+
 // HttpUrl 请求路径
 type HttpUrl struct {
 	TaskUrl string `json:"task_url"`
@@ -155,4 +169,5 @@ type FileUrl struct {
 	KfzImgHttpUrl                    string `json:"kfz_img_http_url"`
 	GetPddGoodsShopIdIsbnUrl         string `json:"get_pdd_goods_shopid_isbn_url"`
 	GetSubscriptionExpirationDateUrl string `json:"get_subscription_expiration_date_url"`
+	XYBannedWordSubstitutionUrl      string `json:"xy_banned_word_substitution_url"`
 }

@@ -591,27 +591,15 @@ func UploadImageToKfz(watermarkFromURLExsBase64Arr []planBTypeModules.ImageResul
 	var imageUrlArr []string
 	for _, watermarkFromURLExsBase64 := range watermarkFromURLExsBase64Arr {
 		//将图片保存到本地
-		imgTempUrl, saveBase64ImageByDateErr := SaveBase64ImageByDate(watermarkFromURLExsBase64.Data)
+		imgTempUrl, saveBase64ImageByDateErr := SaveBase64ImageByDate(watermarkFromURLExsBase64.Data, golabl.Config.FileUrl.KfzImgTempUrl)
 		if saveBase64ImageByDateErr != nil {
 			return nil, saveBase64ImageByDateErr
 		}
 		//将图片上传到孔夫子
-		upload, kfzGoodsImageUploadErr := golabl.KfzDll.KfzGoodsImageUpload(golabl.Config.KfzConfig.AppId, golabl.Config.KfzConfig.AppSecret, golabl.Task.Header.ShopMsg.Token, imgTempUrl)
+		_, kfzGoodsImageUploadErr := golabl.KfzDll.KfzGoodsImageUpload(golabl.Config.KfzConfig.AppId, golabl.Config.KfzConfig.AppSecret, golabl.Task.Header.ShopMsg.Token, imgTempUrl)
 		if kfzGoodsImageUploadErr != nil {
 			return nil, kfzGoodsImageUploadErr
 		}
-		fmt.Println(upload)
-		//var pddImg planBTypeModules.GoodsImageUploadResponse
-		//imageUrl, pddGoodsImageUploadErr := golabl.PddDll.PddGoodsImageUpload(golabl.Config.PddConfig.ClientId, golabl.Config.PddConfig.ClientSecret, golabl.Task.Header.ShopMsg.Token, watermarkFromURLExsBase64.Data)
-		//if pddGoodsImageUploadErr != nil {
-		//	return imageUrlArr, pddGoodsImageUploadErr
-		//}
-		//// 解析 JSON字符串
-		//unmarshalErr := json.Unmarshal([]byte(imageUrl), &pddImg)
-		//if unmarshalErr != nil {
-		//	return imageUrlArr, fmt.Errorf("解析拼多多 PddGoodsImageUpload 错误: %v [拼多多数据：%v]", unmarshalErr, imageUrl)
-		//}
-		//imageUrlArr = append(imageUrlArr, pddImg.GoodsImageUploadResponse.ImageURL)
 	}
 	return imageUrlArr, nil
 }
@@ -620,7 +608,7 @@ func UploadImageToKfz(watermarkFromURLExsBase64Arr []planBTypeModules.ImageResul
 // 参数1: input - base64编码的图片字符串 或 网络图片地址
 // 参数2: basePath - 基础路径（如 D:\\file\\kfzImg）
 // 返回: 保存的完整图片地址和错误信息
-func SaveBase64ImageByDate(input string) (string, error) {
+func SaveBase64ImageByDate(input string, url string) (string, error) {
 	// 去除首尾空格
 	input = strings.TrimSpace(input)
 
@@ -646,7 +634,7 @@ func SaveBase64ImageByDate(input string) (string, error) {
 	// 生成按年月日的文件夹路径
 	now := time.Now()
 	dateFolder := now.Format("2006-01-02") // 格式: 2026-05-11
-	saveDir := filepath.Join(golabl.Config.FileUrl.KfzImgTempUrl, dateFolder)
+	saveDir := filepath.Join(url, dateFolder)
 
 	// 创建目录（如果不存在）
 	if err := os.MkdirAll(saveDir, 0755); err != nil {

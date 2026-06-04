@@ -32,6 +32,7 @@ func Init() {
 		CheckRedisAlive()                     // redis 心跳
 		CheckPddAlive()                       // 拼多多心跳
 		CheckCreateTaskNoticeUrlAlive()       // 创建任务通知心跳
+		CheckXyBannedWord()                   // 闲鱼违禁词
 		return
 	})
 	if heartbeatErr != nil {

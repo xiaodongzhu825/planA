@@ -253,6 +253,7 @@ func (pinDuoDuo *PinDuoDuo) IncStockTask(taskMsg planAType.TaskBody) (string, er
 		//	time.Sleep(1 * time.Second)
 		//}
 		//}
+		task.Detail.Error = "发布成功！"
 		return tool.ReturnSuccess(task)
 	} else {
 		// 将 getGoodsByShopIdAndIsbn.Data[0].TrilateralId 转为 int64
@@ -1174,6 +1175,7 @@ func updateGoodsQuantity(logUuid string, taskMsg planAType.TaskBody, UpdateType 
 	if UpdateType == 2 {
 		taskMsg.Detail.Stock = taskMsg.Detail.Stock + stock
 	}
+	taskMsg.Detail.Error = "增加库存成功！"
 	return tool.ReturnSuccess(taskMsg)
 }
 
@@ -1543,6 +1545,11 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		specChildName = tool.SubstringByWidth(specChildName, 30)
 	}
 
+	// 根据配置重新构建skuCode
+	if golabl.Task.Header.ShopMsg.SpecCodeCompose == "1" {
+		taskMsg.Detail.SkuCode = taskMsg.BookInfo.Isbn
+	}
+
 	//构建 sku信息
 	sku, err := buildSkuList(price, skuThumbnail, taskMsg.Detail.Stock, taskMsg.Detail.SkuCode, specChildName, taskMsg.Detail.IsOnsale)
 	if err != nil {
@@ -1566,13 +1573,12 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 
 	//拼接接口调用成功的返回数据
 	if len(goodsCommitDetail.GoodsCommitDetailResponse.SkuList) > 0 {
-		taskMsg.Detail.SkuCode = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].OutSkuSn
+		//taskMsg.Detail.SkuCode = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].OutSkuSn
 		taskMsg.Detail.SkuId = goodsCommitDetail.GoodsCommitDetailResponse.SkuList[0].SkuID
 	}
 	taskMsg.Detail.GoodsId = goodsAddRet.Response.GoodsID
 	taskMsg.Detail.ReturnId = goodsAddRet.Response.GoodsCommitID
 	taskMsg.Detail.OutGoodsId = goodsAdd.OutGoodsId
 	taskMsg.Detail.Img = goodsAdd.CarouselGallery[0]
-	taskMsg.Detail.SkuCode = goodsAdd.OutGoodsId
 	return taskMsg, nil
 }

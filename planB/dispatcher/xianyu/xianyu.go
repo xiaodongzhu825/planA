@@ -37,6 +37,7 @@ func (xianYu *XianYu) AddGoodsTask(taskMsg planAType.TaskBody) (string, error) {
 	if publishGoodsErr != nil {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, publishGoodsErr)
 	}
+	taskMsg.Detail.Error = "发布成功！"
 	return tool.ReturnSuccess(taskMsg)
 }
 
@@ -1048,6 +1049,7 @@ func executeGoodsUpdateStock(logUuid string, taskMsg planAType.TaskBody) (string
 	if updateStockRes.Code != 0 {
 		return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, fmt.Errorf("修改商库存品失败 %s", updateStockRes.Msg))
 	}
+	taskMsg.Detail.Error = "增加库存成功！"
 	return tool.ReturnSuccess(taskMsg)
 }
 
@@ -1120,7 +1122,6 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	if unmarshalErr != nil {
 		return taskMsg, fmt.Errorf("解析应用id与应用秘钥 taskHeader.ShopMsg.Token = %v %w", golabl.Task.Header.ShopMsg.Token, unmarshalErr)
 	}
-
 	// 应用 ID
 	goodsAdd.AppId = token.AppId
 
@@ -1309,6 +1310,32 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		},
 	}
 
+	// 构建商品编码
+	outGoodsId := ""
+	if taskMsg.Detail.OutGoodsId != "" {
+		outGoodsId = taskMsg.Detail.OutGoodsId
+	} else {
+		outGoodsId = taskMsg.BookInfo.Isbn
+	}
+
+	//货号
+	skuCode := ""
+	if taskMsg.Detail.SkuCode != "" {
+		skuCode = taskMsg.Detail.SkuCode
+	} else {
+		skuCode = outGoodsId
+	}
+
+	goodsAdd.OuterId = skuCode
+	goodsAdd.SkuItems = []planBTypeXianyu.SkuItems{
+		{
+			OuterID: outGoodsId,
+			Price:   taskMsg.Detail.Price,
+			SkuText: taskMsg.BookInfo.BookName,
+			Stock:   taskMsg.Detail.Stock,
+		},
+	}
+
 	// 闲鱼批次商品 KEY
 	goodsAdd.ItemKey = strconv.FormatInt(time.Now().Unix(), 10)
 	// 新增商品
@@ -1338,13 +1365,6 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		if err != nil {
 			return taskMsg, fmt.Errorf("商品提交 %v", err)
 		}
-	}
-	// 构建商品编码
-	outGoodsId := ""
-	if taskMsg.Detail.OutGoodsId != "" {
-		outGoodsId = taskMsg.Detail.OutGoodsId
-	} else {
-		outGoodsId = taskMsg.BookInfo.Isbn
 	}
 	taskMsg.Detail.GoodsId = goodsAddRet.Data.Success[0].ProductID
 	taskMsg.Detail.OutGoodsId = outGoodsId

@@ -22,6 +22,8 @@ type GoodsAdd struct {
 	StuffStatus  int64      `json:"stuffStatus"`  // 成色，90代表对应成色等级
 	BookData     []BookInfo `json:"bookData"`     // 图书类商品专属信息列表
 	ItemKey      string     `json:"itemKey"`      // 闲鱼批次商品 KEY
+	SkuItems     []SkuItems `json:"skuItems"`     // 商品SKU信息
+	OuterId      string     `json:"outerId"`      // 商品外部ID
 }
 
 // ShopInfo 闲鱼店铺信息结构体
@@ -49,6 +51,13 @@ type BookInfo struct {
 	Prices      []int64 `json:"prices"`      // 商品价格（必填），格式为[商品原价，商品售价]，单位为分
 	Stock       int64   `json:"stock"`       // 库存（必填），商品可售数量
 	CatIds      string  `json:"catIds"`      // 商品类目ID（必填）
+}
+
+type SkuItems struct {
+	Price   int64  `json:"price"`
+	Stock   int64  `json:"stock"`
+	SkuText string `json:"sku_text"`
+	OuterID string `json:"outer_id"`
 }
 
 // SkuMsg 商品SKU信息结构体

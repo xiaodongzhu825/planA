@@ -3,7 +3,7 @@ package validator
 // CreateTask 创建任务结构体
 type CreateTask struct {
 	ShopID     string `form:"shop_id" validate:"required,min=3,max=20"`                    // 必填，长度3-20
-	ShopType   string `form:"shop_type" validate:"required,oneof=1 2 5"`                   // 必填，只能是1、2、5
+	ShopType   string `form:"shop_type" validate:"required,oneof=1 2 5 6"`                 // 必填，只能是1、2、5、6
 	TaskCount  string `form:"task_count" validate:"required,numeric,min=1"`                // 必填，数字且最小值为1
 	TaskType   string `form:"task_type" validate:"required,oneof=1 2 3 4 5 6 7 8 9 10 11"` // 必填，只能是1、2、3、4、5、6、7、8、9、10、11
 	ImgType    string `form:"img_type" validate:"required,oneof=1 2 3 4"`                  // 必填，只能是1、2、3、4

@@ -99,6 +99,7 @@ file_url:
   create_task_notice_url: "http://36.212.12.92:8055/task" #核价软件提交数据通知接口
   create_operation_task_notice_url: "http://36.212.12.92:8055/taskV2" #操作商品任务核价软件提交数据通知接口
   banned_word_substitution_url : "http://36.212.12.247:13001/task/getFilterSetNew" #违禁词替换接口
+  xy_banned_word_substitution_url : "http://146.56.192.164:19095/health" #闲鱼违禁词替换接口
   pdd_token_url: "https://api.buzhiyushu.cn/huidiao/pdd/getToken"  #获取系统规定拼多多 token
   deduction_url: "https://api.buzhiyushu.cn/zhishu/userRecharge/apiBalancePayment" #扣费接口
   pdd_get_goods_url: "http://pdd.buzhiyushu.cn/api/pdd/auth/getShopGoodsList" #查询拼多多商品接口

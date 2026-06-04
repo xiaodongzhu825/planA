@@ -338,7 +338,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		// 执行 B方法程序
 		_, runTaskWorkerErr := process.RunTaskWorker(taskId)
 		if runTaskWorkerErr != nil {
-			fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
+			//fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
 			return
 		}
 		mysqlWrite, sqliteWrite := rep.CreateDbFactoryWrite()
@@ -1135,7 +1135,7 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 	var districtId int64
 	var districtType string
 	//处理 Token
-	if shop.ShopType == "1" || shop.ShopType == "2" { //拼多店铺
+	if shop.ShopType == "1" || shop.ShopType == "2" || shop.ShopType == "6" { //拼多店铺、孔夫子、淘宝
 		token = shop.Token
 	} else if shop.ShopType == "5" { // 闲鱼店铺
 		token = fmt.Sprintf("{\"app_id\":%v,\"app_secret\":\"%v\",\"username\":\"%v\"}", shop.MallID, shop.Token, shop.ShopKey)
@@ -1208,6 +1208,7 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 				BookWeight:         detail.BookWeight,         //书籍重量
 				StandardNumber:     detail.StandardNumber,     //商品标准本数
 				ConditionDef:       detail.ConditionDef,       //商品品相
+				SpecCodeCompose:    spec.SpecCodeCompose,      //规格编码组合类型 0=货号 1=ISBN
 			},
 			PriceMod:         priceModArr,             //价格模版
 			PriceType:        priceType,               //价格类型
@@ -1255,13 +1256,13 @@ func UpdateTaskCount(bodyData []string, taskId string) {
 	// 1. 先执行AddTask，统一判断是否需要后续操作
 	count := AddTask(taskId, bodyData)
 	if count <= 0 {
-		fmt.Printf("找到的书品为0，所以不提交到redis %v", bodyData)
+		fmt.Printf("找到的书品为0，所以不提交到redis")
 		return
 	}
 	// 执行 B方法程序
 	_, runTaskWorkerErr := process.RunTaskWorker(taskId)
 	if runTaskWorkerErr != nil {
-		fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
+		//fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
 		return
 	}
 }

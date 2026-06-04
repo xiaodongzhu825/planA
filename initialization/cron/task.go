@@ -3,9 +3,11 @@ package cron
 import (
 	"archive/zip"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +23,7 @@ import (
 	"planA/tool"
 	toolPdd "planA/tool/pdd"
 	"planA/tool/process"
+	_type "planA/type"
 	"regexp"
 	"strings"
 	"time"
@@ -166,6 +169,45 @@ func CheckBannedWordSubstitutionUrlAlive() {
 	serviceAlive.SetServiceAlive("违禁词替换接口", elapsedMs)
 }
 
+// CheckXyBannedWord 闲鱼违禁词
+func CheckXyBannedWord() {
+	url := golabl.Config.FileUrl.XYBannedWordSubstitutionUrl
+
+	//计算心跳时间
+	start := time.Now()
+	// 发送 GET 请求
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("请求失败: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// 读取响应体
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("读取响应失败: %v\n", err)
+		return
+	}
+	elapsed := time.Since(start)
+	elapsedMs := int(elapsed.Milliseconds()) //将time.Duration类型转换为int类型的毫秒
+	//设置状态
+	serviceAlive.SetServiceAlive("闲鱼违禁词", elapsedMs)
+
+	// 解析 JSON
+	var healthResp _type.HealthResponse
+	err = json.Unmarshal(body, &healthResp)
+	if err != nil {
+		fmt.Printf("解析 JSON 失败: %v\n", err)
+		return
+	}
+
+	// 判断 code 是否为 200
+	if healthResp.Code != 200 {
+		serviceAlive.SetServiceAliveWithMsg("闲鱼违禁词", elapsedMs, healthResp.Message)
+	}
+}
+
 // DeleteOldRedis 删除redisN天前的数据
 func DeleteOldRedis() {
 	read := rep.CreateDbFactoryRead()
@@ -204,7 +246,7 @@ func B() {
 			// 启动 B程序
 			_, runTaskWorkerErr := process.RunTaskWorker(v.TaskId)
 			if runTaskWorkerErr != nil {
-				logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "启动B程序失败："+runTaskWorkerErr.Error())
+				//logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "启动B程序失败："+runTaskWorkerErr.Error())
 				continue
 			}
 			fmt.Println("守护进程成功启动任务B程序的窗口 任务ID：" + v.TaskId)
@@ -734,7 +776,7 @@ func VerifyToken() {
 		buildPddGoodsOuterCatMappingGetErr := toolPdd.BuildPddGoodsOuterCatMappingGet(pddDll, v.Token)
 		if buildPddGoodsOuterCatMappingGetErr != nil {
 			if buildPddGoodsOuterCatMappingGetErr.Error() == "拼多多Token已过期" {
-				fmt.Printf("token 过期的店铺 %v 店铺id %v\n", v.ShopName, v.ID)
+				//fmt.Printf("token 过期的店铺 %v 店铺id %v\n", v.ShopName, v.ID)
 				reqData := map[string]string{
 					"shopId": v.ID,
 				}

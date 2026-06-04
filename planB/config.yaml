@@ -82,6 +82,16 @@ pdd_config:
 kfz_config:
   app_id: 576  #孔夫子appid
   app_secret: "256e10220c5b307f5172b1a49c11467a6cfa8038bbe2a7feccc42231852324f8"  #孔夫子appsecret
+taobao_config:
+  app_key: 852496 #平台分配的 App Key
+  app_secret: "6876bd91e93840wet8d264255a24d892" #App 密钥，用于 HMAC-MD5 签名计算
+  token: "f614764edd33345a41acd10ed3edaa9d" #App 密钥，用于 HMAC-MD5 签名计算
+  ati: "455224047430" #设备/用户标识
+  user_id: "1779953588275" #当前操作用户 ID
+  company_id: "1779953588275" #公司/店铺所属 ID
+  base_url: "https://fxzs.yulinkai.com" #API 基础域名
+  local_img_dir: "D:\\file\\taobao" #图片本地缓存目录
+  request_timeout: 20 #请求超时时间（秒）
 http_url:
   task_url: "http://127.0.0.1:8080"  #A 程序接口地址
 file_url:

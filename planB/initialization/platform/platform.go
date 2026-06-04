@@ -4,6 +4,7 @@ import (
 	"errors"
 	"planA/planB/dispatcher/kongfuzi"
 	pinDuoDuo "planA/planB/dispatcher/pinduoduo"
+	"planA/planB/dispatcher/taobao"
 	"planA/planB/dispatcher/xianyu"
 	"planA/planB/initialization/golabl"
 )
@@ -19,6 +20,9 @@ func GetPlatformSetToG() error {
 		return nil
 	case "5":
 		golabl.Platform = xianyu.NewXianYu()
+		return nil
+	case "6":
+		golabl.Platform = taobao.NewTaobao()
 		return nil
 	default:
 		return errors.New("错误！")

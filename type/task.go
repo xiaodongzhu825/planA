@@ -118,7 +118,7 @@ type ShopMsg struct {
 	BookWeight                  int64       `json:"book_weight"`                      //图书重量【限孔夫子使用】
 	StandardNumber              int64       `json:"standard_number"`                  //商品标准本数【限孔夫子使用】
 	ConditionDef                int64       `json:"condition_def"`                    // 默认品相【限孔夫子使用】
-
+	SpecCodeCompose             string      `json:"spec_code_compose"`                //规格编码组合类型 0=货号 1=Isbn
 }
 
 // PriceMod 价格模版结构体

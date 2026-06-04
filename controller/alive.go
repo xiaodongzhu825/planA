@@ -20,14 +20,16 @@ func GetServiceAliveList(httpMsg http.ResponseWriter, data *http.Request) {
 	alive := serviceAlive.Service
 	for k, v := range alive {
 		status := 0
-		if v > aliveConfig.Fluent && v < aliveConfig.Slow {
+		// v.Times 是原来的计数值
+		if v.Times > aliveConfig.Fluent && v.Times < aliveConfig.Slow {
 			status = 1
-		} else if v >= aliveConfig.Slow {
+		} else if v.Times >= aliveConfig.Slow {
 			status = 2
 		}
 		ret = append(ret, map[string]interface{}{
 			"name":   k,
-			"times":  v,
+			"times":  v.Times, // 修改为 v.Times
+			"msg":    v.Msg,   // 新增 msg 字段
 			"status": status,
 		})
 	}

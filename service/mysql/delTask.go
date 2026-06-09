@@ -6,12 +6,14 @@ import (
 	planBType "planA/planB/type"
 	mysqlType "planA/type/mysql"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // GetDelTask 查询del_task 表中待执行
 func GetDelTask() ([]mysqlType.DelTask, error) {
 	var delTask []mysqlType.DelTask
-	err := golabl.MysqlDb.Where("status IN ?", []int{0, 1, 2}).Find(&delTask).Error
+	err := golabl.MysqlDb.Where("status IN ? and shop_type != 6", []int{0, 1, 2}).Find(&delTask).Error
 	if err != nil {
 		fmt.Println("查询del_task 表中待执行失败：", err)
 	}
@@ -89,12 +91,16 @@ func GetDelTaskByPage(pageNum int, pageSize int, userId string) ([]mysqlType.Del
 }
 
 // GetDelTaskDetailByPage 查询删除任务详情
-func GetDelTaskDetailByPage(pageNum int, pageSize int, taskId string) ([]planBType.DelTaskDetail, int, error) {
+func GetDelTaskDetailByPage(pageNum int, pageSize int, taskId string, status int) ([]planBType.DelTaskDetail, int, error) {
 	var delTaskDetail []planBType.DelTaskDetail
 	var total int64
 	tableName := "del_task_details_" + taskId
 	// 构建基础查询
 	query := golabl.MysqlDb.Table(tableName)
+
+	if status != 3 {
+		query = query.Where("status = ?", status)
+	}
 
 	// 查询总记录数
 	if err := query.Count(&total).Error; err != nil {
@@ -153,4 +159,17 @@ func DeleteDelTaskById(id int64) error {
 // CreateDelTask 创建task 删除任务
 func CreateDelTask(data mysqlType.DelTask) error {
 	return golabl.MysqlDb.Create(&data).Error
+}
+
+// UpdateDelTaskProgress 修改任务进度
+func UpdateDelTaskProgress(taskId string, num int) error {
+	// 使用 SQL 表达式在原有值基础上累加
+	return golabl.MysqlDb.Model(&mysqlType.DelTask{}).
+		Where("task_id = ?", taskId).
+		Update("task_count_over", gorm.Expr("task_count_over + ?", num)).Error
+}
+
+// UpdateDelTaskStatusByTaskId 修改任务状态
+func UpdateDelTaskStatusByTaskId(taskId string, status int) error {
+	return golabl.MysqlDb.Model(&mysqlType.DelTask{}).Where("task_id = ?", taskId).Update("status", status).Error
 }

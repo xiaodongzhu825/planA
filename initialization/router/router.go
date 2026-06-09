@@ -13,4 +13,5 @@ func Init() {
 	router.DelTaskInit()
 	router.UploadImgInit()
 	router.ShopInit()
+	router.BodyInit()
 }

@@ -242,7 +242,8 @@ func B() {
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, "获取header 信息失败："+getTaskHeaderErr.Error())
 			continue
 		}
-		if header.Status != 0 {
+		// 不能是淘宝的
+		if header.Status != 0 && header.ShopType != "6" {
 			// 启动 B程序
 			_, runTaskWorkerErr := process.RunTaskWorker(v.TaskId)
 			if runTaskWorkerErr != nil {

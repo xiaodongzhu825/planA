@@ -30,6 +30,21 @@ func CreateTaskValidator(data *http.Request) (taskValidator.CreateTask, error) {
 	return form, nil
 }
 
+// CreateTbTaskValidator 创建淘宝任务验证
+func CreateTbTaskValidator(data *http.Request) (taskValidator.CreateTbTask, error) {
+	form := taskValidator.CreateTbTask{
+		ShopID:    data.FormValue("shop_id"),
+		TaskCount: data.FormValue("task_count"),
+		TaskType:  data.FormValue("task_type"),
+	}
+	fieldCN := map[string]string{"ShopID": "店铺ID", "TaskCount": "任务数量", "TaskType": "任务类型"}
+	if err := golabl.Validator.Struct(form); err != nil {
+		errMsg := ValidatorRule(err, fieldCN)
+		return form, fmt.Errorf("参数错误：%s", errMsg)
+	}
+	return form, nil
+}
+
 // TaskIdValidator 验证任务id
 func TaskIdValidator(data *http.Request) (taskValidator.UpdateTaskStatus, error) {
 	vars := mux.Vars(data)
@@ -92,6 +107,22 @@ func GetBodyOverValidator(data *http.Request) (taskValidator.GetBodyOver, error)
 		Size:   data.URL.Query().Get("size"),
 	}
 	fieldCN := map[string]string{"Page": "页码", "Size": "每页数量", "TaskID": "任务ID"}
+	if err := golabl.Validator.Struct(form); err != nil {
+		errMsg := ValidatorRule(err, fieldCN)
+		return form, fmt.Errorf("参数错误：%s", errMsg)
+	}
+	return form, nil
+}
+
+// UpdateTaskProgressValidator 更新任务进度 结构体
+func UpdateTaskProgressValidator(data *http.Request) (taskValidator.UpdateTaskProgress, error) {
+
+	form := taskValidator.UpdateTaskProgress{
+		TaskID: data.FormValue("task_id"),
+		Status: data.FormValue("status"),
+		Num:    data.FormValue("num"),
+	}
+	fieldCN := map[string]string{"task_id": "任务ID", "status": "任务状态", "num": "任务进度数"}
 	if err := golabl.Validator.Struct(form); err != nil {
 		errMsg := ValidatorRule(err, fieldCN)
 		return form, fmt.Errorf("参数错误：%s", errMsg)

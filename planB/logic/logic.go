@@ -127,6 +127,9 @@ func Logic() {
 	if httpTaskStatusOverErr != nil {
 		tool.LoggingMiddleware(logs.LOG_LEVEL_ERROR, httpTaskStatusOverErr.Error())
 	}
+
+	// 延迟2分钟
+	time.Sleep(2 * time.Minute)
 }
 
 // 任务执行
@@ -193,6 +196,9 @@ func taskExecute() {
 		//执行任务
 		status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)
 		taskMsg.Detail.Status = status
+		if status != 1 {
+			taskMsg.Detail.Error = errorStr
+		}
 	} else {
 		//执行任务
 		status, errorStr, taskMsg = exeTask(taskMsg, status, errorStr)

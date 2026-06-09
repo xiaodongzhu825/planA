@@ -95,18 +95,20 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	}
 	shop := shopData.Shop
 
-	// 校验店铺订阅时间是否到期
-	checkShopSubscriptionExpirationErr := checkShopSubscriptionExpiration(shop.ID, dataVal.ShopType, shop.SkuSpec, shop.Deregulation, shop.ExpirationTime)
-	if checkShopSubscriptionExpirationErr != nil {
-		errMsg := checkShopSubscriptionExpirationErr.Error()
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
-	}
-
-	if shopData.ShopDetail == nil {
-		errMsg := "未设置商品详情"
-		tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
-		return
+	// 不是淘宝店铺
+	if shop.ShopType != "6" {
+		// 校验店铺订阅时间是否到期
+		checkShopSubscriptionExpirationErr := checkShopSubscriptionExpiration(shop.ID, dataVal.ShopType, shop.SkuSpec, shop.Deregulation, shop.ExpirationTime)
+		if checkShopSubscriptionExpirationErr != nil {
+			errMsg := checkShopSubscriptionExpirationErr.Error()
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
+		if shopData.ShopDetail == nil {
+			errMsg := "未设置商品详情"
+			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
+			return
+		}
 	}
 	detail := shopData.ShopDetail
 
@@ -126,7 +128,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 	//	return
 	//}
 
-	//验证店铺规格信息是否正确
+	//验证 拼多多 店铺规格信息是否正确
 	if dataVal.ShopType == "1" {
 		pddDll, initPddSOErr := pdd.InitPddDll()
 		if initPddSOErr != nil {
@@ -161,8 +163,8 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	//如果是拉取任务则校验是否已有在执行的  taskType == 3(拉取任务) || (taskType == 4 && dataVal.ShopType == "1")(拼多多拉取详情任务)
-	if taskType == 3 || (taskType == 4 && dataVal.ShopType == "1") {
+	//如果是拉取任务则校验是否已有在执行的  不能是淘宝  taskType == 3(拉取任务) || (taskType == 4 && dataVal.ShopType == "1")(拼多多拉取详情任务)
+	if dataVal.ShopType != "6" && (taskType == 3 || (taskType == 4 && dataVal.ShopType == "1")) {
 		//查询店铺拉取商品或者拉取商品详情所有任务
 		read := rep.CreateDbFactoryRead()
 		taskList, getTaskByShopIdAndTaskTypeErr := read.GetTaskByShopIdAndTaskType(shopData.Shop.ID, taskType)
@@ -186,7 +188,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 				return
 			}
 		}
-	} else if taskType == 1 || taskType == 2 || taskType == 6 || taskType == 7 || taskType == 8 || taskType == 9 {
+	} else if shop.ShopType != "6" && (taskType == 1 || taskType == 2 || taskType == 6 || taskType == 7 || taskType == 8 || taskType == 9) {
 		if shopData.Spec == nil {
 			errMsg := "未设置规格"
 			tool.Error(httpMsg, errMsg, http.StatusInternalServerError)
@@ -258,7 +260,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 		return
 	}
 
-	if taskType == 10 || taskType == 11 {
+	if (taskType == 10 || taskType == 11) && shop.ShopType != "6" {
 		var createDelTask mysql.DelTask
 		userId := shop.CreateBy
 		// 将 task.Header 转为 json字符串
@@ -333,7 +335,7 @@ func CreateTask(httpMsg http.ResponseWriter, data *http.Request) {
 			return
 		}
 
-	} else if taskType == 3 || (taskType == 4 && dataVal.ShopType == "1") {
+	} else if shop.ShopType != "6" && (taskType == 3 || (taskType == 4 && dataVal.ShopType == "1")) {
 		//如果是拉取任务则直接执行 B方法程序  taskType == 3(拉取任务) || (taskType == 4 && dataVal.ShopType == "1")(拼多多拉取详情任务)
 		// 执行 B方法程序
 		_, runTaskWorkerErr := process.RunTaskWorker(taskId)
@@ -1099,6 +1101,46 @@ func B(httpMsg http.ResponseWriter, data *http.Request) {
 	tool.Success(httpMsg, "")
 }
 
+// UpdateTaskProgress 更新任务进度
+func UpdateTaskProgress(httpMsg http.ResponseWriter, data *http.Request) {
+
+	// 验证表单
+	dataVal, updateTaskProgressValidatorErr := validator.UpdateTaskProgressValidator(data)
+	if updateTaskProgressValidatorErr != nil {
+		tool.Error(httpMsg, updateTaskProgressValidatorErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 将 dataVal.Status 转为int64
+	statusInt64, err := strconv.ParseInt(dataVal.Status, 10, 64)
+	if err != nil {
+		tool.Error(httpMsg, "状态值格式错误", http.StatusBadRequest)
+		return
+	}
+
+	// 将 dataVal.Num 转为int64
+	numInt64, err := strconv.ParseInt(dataVal.Num, 10, 64)
+	if err != nil {
+		tool.Error(httpMsg, "进度数值格式错误", http.StatusBadRequest)
+		return
+	}
+
+	// 更新任务尾
+	updateTaskFootersErr := service.UpdateTaskFooters(dataVal.TaskID, statusInt64, numInt64)
+	if updateTaskFootersErr != nil {
+		tool.Error(httpMsg, updateTaskFootersErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	// 更新任务头
+	updateTaskHeadersErr := service.UpdateTaskHeaders(dataVal.TaskID, statusInt64, numInt64)
+	if updateTaskHeadersErr != nil {
+		tool.Error(httpMsg, updateTaskHeadersErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	tool.Success(httpMsg, "")
+
+}
+
 //****************************工具**************************************//
 
 // CreateTaskData 创建task数据
@@ -1253,28 +1295,32 @@ func CreateTaskData(taskId string, taskType int64, createAt int64, shop *_type.S
 // @param bodyData body数据
 // @param taskId 任务ID
 func UpdateTaskCount(bodyData []string, taskId string) {
-	// 1. 先执行AddTask，统一判断是否需要后续操作
-	count := AddTask(taskId, bodyData)
-	if count <= 0 {
-		fmt.Printf("找到的书品为0，所以不提交到redis")
-		return
-	}
-	// 执行 B方法程序
-	_, runTaskWorkerErr := process.RunTaskWorker(taskId)
-	if runTaskWorkerErr != nil {
-		//fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
-		return
-	}
-}
-
-func AddTask(taskId string, bodyData []string) int {
 
 	//查询 header 信息
 	header, getTaskHeaderErr := service.GetTaskHeader(taskId)
 	if getTaskHeaderErr != nil {
 		fmt.Printf("获取footer 信息失败 %v", getTaskHeaderErr)
-		return 0
+		return
 	}
+
+	// 1. 先执行AddTask，统一判断是否需要后续操作
+	count := AddTask(taskId, bodyData, header)
+	if count <= 0 {
+		fmt.Printf("找到的书品为0，所以不提交到redis")
+		return
+	}
+	if header.ShopType != "6" {
+		// 执行 B方法程序
+		_, runTaskWorkerErr := process.RunTaskWorker(taskId)
+		if runTaskWorkerErr != nil {
+			//fmt.Printf("执行B程序出错: %v\n", runTaskWorkerErr)
+			return
+		}
+	}
+}
+
+func AddTask(taskId string, bodyData []string, header _type.TaskHeader) int {
+
 	if header.Status == _type.TaskStatusOver {
 		updateHeaderStatusErr := service.UpdateHeaderStatus(taskId, int64(_type.TaskStatusRunning))
 		if updateHeaderStatusErr != nil {
@@ -1343,11 +1389,11 @@ func AddTask(taskId string, bodyData []string) int {
 			}
 			//表格上传处理
 			if header.TaskType == 2 {
-				// 书名处理，如果表格上传存在，则使用表格中的
+				// 书名处理，如果传递的存在，则使用传递的
 				if taskBody.BookInfo.BookName != "" {
 					bookInfo.BookName = taskBody.BookInfo.BookName
 				}
-				// 图片处理，如果表格上传存在，则使用表格中的
+				// 图片处理，如果传递的存在，则使用传递的
 				if len(taskBody.BookInfo.ImageObject.CarouselUrlArray) > 0 {
 					bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
 				}

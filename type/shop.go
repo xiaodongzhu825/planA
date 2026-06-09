@@ -110,3 +110,9 @@ type PriceTemplate struct {
 	Status       string `json:"status"`
 	TemplateName string `json:"template_name"`
 }
+
+// TbShop 淘宝店铺结构体
+type TbShop struct {
+	ShopID   string `json:"shop_id"`
+	ShopName string `json:"shop_name"`
+}

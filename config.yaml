@@ -49,7 +49,7 @@ redis_config:
     addr: "127.0.0.1:6379"
     password: "123456"
   - db_name: "书品库"
-    db: 7
+    db: 10
     addr: "36.212.12.247:6379"
     password: "long6166@@"
   - db_name: "店铺信息"
@@ -72,10 +72,10 @@ redis_config:
     db: 6
     addr: "36.212.12.247:6379"
     password: "long6166@@"
-  - db_name: "拼多多操作回调数据库"
-    db: 14
-    addr: "36.212.20.113:7963"
-    password: "j8nZ4jra2E"
+  - db_name: "淘宝店铺"
+    db: 9
+    addr: "36.212.12.247:6379"
+    password: "long6166@@"
 pdd_config:
   client_id: "203c5a7ba8bd4b8488d5e26f93052642"  #拼多多clientId
   client_secret: "892ffaa86e12b7a3d8d2942b669d9aa520ad8179"  #拼多多clientSecret

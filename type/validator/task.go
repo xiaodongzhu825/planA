@@ -12,6 +12,13 @@ type CreateTask struct {
 	DelTime    string `form:"del_time"`                                                    //非必填项
 }
 
+// CreateTbTask 创建淘宝任务结构体
+type CreateTbTask struct {
+	ShopID    string `form:"shop_id" validate:"required,min=3,max=20"`                    // 必填，长度3-20
+	TaskCount string `form:"task_count" validate:"required,numeric,min=1"`                // 必填，数字且最小值为1
+	TaskType  string `form:"task_type" validate:"required,oneof=1 2 3 4 5 6 7 8 9 10 11"` // 必填，只能是1、2、3、4、5、6、7、8、9、10、11
+}
+
 // UpdateTaskStatus 更改任务状态结构体
 type UpdateTaskStatus struct {
 	TaskID string `form:"task_id" validate:"required"` //必填
@@ -41,4 +48,11 @@ type GetBodyOver struct {
 	TaskID string `form:"task_id" validate:"required"` //必填
 	Page   string `form:"page"`
 	Size   string `form:"size"`
+}
+
+// UpdateTaskProgress 更新任务进度 结构体
+type UpdateTaskProgress struct {
+	TaskID string `form:"task_id" validate:"required"` //必填
+	Status string `form:"status" validate:"required"`  //必填
+	Num    string `form:"num" validate:"required"`     //必填
 }

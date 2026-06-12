@@ -10,6 +10,7 @@ import (
 	"planA/planB/modules/logs"
 	"planA/planB/service"
 	"planA/planB/tool"
+	planBTypeModules "planA/planB/type/modules"
 	planBTypePinduoduo "planA/planB/type/pinduoduo"
 	planAType "planA/type"
 	"strconv"
@@ -1356,6 +1357,38 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 			return taskMsg, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error())
 		}
 		return taskMsg, fmt.Errorf("缺少轮播图")
+	}
+
+	//判断是否拼多多的图片，如果非拼多多图片则上传到拼多多的图片空间
+	for k, v := range taskMsg.BookInfo.ImageObject.CarouselUrlArray {
+		// 判断v 是否包含字符串 img.pddpic.com
+		if !strings.Contains(v, "img.pddpic.com") {
+			tempUrl, saveBase64ImageByDateErr := tool.SaveBase64ImageByDate(v, golabl.Config.FileUrl.PddImgTempUrl)
+			if saveBase64ImageByDateErr != nil {
+				return taskMsg, saveBase64ImageByDateErr
+			}
+			//转为base64
+			imgBase64, format, processImageErr := tool.ProcessImage(tempUrl)
+			if processImageErr != nil {
+				return taskMsg, processImageErr
+			}
+
+			// 将base64字符串包装成 ImageResult 类型
+			imageResult := []planBTypeModules.ImageResult{
+				{
+					Success: true,      // 假设图片处理成功
+					Format:  format,    // 或者根据实际情况获取图片格式
+					Data:    imgBase64, // base64数据
+				},
+			}
+
+			//上传到拼多多图片空间
+			toPdd, uploadImageToPddErr := tool.UploadImageToPdd(imageResult)
+			if uploadImageToPddErr != nil {
+				return taskMsg, fmt.Errorf("上传图片到拼多多失败 %v", uploadImageToPddErr)
+			}
+			taskMsg.BookInfo.ImageObject.CarouselUrlArray[k] = toPdd[0]
+		}
 	}
 
 	oldCarouselUrlArray := append([]string{}, taskMsg.BookInfo.ImageObject.CarouselUrlArray...) //原始轮播图，用于后续处理，不会被打上水印

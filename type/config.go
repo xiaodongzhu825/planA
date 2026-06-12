@@ -170,4 +170,5 @@ type FileUrl struct {
 	GetPddGoodsShopIdIsbnUrl         string `json:"get_pdd_goods_shopid_isbn_url"`
 	GetSubscriptionExpirationDateUrl string `json:"get_subscription_expiration_date_url"`
 	XYBannedWordSubstitutionUrl      string `json:"xy_banned_word_substitution_url"`
+	PddImgTempUrl                    string `json:"pdd_img_temp_url"`
 }

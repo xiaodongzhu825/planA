@@ -384,7 +384,6 @@ func GetSubscriptionExpirationTime(shopId string) (int64, error) {
 	if httpGetRequestErr != nil {
 		return 0, httpGetRequestErr
 	}
-	fmt.Println(dataStr)
 	var getSubscriptionExpirationDateUrl _type.GetSubscriptionExpirationDateUrl
 	jsonErr := json.Unmarshal([]byte(dataStr), &getSubscriptionExpirationDateUrl)
 	if jsonErr != nil {

@@ -125,3 +125,4 @@ file_url:
   kfz_img_http_url: "https://www0.kfzimg.com/" #孔夫子图片 http 路径
   get_pdd_goods_shopid_isbn_url : "http://119.45.237.193:14008/shopGoods/selectTrilateralIds" #获取拼多多商品 shopId 和 isbn
   get_subscription_expiration_date_url : "http://119.45.237.193:9096/api/user/getKfzUserRecbusiness" #获取订阅到期时间
+  pdd_img_temp_url: "D:\\file\\pddImg" #拼多多图片临时路径

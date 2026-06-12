@@ -2,6 +2,7 @@ package tool
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -705,32 +706,75 @@ func downloadImage(url string) ([]byte, error) {
 	return imageData, nil
 }
 
-// ProcessImage 处理图片
-func ProcessImage(imageURL string, saveBase64 bool, saveImage bool) (string, error) {
-	img, format, err := GetImageFromURL(imageURL)
-	if err != nil {
-		return "", err
+// ProcessImage 处理图片（支持本地文件路径和HTTP URL）
+func ProcessImage(imageURL string) (string, string, error) {
+	// 判断是本地文件还是HTTP URL
+	if strings.HasPrefix(imageURL, "http://") || strings.HasPrefix(imageURL, "https://") {
+		// HTTP URL：从网络获取图片
+		img, format, err := GetImageFromURL(imageURL)
+		if err != nil {
+			return "", "", err
+		}
+		return processImageAndConvert(img, format)
+	} else {
+		// 本地文件路径：从本地读取图片
+		img, format, err := GetImageFromLocalFile(imageURL)
+		if err != nil {
+			return "", "", err
+		}
+		return processImageAndConvert(img, format)
 	}
+}
 
+// processImageAndConvert 处理图片并转换为base64
+func processImageAndConvert(img image.Image, format string) (string, string, error) {
 	bounds := img.Bounds()
 	fmt.Printf("原始尺寸: %dx%d\n", bounds.Dx(), bounds.Dy())
 
 	var processedImg image.Image
 	if bounds.Dx() == 800 && bounds.Dy() == 800 {
-		fmt.Println("已经是800x800，无需缩放")
 		processedImg = img
 	} else {
-		fmt.Println("缩放到800x800")
 		processedImg = ResizeImageHighQuality(img, 800, 800)
 	}
 
 	// 转换为base64
 	base64Str, err := ImageToBase64(processedImg, format)
 	if err != nil {
-		return "", fmt.Errorf("转换为base64失败: %v", err)
+		return "", "", fmt.Errorf("转换为base64失败: %v", err)
 	}
 
-	return base64Str, nil
+	return base64Str, format, nil
+}
+
+// GetImageFromLocalFile 从本地文件获取图片
+func GetImageFromLocalFile(filePath string) (image.Image, string, error) {
+	// 打开本地文件
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, "", fmt.Errorf("打开本地文件失败: %v", err)
+	}
+	defer file.Close()
+
+	// 读取文件数据
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, "", fmt.Errorf("读取本地文件失败: %v", err)
+	}
+
+	// 尝试解码PNG
+	img, err := png.Decode(bytes.NewReader(data))
+	if err == nil {
+		return img, "png", nil
+	}
+
+	// 尝试解码JPEG
+	img, err = jpeg.Decode(bytes.NewReader(data))
+	if err == nil {
+		return img, "jpg", nil
+	}
+
+	return nil, "", fmt.Errorf("不支持的图片格式")
 }
 
 // ResizeImageHighQuality 高质量缩放图片

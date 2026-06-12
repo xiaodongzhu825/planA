@@ -100,4 +100,3 @@ file_url:
   xianyu_add_goods_url: "http://192.168.101.127:18099/task/putShopGoods" #添加闲鱼商品接口
   del_task_url: "http://119.45.237.193:14008/shopGoods/delShopGoods" #删除任务通知接口
   backup_url: "C:\\file\\backup" #备份文件路径
-  pdd_goods_details_url: "D:\\file\\pdd_goods_details" #保存拼多多详情路径

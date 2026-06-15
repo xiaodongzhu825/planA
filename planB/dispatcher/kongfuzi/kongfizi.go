@@ -241,15 +241,132 @@ func (kongFuZi *KongFuZi) IncStockTask(taskMsg planAType.TaskBody) (string, erro
 		}
 		return task, nil
 	} else {
-		// 将 getGoodsByShopIdAndIsbn.Data[0].TrilateralId 转为 int64
-		trilateralId, trilateralIdParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].TrilateralId, 10, 64)
+		// 当前任务的品相和价格
+		taskCondition := taskMsg.Detail.Condition
+		taskPrice := taskMsg.Detail.Price // 单位：分
+
+		// 价格 + 运费（如果 PriceType != "0"）
+		if golabl.Task.Header.PriceType != "0" {
+			taskPrice = taskPrice + taskMsg.Detail.ShippingCost
+		}
+
+		// 价格模板计算
+		taskPrice = tool.BuildPrice(golabl.Task.Header.PriceMod, taskPrice)
+		if taskPrice == 0 {
+			taskMsg.Detail.Error = "任务价格不在价格模板区间内！"
+			return tool.ReturnSuccess(taskMsg)
+		}
+
+		// 1元 = 100分，价格相差1元以上即 >= 100分
+		const priceDiffThreshold = 100 // 1元
+
+		// 收集所有匹配条件的商品（品相相等且价格差<1元）
+		var matchedItems []struct {
+			TrilateralId string
+			SkuId        string
+			Stock        int64
+			Price        int64
+			PriceDiff    int64 // 价格差绝对值
+		}
+
+		// 记录不匹配原因
+		hasConditionMismatch := false
+		hasPriceMismatch := false
+		var firstMismatchReason string
+
+		for _, item := range getGoodsByShopIdAndIsbn.Data {
+			// 解析品相
+			itemQuality, _ := strconv.ParseInt(item.Quality, 10, 64)
+			// 解析价格（单位：分）
+			itemPrice, _ := strconv.ParseInt(item.TotalPrice, 10, 64)
+			// 解析库存
+			itemStock, _ := strconv.ParseInt(item.Stock, 10, 64)
+
+			// 计算价格差（绝对值）
+			priceDiff := abs(itemPrice - taskPrice)
+
+			// 品相不相等
+			if itemQuality != taskCondition {
+				hasConditionMismatch = true
+				if firstMismatchReason == "" {
+					firstMismatchReason = fmt.Sprintf("商品[%s]品相不匹配: 任务品相=%d, 商品品相=%d", item.TrilateralId, taskCondition, itemQuality)
+				}
+				continue
+			}
+
+			// 价格相差1元以上
+			if priceDiff >= priceDiffThreshold {
+				hasPriceMismatch = true
+				if firstMismatchReason == "" {
+					firstMismatchReason = fmt.Sprintf("商品[%s]价格相差超过1元: 任务价格=%d分, 商品价格=%d分, 差价=%d分", item.TrilateralId, taskPrice, itemPrice, priceDiff)
+				}
+				continue
+			}
+
+			// 品相相等且价格相差小于1元 → 加入候选列表
+			matchedItems = append(matchedItems, struct {
+				TrilateralId string
+				SkuId        string
+				Stock        int64
+				Price        int64
+				PriceDiff    int64
+			}{
+				TrilateralId: item.TrilateralId,
+				SkuId:        item.SkuId,
+				Stock:        itemStock,
+				Price:        itemPrice,
+				PriceDiff:    priceDiff,
+			})
+		}
+
+		// 逻辑：
+		// 1. 所有品相不相等 → 重新发布（matchedItems为空，因为没有品相相等的）
+		// 2. 所有价格相差1元以上 → 重新发布（matchedItems为空，因为没有价格差<1元的）
+		// 3. 否则 → 找到价格相差最小的增加库存，如果多个最小差价一样则对第一条增加库存
+		if len(matchedItems) == 0 {
+			// 所有商品都不满足条件（品相不相等 或 价格相差≥1元）→ 重新发布
+			if hasConditionMismatch && hasPriceMismatch {
+				fmt.Printf("[重新发布] %s\n", firstMismatchReason)
+			} else if hasConditionMismatch {
+				fmt.Printf("[重新发布] %s\n", firstMismatchReason)
+			} else {
+				fmt.Printf("[重新发布] %s\n", firstMismatchReason)
+			}
+
+			task, addGoodsTaskErr := kongFuZi.AddGoodsTask(taskMsg)
+			if addGoodsTaskErr != nil {
+				return "", addGoodsTaskErr
+			}
+			return task, nil
+		}
+
+		// 找到价格相差最小的商品，如果多个最小差价一样则对第一条增加库存
+		minDiff := int64(999999999)
+		var targetItem struct {
+			TrilateralId string
+			SkuId        string
+			Stock        int64
+		}
+
+		for _, item := range matchedItems {
+			// 找到更小的差价，或者差价相等但为第一条
+			if item.PriceDiff < minDiff || (item.PriceDiff == minDiff && targetItem.TrilateralId == "") {
+				minDiff = item.PriceDiff
+				targetItem.TrilateralId = item.TrilateralId
+				targetItem.SkuId = item.SkuId
+				targetItem.Stock = item.Stock
+			}
+		}
+
+		// 将 targetItem.TrilateralId 转为 int64
+		trilateralId, trilateralIdParseIntErr := strconv.ParseInt(targetItem.TrilateralId, 10, 64)
 		if trilateralIdParseIntErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
 		}
 
 		// 获取商品详情
 		getGoodsListReq := planBTypeKfz.GetGoodsListReq{
-			ItemId: getGoodsByShopIdAndIsbn.Data[0].TrilateralId,
+			ItemId: targetItem.TrilateralId,
 		}
 
 		getGoodsListReqJson, marshalErr := json.Marshal(getGoodsListReq)
@@ -298,6 +415,14 @@ func (kongFuZi *KongFuZi) IncStockTask(taskMsg planAType.TaskBody) (string, erro
 		}
 		return quantity, nil
 	}
+}
+
+// abs 返回绝对值
+func abs(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 func (kongFuZi *KongFuZi) SetGoodsTask() string {

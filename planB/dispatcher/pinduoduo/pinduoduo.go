@@ -257,34 +257,132 @@ func (pinDuoDuo *PinDuoDuo) IncStockTask(taskMsg planAType.TaskBody) (string, er
 		task.Detail.Error = "发布成功！"
 		return tool.ReturnSuccess(task)
 	} else {
-		// 将 getGoodsByShopIdAndIsbn.Data[0].TrilateralId 转为 int64
-		trilateralId, trilateralIdParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].TrilateralId, 10, 64)
-		if trilateralIdParseIntErr != nil {
-			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
+		// 当前任务的价格
+		taskPrice := taskMsg.Detail.Price // 单位：分
+
+		// 价格 + 运费（如果 PriceType != "0"）
+		if golabl.Task.Header.PriceType != "0" {
+			taskPrice = taskPrice + taskMsg.Detail.ShippingCost
 		}
 
-		// 将 getGoodsByShopIdAndIsbn.Data[0].SkuId 转为 int64
-		skuId, skuIdParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].SkuId, 10, 64)
+		// 价格模板计算
+		taskPrice = tool.BuildPrice(golabl.Task.Header.PriceMod, taskPrice)
+		if taskPrice == 0 {
+			taskMsg.Detail.Error = "任务价格不在价格模板区间内！"
+			return tool.ReturnSuccess(taskMsg)
+		}
+
+		// 1元 = 100分，价格相差1元以上即 >= 100分
+		const priceDiffThreshold = 100 // 1元
+
+		// 收集所有匹配条件的商品（价格差<1元）
+		var matchedItems []struct {
+			TrilateralId string
+			SkuId        string
+			Stock        int64
+			Price        int64
+			PriceDiff    int64 // 价格差绝对值
+		}
+
+		// 记录不匹配原因
+		var firstMismatchReason string
+
+		for _, item := range getGoodsByShopIdAndIsbn.Data {
+			// 解析价格（单位：分）
+			itemPrice, _ := strconv.ParseInt(item.TotalPrice, 10, 64)
+			// 解析库存
+			itemStock, _ := strconv.ParseInt(item.Stock, 10, 64)
+
+			// 计算价格差（绝对值）
+			priceDiff := abs(itemPrice - taskPrice)
+
+			// 价格相差1元以上
+			if priceDiff >= priceDiffThreshold {
+				if firstMismatchReason == "" {
+					firstMismatchReason = fmt.Sprintf("商品[%s]价格相差超过1元: 任务价格=%d分, 商品价格=%d分, 差价=%d分", item.TrilateralId, taskPrice, itemPrice, priceDiff)
+				}
+				continue
+			}
+
+			// 价格相差小于1元 → 加入候选列表
+			matchedItems = append(matchedItems, struct {
+				TrilateralId string
+				SkuId        string
+				Stock        int64
+				Price        int64
+				PriceDiff    int64
+			}{
+				TrilateralId: item.TrilateralId,
+				SkuId:        item.SkuId,
+				Stock:        itemStock,
+				Price:        itemPrice,
+				PriceDiff:    priceDiff,
+			})
+		}
+
+		// 逻辑：
+		// 1. 所有价格相差1元以上 → 重新发布
+		// 2. 否则 → 找到价格相差最小的增加库存，如果多个最小差价一样则对第一条增加库存
+		if len(matchedItems) == 0 {
+			// 所有商品价格相差≥1元 → 重新发布
+			fmt.Printf("[重新发布] %s\n", firstMismatchReason)
+
+			task, addGoodsTaskErr := publishGoods(logUuid, taskMsg)
+			if addGoodsTaskErr != nil {
+				return "", addGoodsTaskErr
+			}
+			task.Detail.Error = "所有商品价格相差超过1元，重新发布成功！"
+			return tool.ReturnSuccess(task)
+		}
+
+		// 找到价格相差最小的商品，如果多个最小差价一样则对第一条增加库存
+		minDiff := int64(999999999)
+		var targetItem struct {
+			TrilateralId string
+			SkuId        string
+			Stock        int64
+		}
+
+		for _, item := range matchedItems {
+			// 找到更小的差价，或者差价相等但为第一条
+			if item.PriceDiff < minDiff || (item.PriceDiff == minDiff && targetItem.TrilateralId == "") {
+				minDiff = item.PriceDiff
+				targetItem.TrilateralId = item.TrilateralId
+				targetItem.SkuId = item.SkuId
+				targetItem.Stock = item.Stock
+			}
+		}
+
+		// 将 targetItem.SkuId 转为 int64
+		skuId, skuIdParseIntErr := strconv.ParseInt(targetItem.SkuId, 10, 64)
 		if skuIdParseIntErr != nil {
-			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
+			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, skuIdParseIntErr)
 		}
 
-		// 将 getGoodsByShopIdAndIsbn.Data[0].Stock 转为 int64
-		stock, stockParseIntErr := strconv.ParseInt(getGoodsByShopIdAndIsbn.Data[0].Stock, 10, 64)
-		if stockParseIntErr != nil {
+		// 将 targetItem.TrilateralId 转为 int64
+		trilateralId, trilateralIdParseIntErr := strconv.ParseInt(targetItem.TrilateralId, 10, 64)
+		if trilateralIdParseIntErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, trilateralIdParseIntErr)
 		}
 
 		//增量修改库存
 		taskMsg.Detail.GoodsId = trilateralId
 		taskMsg.Detail.SkuId = skuId
-		quantity, updateGoodsQuantityErr := updateGoodsQuantity(logUuid, taskMsg, 2, stock)
+		quantity, updateGoodsQuantityErr := updateGoodsQuantity(logUuid, taskMsg, 2, targetItem.Stock)
 		if updateGoodsQuantityErr != nil {
 			return tool.ReturnErr(logUuid, taskMsg, golabl.TaskType, updateGoodsQuantityErr)
 		}
 
 		return quantity, nil
 	}
+}
+
+// abs 返回绝对值
+func abs(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 func (pinDuoDuo *PinDuoDuo) SetGoodsTask() string {

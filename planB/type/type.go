@@ -18,5 +18,7 @@ type GetShopGoodsByShopIdAndIsbn struct {
 		Stock        string `json:"stock"`
 		TrilateralId string `json:"trilateralId"`
 		SkuId        string `json:"skuId"`
+		TotalPrice   string `json:"totalPrice"`
+		Quality      string `json:"quality"`
 	} `json:"data"`
 }

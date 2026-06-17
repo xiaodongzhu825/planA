@@ -13,15 +13,16 @@ import (
 )
 
 var (
-	Ctx       context.Context
-	Config    _type.Config
-	MysqlDb   *gorm.DB
-	RedisDbA  *redis.Client
-	RedisDbB  *redis.Client
-	RedisDbC  *redis.Client
-	RedisDbD  *redis.Client
-	SqliteDb  *sql.DB
-	Router    = mux.NewRouter()
-	RedisExp  = time.Duration(Config.Server.RedisExp) * time.Hour
-	Validator *validator.Validate
+	Ctx        context.Context
+	Config     _type.Config
+	MysqlDb    *gorm.DB
+	PsiMysqlDb *gorm.DB
+	RedisDbA   *redis.Client
+	RedisDbB   *redis.Client
+	RedisDbC   *redis.Client
+	RedisDbD   *redis.Client
+	SqliteDb   *sql.DB
+	Router     = mux.NewRouter()
+	RedisExp   = time.Duration(Config.Server.RedisExp) * time.Hour
+	Validator  *validator.Validate
 )

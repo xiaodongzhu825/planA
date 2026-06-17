@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"planA/planB/initialization/golabl"
 	planBTypeKfz "planA/planB/type/kfz"
-	"strconv"
 )
 
 func GetKfzGetCommonCategorySetToG() error {
@@ -26,7 +25,7 @@ func GetKfzGetCommonCategorySetToG() error {
 			return fmt.Errorf("获取商品公共分类失败 %v", kfzGoodsCategoryList.ErrorResponse)
 		}
 		//设置为全局
-		golabl.KfzGetCommonCategory = make(map[string]int64)
+		golabl.KfzGetCommonCategory = make(map[string]string)
 
 		// 使用递归函数遍历所有分类，传入路径前缀
 		for _, level1 := range kfzGoodsCategoryList.SuccessResponse {
@@ -42,8 +41,7 @@ func collectCategoriesWithPath(category interface{}, parentPath string) {
 	case planBTypeKfz.CategoryLevel1:
 		currentPath := v.Name
 		if v.Name != "" && v.Id != "" {
-			idInt, _ := strconv.ParseInt(v.Id, 10, 64)
-			golabl.KfzGetCommonCategory[currentPath] = idInt
+			golabl.KfzGetCommonCategory[currentPath] = v.Id
 		}
 		for _, child := range v.Children {
 			collectCategoriesWithPath(child, currentPath)
@@ -51,8 +49,7 @@ func collectCategoriesWithPath(category interface{}, parentPath string) {
 	case planBTypeKfz.CategoryLevel2:
 		currentPath := buildPath(parentPath, v.Name)
 		if v.Name != "" && v.Id != "" {
-			idInt, _ := strconv.ParseInt(v.Id, 10, 64)
-			golabl.KfzGetCommonCategory[currentPath] = idInt
+			golabl.KfzGetCommonCategory[currentPath] = v.Id
 		}
 		for _, child := range v.Children {
 			collectCategoriesWithPath(child, currentPath)
@@ -60,8 +57,7 @@ func collectCategoriesWithPath(category interface{}, parentPath string) {
 	case planBTypeKfz.CategoryLevel3:
 		currentPath := buildPath(parentPath, v.Name)
 		if v.Name != "" && v.Id != "" {
-			idInt, _ := strconv.ParseInt(v.Id, 10, 64)
-			golabl.KfzGetCommonCategory[currentPath] = idInt
+			golabl.KfzGetCommonCategory[currentPath] = v.Id
 		}
 		for _, child := range v.Children {
 			collectCategoriesWithPath(child, currentPath)
@@ -69,8 +65,7 @@ func collectCategoriesWithPath(category interface{}, parentPath string) {
 	case planBTypeKfz.CategoryLevel4:
 		currentPath := buildPath(parentPath, v.Name)
 		if v.Name != "" && v.Id != "" {
-			idInt, _ := strconv.ParseInt(v.Id, 10, 64)
-			golabl.KfzGetCommonCategory[currentPath] = idInt
+			golabl.KfzGetCommonCategory[currentPath] = v.Id
 		}
 		for _, child := range v.Children {
 			collectCategoriesWithPath(child, currentPath)
@@ -78,8 +73,7 @@ func collectCategoriesWithPath(category interface{}, parentPath string) {
 	case planBTypeKfz.CategoryLevel5:
 		currentPath := buildPath(parentPath, v.Name)
 		if v.Name != "" && v.Id != "" {
-			idInt, _ := strconv.ParseInt(v.Id, 10, 64)
-			golabl.KfzGetCommonCategory[currentPath] = idInt
+			golabl.KfzGetCommonCategory[currentPath] = v.Id
 		}
 		for _, child := range v.Children {
 			collectCategoriesWithPath(child, currentPath)
@@ -87,16 +81,15 @@ func collectCategoriesWithPath(category interface{}, parentPath string) {
 	case planBTypeKfz.CategoryLevel6:
 		currentPath := buildPath(parentPath, v.Name)
 		if v.Name != "" && v.Id != "" {
-			idInt, _ := strconv.ParseInt(v.Id, 10, 64)
-			golabl.KfzGetCommonCategory[currentPath] = idInt
+			golabl.KfzGetCommonCategory[currentPath] = v.Id
 		}
 	}
 }
 
-// 构建路径，用 > 连接
+// 构建路径，用 / 连接
 func buildPath(parentPath, currentName string) string {
 	if parentPath == "" {
 		return currentName
 	}
-	return parentPath + ">" + currentName
+	return parentPath + "/" + currentName
 }

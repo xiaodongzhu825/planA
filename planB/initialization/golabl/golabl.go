@@ -33,7 +33,7 @@ var (
 	LogDll               *logs.LoggerDLL        // 全局日志 DLL
 	KfzDll               *kfz.KfzDLL            // 全局孔夫子 DLL
 	MysqlDb              *gorm.DB               // 全局 mysql
-	KfzGetCommonCategory map[string]int64       // 孔夫子商品分类列表
+	KfzGetCommonCategory map[string]string      // 孔夫子商品分类列表
 )
 
 // 任务 body 状态

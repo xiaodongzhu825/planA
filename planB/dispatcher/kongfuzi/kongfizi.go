@@ -1231,7 +1231,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 
 	//分类编号
 	if value, exists := golabl.KfzGetCommonCategory[string(taskMsg.BookInfo.CatIdObject.KongFuZiCatId)]; exists {
-		goodsAdd.CatId = strconv.FormatInt(value, 10)
+		goodsAdd.CatId = value
 	} else {
 		goodsAdd.CatId = "43000000000000000"
 	}

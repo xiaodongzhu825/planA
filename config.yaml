@@ -43,13 +43,27 @@ mysql_config:
   max_idle_conns: 20 #数据库最大空闲连接数
   conn_max_idle_time: 30 #数据库连接最大空闲时间（分钟）
   conn_max_lifetime: 1  #数据库连接最大生命周期（小数）
+psi_mysql_config:
+  db_name: "psi" #数据库名称
+  user: "psi"  #数据库用户名
+  password: "6d7f5DK2G5PCasBp"  #数据库密码
+  host: "175.27.224.66" #数据库地址
+  port: 3306  #数据库端口
+  loglevel: "silent"  #数据库日志级别 info=开发环境：输出所有日志（SQL、执行时间等） warn=预发布：输出警告+错误 error=生产环境：只输出错误日志 silent=生产环境：关闭所有日志
+  max_retry_times: 3  #数据库重试次数
+  base_retry_interval: 100  #数据库重试间隔（毫秒）
+  max_retry_interval: 3 #数据库最大重试间隔（秒）
+  max_open_conns: 100 #数据库最大打开连接数
+  max_idle_conns: 20 #数据库最大空闲连接数
+  conn_max_idle_time: 30 #数据库连接最大空闲时间（分钟）
+  conn_max_lifetime: 1  #数据库连接最大生命周期（小数）
 redis_config:
   - db_name: "任务池"
     db: 0
     addr: "127.0.0.1:6379"
     password: "123456"
   - db_name: "书品库"
-    db: 10
+    db: 7
     addr: "36.212.12.247:6379"
     password: "long6166@@"
   - db_name: "店铺信息"

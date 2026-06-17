@@ -30,6 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	psiMysqlService "planA/service/psiMysql"
+
 	_redis "github.com/go-redis/redis/v8"
 )
 
@@ -1344,17 +1346,62 @@ func AddTask(taskId string, bodyData []string, header _type.TaskHeader) int {
 		if header.TaskType == 1 || header.TaskType == 2 || header.TaskType == 5 || header.TaskType == 6 || header.TaskType == 7 || header.TaskType == 8 || header.TaskType == 9 {
 			// 连接DB[b] 获取书品信息,#操作商品的isbn13个0则不查询isbn
 			if !(header.TaskType == 5 && taskBody.BookInfo.Isbn == "0000000000000") {
-				bookInfo, GetTaskBookErr = service.GetTaskBook(taskBody.BookInfo.Isbn)
-				if GetTaskBookErr != nil {
-					if errors.Is(GetTaskBookErr, _redis.Nil) {
-						setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
-						if setNoBookCountErr != nil {
-							fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+				//判断isbn是否包含- 或者前三个是678开头的13位数字
+				if strings.Contains(taskBody.BookInfo.Isbn, "-") || strings.HasPrefix(taskBody.BookInfo.Isbn, "678") {
+					//截取 - 之前的字符串
+					isbn := strings.Split(taskBody.BookInfo.Isbn, "-")[0]
+					fisbn := strings.Split(taskBody.BookInfo.Isbn, "-")[1]
+					psiBookInfo, GetBookInfoErr := psiMysqlService.GetBookInfo(isbn, fisbn)
+					if GetBookInfoErr != nil {
+						if errors.Is(GetBookInfoErr, _redis.Nil) {
+							setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
+							if setNoBookCountErr != nil {
+								fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+							}
 						}
 					}
-					if header.TaskType != 5 {
-						fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
+
+					//处理图书图片
+					liveImage := strings.Split(psiBookInfo.LiveImage, ",")
+
+					//处理类目
+					//psiBookInfo.CatID = {"xian_yu_cat_id": "", "kong_fu_zi_cat_id": "", "pin_duo_duo_cat_id": ""} 解析到 _type.CatIdObject{} 中
+					var catIdObject _type.CatIdObject
+					unmarshalErr := json.Unmarshal([]byte(psiBookInfo.CatID), &catIdObject)
+					if unmarshalErr != nil {
+						fmt.Printf("获取BookInfo失败-原因: %v\n", unmarshalErr)
 						continue
+					}
+
+					bookInfo = _type.BookInfo{
+						Isbn:            psiBookInfo.ISBN,
+						BookName:        psiBookInfo.BookName,
+						Author:          psiBookInfo.Author,
+						Publishing:      psiBookInfo.Publishing,
+						PublicationDate: psiBookInfo.PublicationDate,
+						Binding:         psiBookInfo.Binding,
+						PagesCount:      psiBookInfo.PagesCount,
+						WordsCount:      psiBookInfo.WordsCount,
+						Format:          psiBookInfo.Format,
+						ImageObject: _type.ImageObject{
+							CarouselUrlArray: liveImage,
+						},
+						Price:       psiBookInfo.Price,
+						CatIdObject: catIdObject,
+					}
+				} else {
+					bookInfo, GetTaskBookErr = service.GetTaskBook(taskBody.BookInfo.Isbn)
+					if GetTaskBookErr != nil {
+						if errors.Is(GetTaskBookErr, _redis.Nil) {
+							setNoBookCountErr := service.SetNoBookCount(taskBody.BookInfo.Isbn)
+							if setNoBookCountErr != nil {
+								fmt.Printf("设置无书品数量失败 isbn:%v", taskBody.BookInfo.Isbn)
+							}
+						}
+						if header.TaskType != 5 {
+							fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
+							continue
+						}
 					}
 				}
 			}
@@ -1372,19 +1419,20 @@ func AddTask(taskId string, bodyData []string, header _type.TaskHeader) int {
 						bookInfo.ImageObject.CarouselUrlArray = taskBody.BookInfo.ImageObject.CarouselUrlArray
 					}
 				}
-
-				// 类目 Id处理
-				var catId string
-				pinDuoDuoCatIdArr := tool.StringToArray(bookInfo.CatIdObject.PinDuoDuoCatId.String())
-				if len(pinDuoDuoCatIdArr) == 3 {
-					catId = pinDuoDuoCatIdArr[2]
-				} else if len(pinDuoDuoCatIdArr) == 4 {
-					catId = pinDuoDuoCatIdArr[3]
-				}
-				if header.ShopType == "1" {
-					bookInfo.CatIdObject.PinDuoDuoCatId = _type.FlexibleStr(catId)
-				} else if header.ShopType == "5" {
-					bookInfo.CatIdObject.XianYuCatId = _type.FlexibleStr(bookInfo.CatIdObject.XianYuCatId.String())
+				if header.ShopType == "1" || header.ShopType == "5" {
+					// 类目 Id处理
+					var catId string
+					pinDuoDuoCatIdArr := tool.StringToArray(bookInfo.CatIdObject.PinDuoDuoCatId.String())
+					if len(pinDuoDuoCatIdArr) == 3 {
+						catId = pinDuoDuoCatIdArr[2]
+					} else if len(pinDuoDuoCatIdArr) == 4 {
+						catId = pinDuoDuoCatIdArr[3]
+					}
+					if header.ShopType == "1" {
+						bookInfo.CatIdObject.PinDuoDuoCatId = _type.FlexibleStr(catId)
+					} else if header.ShopType == "5" {
+						bookInfo.CatIdObject.XianYuCatId = _type.FlexibleStr(bookInfo.CatIdObject.XianYuCatId.String())
+					}
 				}
 			}
 			//表格上传处理

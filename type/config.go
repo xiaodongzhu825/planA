@@ -6,19 +6,20 @@ import "time"
 
 // Config 配置结构
 type Config struct {
-	Server       Server        `json:"server"`
-	Speed        Speed         `json:"speed"`
-	Minio        Minio         `json:"minio"`
-	Alive        Alive         `json:"alive"`
-	MysqlConfig  MysqlConfig   `json:"mysql_config"`
-	PoolConfig   PoolConfig    `json:"pool_config"`
-	RedisConfig  []RedisConfig `json:"redis_config"`
-	PddConfig    PddConfig     `json:"pdd_config"`
-	KfzConfig    KfzConfig     `json:"kfz_config"`
-	TaobaoConfig TaobaoConfig  `json:"taobao_config"`
-	AppBConfig   AppBConfig    `json:"app_b_config"`
-	HttpUrl      HttpUrl       `json:"http_url"`
-	FileUrl      FileUrl       `json:"file_url"`
+	Server         Server        `json:"server"`
+	Speed          Speed         `json:"speed"`
+	Minio          Minio         `json:"minio"`
+	Alive          Alive         `json:"alive"`
+	MysqlConfig    MysqlConfig   `json:"mysql_config"`
+	PsiMysqlConfig MysqlConfig   `json:"psi_mysql_config"`
+	PoolConfig     PoolConfig    `json:"pool_config"`
+	RedisConfig    []RedisConfig `json:"redis_config"`
+	PddConfig      PddConfig     `json:"pdd_config"`
+	KfzConfig      KfzConfig     `json:"kfz_config"`
+	TaobaoConfig   TaobaoConfig  `json:"taobao_config"`
+	AppBConfig     AppBConfig    `json:"app_b_config"`
+	HttpUrl        HttpUrl       `json:"http_url"`
+	FileUrl        FileUrl       `json:"file_url"`
 }
 
 // Server 服务器配置结构

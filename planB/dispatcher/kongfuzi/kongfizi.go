@@ -446,7 +446,7 @@ func UploadImageToKfz(imgUrl string) (string, error) {
 	//将图片上传到孔夫子
 	upload, kfzGoodsImageUploadErr := golabl.KfzDll.KfzGoodsImageUpload(golabl.Config.KfzConfig.AppId, golabl.Config.KfzConfig.AppSecret, golabl.Task.Header.ShopMsg.Token, imgTempUrl)
 	if kfzGoodsImageUploadErr != nil {
-		return "", fmt.Errorf("上传图片失败 %v", kfzGoodsImageUploadErr)
+		return "", fmt.Errorf("上传图片失败1 %v", kfzGoodsImageUploadErr)
 	}
 	// 解析数据
 	var uploadData planBTypeKfz.UploadImgRet
@@ -457,7 +457,7 @@ func UploadImageToKfz(imgUrl string) (string, error) {
 	// 修复：先判断 ErrorResponse 是否为 nil
 	if uploadData.ErrorResponse != nil && uploadData.ErrorResponse.Code != 0 {
 		fmt.Println("错误码:", uploadData.ErrorResponse.Code)
-		return "", fmt.Errorf("上传图片失败 %v", uploadData.ErrorResponse.SubMsg)
+		return "", fmt.Errorf("上传图片失败2 错误码 %v 错误描述 %v", uploadData.ErrorResponse.Code, uploadData.ErrorResponse.SubMsg)
 	}
 
 	// 修复：判断 SuccessResponse 是否为 nil
@@ -473,12 +473,8 @@ func UploadImageToKfz(imgUrl string) (string, error) {
 // @return GoodsAddResponseWrapper 商品新增结果
 // @return string 商品新增结果json
 // @return error 错误信息
-func addGoods(logUuid string, goodsInfo planBTypeKfz.GoodsAdd17) (planBTypeKfz.AddGoodsRet, string, error) {
+func addGoods(logUuid string, goodsInfoStr string) (planBTypeKfz.AddGoodsRet, string, error) {
 	var goodsAdd planBTypeKfz.AddGoodsRet
-	goodsInfoStr, jsonMarshalErr := json.Marshal(goodsInfo)
-	if jsonMarshalErr != nil {
-		return goodsAdd, "", jsonMarshalErr
-	}
 	//发送请求
 	goodsAddStr, publishGoodsErr := golabl.KfzDll.PublishGoods(golabl.Config.KfzConfig.AppId, golabl.Config.KfzConfig.AppSecret, golabl.Task.Header.ShopMsg.Token, string(goodsInfoStr))
 	//判断是否成功
@@ -1222,6 +1218,73 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	}
 	taskMsg.Detail.Price = price
 
+	url := "http://127.0.0.1:8095"
+	tool.HttpGetRequest(url)
+
+	var jsonData []byte
+	var marshalErr error
+	var img string
+	var skuCode string
+	if strings.HasPrefix(taskMsg.BookInfo.Isbn, "678") {
+		//模板13 无isbn
+		goodsAdd13, err := template13(taskMsg)
+		if err != nil {
+			return planAType.TaskBody{}, err
+		}
+		//将 goodsAdd 转为json字符串
+		jsonData, marshalErr = json.Marshal(goodsAdd13)
+		if marshalErr != nil {
+			return taskMsg, fmt.Errorf("构建商品参数失败 %v", marshalErr)
+		}
+		img = goodsAdd13.ImgUrl
+		skuCode = goodsAdd13.ItemSn
+
+	} else {
+		//模板17 普通图书
+		goodsAdd17, err := template17(taskMsg)
+		if err != nil {
+			return planAType.TaskBody{}, err
+		}
+		//将 goodsAdd 转为json字符串
+		jsonData, marshalErr = json.Marshal(goodsAdd17)
+		if marshalErr != nil {
+			return taskMsg, fmt.Errorf("构建商品参数失败 %v", marshalErr)
+		}
+		img = goodsAdd17.ImgUrl
+		skuCode = goodsAdd17.ItemSn
+	}
+
+	// 构建商品编码
+	outGoodsId := ""
+	if taskMsg.Detail.OutGoodsId != "" {
+		outGoodsId = taskMsg.Detail.OutGoodsId
+	} else {
+		outGoodsId = taskMsg.BookInfo.Isbn
+	}
+
+	// 新增商品
+	goods, _, addGoodsErr := addGoods(logUuid, string(jsonData))
+	if addGoodsErr != nil {
+		// 如果错误信息包含 "该图书必须使用图书条目库上传"，则修改错误信息
+		if strings.Contains(addGoodsErr.Error(), "该图书必须使用图书条目库上传") {
+			addGoodsErr = fmt.Errorf("该图书可能涉及政治请手动上传")
+		}
+		return taskMsg, fmt.Errorf("新增商品错误 %v", addGoodsErr)
+	}
+
+	//判断错误
+	if goods.ErrorResponse != nil {
+		return taskMsg, fmt.Errorf("新增商品失败 %v", goods.ErrorResponse.SubMsg)
+	}
+	taskMsg.Detail.GoodsId = goods.SuccessResponse.Item.ItemId
+	taskMsg.Detail.OutGoodsId = outGoodsId
+	taskMsg.Detail.Img = img
+	taskMsg.Detail.SkuCode = skuCode
+	return taskMsg, nil
+}
+
+// 模板17
+func template17(taskMsg planAType.TaskBody) (planBTypeKfz.GoodsAdd17, error) {
 	var goodsAdd planBTypeKfz.GoodsAdd17
 
 	// *********************构建参数 开始******************************** //
@@ -1254,7 +1317,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
 	} else {
 		if taskMsg.Detail.Stock == 0 && golabl.Task.Header.TaskType == 8 {
-			return taskMsg, fmt.Errorf("库存不能为0")
+			return goodsAdd, fmt.Errorf("库存不能为0")
 		}
 	}
 	goodsAdd.Number = strconv.FormatInt(taskMsg.Detail.Stock, 10)
@@ -1272,9 +1335,9 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		// 无图片信息 isbn计次
 		setNoImgCountErr := service.SetNoImgCount(taskMsg.BookInfo.Isbn)
 		if setNoImgCountErr != nil {
-			return taskMsg, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error())
+			return goodsAdd, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error())
 		}
-		return taskMsg, fmt.Errorf("缺少轮播图")
+		return goodsAdd, fmt.Errorf("缺少轮播图")
 	}
 
 	// 将 轮播图不是 孔夫子图片空间的图片替换成孔夫子图片空间图片
@@ -1282,7 +1345,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		if !strings.Contains(v, "kfzimg.com") {
 			kfz, uploadImageToKfzErr := UploadImageToKfz(v)
 			if uploadImageToKfzErr != nil {
-				return taskMsg, uploadImageToKfzErr
+				return goodsAdd, uploadImageToKfzErr
 			}
 			// 添加到轮播图
 			taskMsg.BookInfo.ImageObject.CarouselUrlArray[k] = kfz
@@ -1293,7 +1356,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		if !strings.Contains(v, "kfzimg.com") {
 			kfz, uploadImageToKfzErr := UploadImageToKfz(v)
 			if uploadImageToKfzErr != nil {
-				return taskMsg, uploadImageToKfzErr
+				return goodsAdd, uploadImageToKfzErr
 			}
 			// 添加到轮播图
 			golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray[k] = kfz
@@ -1306,17 +1369,17 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		//获取水印图片
 		watermarkImgUrl, watermarkImgErr := tool.GetWatermarkImg()
 		if watermarkImgErr != nil {
-			return taskMsg, fmt.Errorf("获取水印图片失败 %v", watermarkImgErr)
+			return goodsAdd, fmt.Errorf("获取水印图片失败 %v", watermarkImgErr)
 		}
 		//打水印
 		watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(taskMsg.BookInfo.ImageObject.CarouselUrlArray, watermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
 		if watermarkFromURLExsErr != nil {
-			return taskMsg, fmt.Errorf("图片打水印失败 %v", watermarkFromURLExsErr)
+			return goodsAdd, fmt.Errorf("图片打水印失败 %v", watermarkFromURLExsErr)
 		}
 		//图片上传到孔夫子
 		toPdd, uploadImageToPddErr := tool.UploadImageToKfz(watermarkFromURLExsBase64Arr)
 		if uploadImageToPddErr != nil {
-			return taskMsg, fmt.Errorf("图片上传到拼多多失败 %v", uploadImageToPddErr)
+			return goodsAdd, fmt.Errorf("图片上传到拼多多失败 %v", uploadImageToPddErr)
 		}
 		//将上传的图片替换到商品轮播图中
 		for i := 0; i < len(toPdd); i++ {
@@ -1345,7 +1408,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	//将 golabl.Task.Header.ShopMsg.CostTemplateId 转为int
 	costTemplateId, atoiErr := strconv.Atoi(golabl.Task.Header.ShopMsg.CostTemplateId)
 	if atoiErr != nil {
-		return taskMsg, fmt.Errorf("运费模板编号转换错误 %v", atoiErr)
+		return goodsAdd, fmt.Errorf("运费模板编号转换错误 %v", atoiErr)
 	}
 	goodsAdd.MouldId = strconv.Itoa(costTemplateId)
 
@@ -1393,34 +1456,178 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	// 图书定价
 	goodsAdd.OriPrice = fmt.Sprintf("%v", float64(tool.BuildGoodsPrice(taskMsg.Detail.Price)/100))
 
-	url := "http://127.0.0.1:8095"
-	tool.HttpGetRequest(url)
+	return goodsAdd, nil
+}
 
-	// 构建商品编码
-	outGoodsId := ""
-	if taskMsg.Detail.OutGoodsId != "" {
-		outGoodsId = taskMsg.Detail.OutGoodsId
+// 模板 13
+func template13(taskMsg planAType.TaskBody) (planBTypeKfz.GoodsAdd13, error) {
+	var goodsAdd planBTypeKfz.GoodsAdd13
+
+	// *********************构建参数 开始******************************** //
+
+	//模板编号 默认 17
+	goodsAdd.Tpl = "17"
+
+	//分类编号
+	if value, exists := golabl.KfzGetCommonCategory[string(taskMsg.BookInfo.CatIdObject.KongFuZiCatId)]; exists {
+		goodsAdd.CatId = value
 	} else {
-		outGoodsId = taskMsg.BookInfo.Isbn
+		goodsAdd.CatId = "43000000000000000"
 	}
 
-	// 新增商品
-	goods, _, addGoodsErr := addGoods(logUuid, goodsAdd)
-	if addGoodsErr != nil {
-		// 如果错误信息包含 "该图书必须使用图书条目库上传"，则修改错误信息
-		if strings.Contains(addGoodsErr.Error(), "该图书必须使用图书条目库上传") {
-			addGoodsErr = fmt.Errorf("该图书可能涉及政治请手动上传")
+	//构建商品名称
+	goodsAdd.ItemName = tool.BuildGoodsName(
+		golabl.Task.Header.ShopMsg.GoodsNamePrefix, // 商品名称前缀
+		golabl.Task.Header.ShopMsg.GoodsNameSuffix, // 商品名称后缀
+		golabl.Task.Header.ShopMsg.TitleConsistOf,  // 标题组成
+		golabl.Task.Header.ShopMsg.SpaceCharacter,  // 间隔符
+		taskMsg.BookInfo) // 图书信息
+	taskMsg.Detail.GoodsName = goodsAdd.ItemName
+
+	//售价
+	goodsAdd.Price = tool.FenToYuan(taskMsg.Detail.Price)
+
+	//库存
+	if taskMsg.Detail.Stock == 0 && (golabl.Task.Header.TaskType == 1 || golabl.Task.Header.TaskType == 2 || golabl.Task.Header.TaskType == 6) {
+		//如果库存为0 则给默认库存
+		taskMsg.Detail.Stock = golabl.Task.Header.ShopMsg.DefStock
+	} else {
+		if taskMsg.Detail.Stock == 0 && golabl.Task.Header.TaskType == 8 {
+			return goodsAdd, fmt.Errorf("库存不能为0")
 		}
-		return taskMsg, fmt.Errorf("新增商品错误 %v", addGoodsErr)
+	}
+	goodsAdd.Number = strconv.FormatInt(taskMsg.Detail.Stock, 10)
+
+	//品相
+	goodsAdd.Quality = strconv.FormatInt(taskMsg.Detail.Condition, 10)
+	if goodsAdd.Quality == "" || goodsAdd.Quality == "0" {
+		goodsAdd.Quality = strconv.FormatInt(golabl.Task.Header.ShopMsg.ConditionDef, 10)
 	}
 
-	//判断错误
-	if goods.ErrorResponse != nil {
-		return taskMsg, fmt.Errorf("新增商品失败 %v", goods.ErrorResponse.SubMsg)
+	//货号
+	goodsAdd.ItemSn = taskMsg.Detail.SkuCode
+
+	if len(taskMsg.BookInfo.ImageObject.CarouselUrlArray) == 0 {
+		// 无图片信息 isbn计次
+		setNoImgCountErr := service.SetNoImgCount(taskMsg.BookInfo.Isbn)
+		if setNoImgCountErr != nil {
+			return goodsAdd, fmt.Errorf("无图片信息isbn计次错误 isbn %v %v", taskMsg.BookInfo.Isbn, setNoImgCountErr.Error())
+		}
+		return goodsAdd, fmt.Errorf("缺少轮播图")
 	}
-	taskMsg.Detail.GoodsId = goods.SuccessResponse.Item.ItemId
-	taskMsg.Detail.OutGoodsId = outGoodsId
-	taskMsg.Detail.Img = goodsAdd.ImgUrl
-	taskMsg.Detail.SkuCode = goodsAdd.ItemSn
-	return taskMsg, nil
+
+	// 将 轮播图不是 孔夫子图片空间的图片替换成孔夫子图片空间图片
+	for k, v := range taskMsg.BookInfo.ImageObject.CarouselUrlArray {
+		if !strings.Contains(v, "kfzimg.com") {
+			kfz, uploadImageToKfzErr := UploadImageToKfz(v)
+			if uploadImageToKfzErr != nil {
+				return goodsAdd, uploadImageToKfzErr
+			}
+			// 添加到轮播图
+			taskMsg.BookInfo.ImageObject.CarouselUrlArray[k] = kfz
+		}
+	}
+	//将 最后的图片不是 孔夫子图片空间的图片替换成孔夫子图片空间图片
+	for k, v := range golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray {
+		if !strings.Contains(v, "kfzimg.com") {
+			kfz, uploadImageToKfzErr := UploadImageToKfz(v)
+			if uploadImageToKfzErr != nil {
+				return goodsAdd, uploadImageToKfzErr
+			}
+			// 添加到轮播图
+			golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray[k] = kfz
+		}
+	}
+	//处理图片
+	oldCarouselUrlArray := append([]string{}, taskMsg.BookInfo.ImageObject.CarouselUrlArray...) //原始轮播图，用于后续处理，不会被打上水印
+	// 存在水印图片，则打水印
+	if golabl.Task.Header.ShopMsg.WatermarkImgUrl != "" {
+		//获取水印图片
+		watermarkImgUrl, watermarkImgErr := tool.GetWatermarkImg()
+		if watermarkImgErr != nil {
+			return goodsAdd, fmt.Errorf("获取水印图片失败 %v", watermarkImgErr)
+		}
+		//打水印
+		watermarkFromURLExsBase64Arr, watermarkFromURLExsErr := tool.AddWatermarkFromURLExs(taskMsg.BookInfo.ImageObject.CarouselUrlArray, watermarkImgUrl, golabl.Task.Header.ShopMsg.WatermarkPosition)
+		if watermarkFromURLExsErr != nil {
+			return goodsAdd, fmt.Errorf("图片打水印失败 %v", watermarkFromURLExsErr)
+		}
+		//图片上传到孔夫子
+		toPdd, uploadImageToPddErr := tool.UploadImageToKfz(watermarkFromURLExsBase64Arr)
+		if uploadImageToPddErr != nil {
+			return goodsAdd, fmt.Errorf("图片上传到拼多多失败 %v", uploadImageToPddErr)
+		}
+		//将上传的图片替换到商品轮播图中
+		for i := 0; i < len(toPdd); i++ {
+			taskMsg.BookInfo.ImageObject.CarouselUrlArray[i] = toPdd[i]
+		}
+	}
+
+	imgUrlArr := tool.BuildCarouselGallery(golabl.Task.Header.ShopMsg.CarouseLastImgUrlArray, oldCarouselUrlArray, taskMsg.BookInfo.ImageObject.CarouselUrlArray, golabl.Task.Header.ShopMsg.WatermarkPosition)
+
+	//商品主图
+	goodsAdd.ImgUrl = imgUrlArr[0]
+
+	//多个商品图片
+	goodsAdd.Images = strings.Join(imgUrlArr, ";")
+
+	//运费设置
+	bearShipping := "seller"
+	if golabl.Task.Header.ShopMsg.IsParcel == "0" {
+		bearShipping = "buyer"
+		// 设置运费模板编号
+		goodsAdd.MouldId = "1"
+	}
+	goodsAdd.BearShipping = bearShipping
+
+	//运费模板编号
+	//将 golabl.Task.Header.ShopMsg.CostTemplateId 转为int
+	costTemplateId, atoiErr := strconv.Atoi(golabl.Task.Header.ShopMsg.CostTemplateId)
+	if atoiErr != nil {
+		return goodsAdd, fmt.Errorf("运费模板编号转换错误 %v", atoiErr)
+	}
+	goodsAdd.MouldId = strconv.Itoa(costTemplateId)
+
+	//重量
+	goodsAdd.Weight = fmt.Sprintf("%v", float64(golabl.Task.Header.ShopMsg.BookWeight/100))
+
+	//商品标准本数
+	goodsAdd.WeightPiece = fmt.Sprintf("%v", float64(golabl.Task.Header.ShopMsg.StandardNumber/100))
+
+	// *********************构建模板参数 开始******************************** //
+
+	// 作者
+	if taskMsg.BookInfo.Author == "" {
+		taskMsg.BookInfo.Author = "佚名"
+	}
+	goodsAdd.Author = taskMsg.BookInfo.Author
+
+	// 出版社
+	if taskMsg.Publishing.Value == "" {
+		taskMsg.Publishing.Value = "2006-01"
+	}
+	goodsAdd.Press = taskMsg.Publishing.Value
+
+	// 出版社日期
+	goodsAdd.PubDate = taskMsg.BookInfo.PublicationDate
+
+	// 装帧
+	if taskMsg.BookInfo.Binding == "" {
+		taskMsg.BookInfo.Binding = "平装"
+	}
+	goodsAdd.Binding = taskMsg.BookInfo.Binding
+
+	// 开本
+	goodsAdd.PageSize = strconv.FormatInt(taskMsg.BookInfo.Format, 10)
+
+	// 页数
+	goodsAdd.PageNum = strconv.FormatInt(taskMsg.BookInfo.PagesCount, 10)
+
+	// 字数
+	goodsAdd.WordNum = fmt.Sprintf("%v", float64(taskMsg.BookInfo.WordsCount/1000))
+
+	// 图书定价
+	goodsAdd.OriPrice = fmt.Sprintf("%v", float64(tool.BuildGoodsPrice(taskMsg.Detail.Price)/100))
+
+	return goodsAdd, nil
 }

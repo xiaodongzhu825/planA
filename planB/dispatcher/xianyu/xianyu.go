@@ -12,6 +12,7 @@ import (
 	planBTypeXianyu "planA/planB/type/xianyu"
 	planAType "planA/type"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -195,7 +196,7 @@ func (xianYu *XianYu) OperationGoodsTask(taskMsg planAType.TaskBody) (string, er
 	}
 }
 
-// IncStockTask 增量库存
+// IncStockTask 增量库存b
 // @param taskMsg 任务内容
 // @return string body 信息
 // @return string error 错误
@@ -1275,7 +1276,18 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 		spBizType = 99                                          //其他
 		goodsAdd.CatIds = golabl.Task.Header.ShopMsg.CategoryId //根据用户选择
 	}
+	isbn := taskMsg.BookInfo.Isbn
+	// 如果isbn是678开头的
+	if strings.HasPrefix(taskMsg.BookInfo.Isbn, "678") {
+		//如果类目ID为空，则使用默认类目ID（其他闲置）
+		goodsAdd.CatIds = "86cddebb2de0815c267e0a01017d9f44"
+		spBizType = 99 //（其他）
+		isbn = ""
+	}
 
+	fmt.Println("一级类目:", spBizType)
+	fmt.Println("二级类目:", goodsAdd.CatIds)
+	fmt.Println("isbn:", isbn)
 	//if goodsAdd.CatIds == "" {
 	//	//如果类目ID为空，则使用默认类目ID（文学，小说）
 	//	goodsAdd.CatIds = "c3c6e8d1d63c0618b108d382c4e6ea42"
@@ -1401,7 +1413,7 @@ func publishGoods(logUuid string, taskMsg planAType.TaskBody) (planAType.TaskBod
 	// 图书类商品信息
 	goodsAdd.BookData = []planBTypeXianyu.BookInfo{
 		{
-			ISBN:        taskMsg.BookInfo.Isbn,
+			ISBN:        isbn,
 			Title:       title,
 			Author:      taskMsg.BookInfo.Author,
 			Publisher:   taskMsg.Publishing.Value,

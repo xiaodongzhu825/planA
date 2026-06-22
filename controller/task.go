@@ -727,7 +727,7 @@ func DelTask(httpMsg http.ResponseWriter, data *http.Request) {
 		// 删除 sqlite中TaskRecords指定数据
 		sqLiteDeleteTaskRecordsByTaskIDErr := sqliteWrite.DeleteTaskRecordsByTaskId(dataVal.TaskID)
 		if sqLiteDeleteTaskRecordsByTaskIDErr != nil {
-			errMsg := "删除任务失败: " + delTaskErr.Error()
+			errMsg := "删除任务失败: " + sqLiteDeleteTaskRecordsByTaskIDErr.Error()
 			logs.LoggingMiddleware(logs.LOG_LEVEL_ERROR, errMsg)
 			return
 		}
@@ -1347,10 +1347,14 @@ func AddTask(taskId string, bodyData []string, header _type.TaskHeader) int {
 			// 连接DB[b] 获取书品信息,#操作商品的isbn13个0则不查询isbn
 			if !(header.TaskType == 5 && taskBody.BookInfo.Isbn == "0000000000000") {
 				//判断isbn是否包含- 或者前三个是678开头的13位数字
-				if strings.Contains(taskBody.BookInfo.Isbn, "-") || strings.HasPrefix(taskBody.BookInfo.Isbn, "678") {
+				if (strings.Contains(taskBody.BookInfo.Isbn, "-") || strings.HasPrefix(taskBody.BookInfo.Isbn, "678")) && header.TaskType == 7 {
 					//截取 - 之前的字符串
-					isbn := strings.Split(taskBody.BookInfo.Isbn, "-")[0]
-					fisbn := strings.Split(taskBody.BookInfo.Isbn, "-")[1]
+					isbn := taskBody.BookInfo.Isbn
+					fisbn := "0"
+					if strings.Contains(taskBody.BookInfo.Isbn, "-") {
+						isbn = strings.Split(taskBody.BookInfo.Isbn, "-")[0]
+						fisbn = strings.Split(taskBody.BookInfo.Isbn, "-")[1]
+					}
 					psiBookInfo, GetBookInfoErr := psiMysqlService.GetBookInfo(isbn, fisbn)
 					if GetBookInfoErr != nil {
 						if errors.Is(GetBookInfoErr, _redis.Nil) {
@@ -1372,7 +1376,6 @@ func AddTask(taskId string, bodyData []string, header _type.TaskHeader) int {
 						fmt.Printf("获取BookInfo失败-原因: %v\n", unmarshalErr)
 						continue
 					}
-
 					bookInfo = _type.BookInfo{
 						Isbn:            psiBookInfo.ISBN,
 						BookName:        psiBookInfo.BookName,
@@ -1402,6 +1405,14 @@ func AddTask(taskId string, bodyData []string, header _type.TaskHeader) int {
 							fmt.Printf("获取BookInfo失败-原因: %v\n", GetTaskBookErr)
 							continue
 						}
+					}
+				}
+
+				//如果是增量库存，则使用增量库存传递过来的图书名称
+				if header.TaskType == 7 {
+					bookName := taskBody.BookInfo.BookName
+					if bookName != "" {
+						bookInfo.BookName = bookName
 					}
 				}
 			}

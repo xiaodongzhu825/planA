@@ -49,6 +49,24 @@ type GoodsAdd17 struct {
 	Directory        string      `json:"directory,omitempty"`        // 目录，长度限制5000字符，可选
 }
 
+// GoodsAdd13 商品添加结构体（分类13专用）
+type GoodsAdd13 struct {
+	GoodsAdd
+	Author       string      `json:"author"`                 // 作者，长度限制120字符，必须
+	Press        string      `json:"press"`                  // 出版社，长度限制120字符，必须
+	PubDate      string      `json:"pubDate"`                // 出版日期，格式：yyyy-mm，必须
+	Edition      string      `json:"edition,omitempty"`      // 版次，取值范围：1～9999，可选
+	PrintingTime string      `json:"printingTime,omitempty"` // 印刷时间，格式：yyyy-mm，填写printTimes时必填，不能早于出版时间，可选
+	PrintTimes   string      `json:"printTimes,omitempty"`   // 印次，取值范围：1～9999，可选
+	PrintingNum  string      `json:"printingNum,omitempty"`  // 印数，单位:千册，取值范围：0.001～99999.999，可选
+	Binding      interface{} `json:"binding"`                // 装帧，可以是编号(int)或文字(string)，必须
+	PageSize     string      `json:"pageSize,omitempty"`     // 开本，可自己填写，可选
+	Paper        interface{} `json:"paper,omitempty"`        // 纸张，可以是编号(int)或文字(string)，可选
+	PageNum      string      `json:"pageNum,omitempty"`      // 页数，取值范围：1～99999，可选
+	WordNum      string      `json:"wordNum,omitempty"`      // 字数，单位:千字，取值范围：0～99999.999，可选
+	OriPrice     string      `json:"oriPrice,omitempty"`     // 图书定价，取值范围：0.01～99999999.99，可选
+}
+
 // UploadImgRet 图片上传返回结构体
 type UploadImgRet struct {
 	ErrorResponse   *ErrorResponse               `json:"errorResponse"`

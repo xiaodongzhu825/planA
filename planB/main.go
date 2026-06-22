@@ -27,7 +27,7 @@ func main() {
 
 	// 是否测试模式
 	if taskId == "111" {
-		test()
+		//test()
 		return
 	}
 
